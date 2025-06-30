@@ -1,0 +1,21 @@
+[Unit]
+Description=Qdrant Background Indexer for KinDash
+After=network.target qdrant.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/tony/GitHub/KinDash-Main
+Environment="OPENAI_API_KEY=%h/.config/openai/api_key"
+Environment="QDRANT_URL=http://localhost:6333"
+Environment="COLLECTION_NAME=familymanager-codebase-openai"
+Environment="NODE_ENV=production"
+ExecStart=/usr/bin/node /home/tony/GitHub/KinDash-Main/scripts/qdrant-background-indexer.cjs
+ExecStop=/usr/bin/node /home/tony/GitHub/KinDash-Main/scripts/qdrant-indexer-control.cjs stop
+Restart=on-failure
+RestartSec=10
+User=tony
+StandardOutput=append:/home/tony/GitHub/KinDash-Main/.qdrant-indexer.log
+StandardError=append:/home/tony/GitHub/KinDash-Main/.qdrant-indexer.log
+
+[Install]
+WantedBy=multi-user.target

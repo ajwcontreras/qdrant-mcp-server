@@ -1,0 +1,67 @@
+{
+  "name": "@kindash/qdrant-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for semantic code search using Qdrant vector database and OpenAI embeddings",
+  "main": "src/qdrant-indexer-control.cjs",
+  "type": "commonjs",
+  "bin": {
+    "qdrant-mcp": "./src/mcp-qdrant-openai-wrapper.py",
+    "qdrant-indexer": "./src/qdrant-openai-indexer.py",
+    "qdrant-control": "./src/qdrant-indexer-control.cjs"
+  },
+  "scripts": {
+    "start": "node src/qdrant-indexer-control.cjs start",
+    "stop": "node src/qdrant-indexer-control.cjs stop",
+    "status": "node src/qdrant-indexer-control.cjs status",
+    "index": "python3 src/qdrant-openai-indexer.py",
+    "test": "jest",
+    "lint": "eslint src/**/*.js",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "qdrant",
+    "vector-search",
+    "semantic-search",
+    "code-search",
+    "openai",
+    "embeddings",
+    "claude",
+    "ai"
+  ],
+  "author": "KinDash Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kindash/qdrant-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kindash/qdrant-mcp-server/issues"
+  },
+  "homepage": "https://github.com/kindash/qdrant-mcp-server#readme",
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "dotenv": "^16.3.1",
+    "glob": "^10.3.10",
+    "ignore": "^5.3.0",
+    "minimist": "^1.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.1.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "python": ">=3.8"
+  },
+  "files": [
+    "src/",
+    "docs/",
+    "examples/",
+    "README.md",
+    "LICENSE"
+  ]
+}
