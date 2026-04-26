@@ -1,0 +1,52 @@
+[
+  {
+    "id": "cfpubsub-gateway-publish-auth-ingest",
+    "query": "Where does the gateway route POST /v1/publish check broker authorization, parse publish headers, read the payload ArrayBuffer, ingest into the topic ledger, and return 200 for duplicates or 202 for new events?",
+    "relevant": [
+      {"file": "packages/core/src/internal/gateway.ts", "start_line": 92, "end_line": 109, "grade": 3}
+    ]
+  },
+  {
+    "id": "cfpubsub-topic-ledger-idempotency-hot-store",
+    "query": "Where does TopicLedgerDO persist hot events with idempotency_key uniqueness, return an existing event on duplicate idempotency keys, and support both SQL and KV fallback hot stores?",
+    "relevant": [
+      {"file": "packages/core/src/internal/engine.ts", "start_line": 257, "end_line": 305, "grade": 3},
+      {"file": "packages/core/src/internal/engine.ts", "start_line": 589, "end_line": 647, "grade": 2}
+    ]
+  },
+  {
+    "id": "cfpubsub-background-persist-fanout-sweep",
+    "query": "Where does the background persist and fan-out task flush the event to D1, load matching subscribers, schedule sweep when no subscribers exist, fan out to shards, and keep hot storage when every delivery fails?",
+    "relevant": [
+      {"file": "packages/core/src/internal/engine.ts", "start_line": 313, "end_line": 370, "grade": 3}
+    ]
+  },
+  {
+    "id": "cfpubsub-delivery-shard-realtime-allsettled",
+    "query": "Where does DeliveryShardDO fan out targets with Promise.allSettled, special-case realtime delivery through REALTIME_DO /receive-batch, and count rejected targets as dead letters?",
+    "relevant": [
+      {"file": "packages/core/src/internal/engine.ts", "start_line": 130, "end_line": 179, "grade": 3}
+    ]
+  },
+  {
+    "id": "cfpubsub-realtime-accept-hibernation-limits",
+    "query": "Where does RealtimeDO accept a WebSocket, reject entity subscriptions missing subjectId, enforce memory and connection limits, serialize attachment for hibernation, persist/register before adding to the connection map, and accept the socket?",
+    "relevant": [
+      {"file": "packages/core/src/internal/realtime-do.ts", "start_line": 173, "end_line": 258, "grade": 3}
+    ]
+  },
+  {
+    "id": "cfpubsub-subscriber-matching-union-filters",
+    "query": "Where does loadMatchingSubscribers query worker registrations, external service bindings, webhooks, and realtime subscriptions with topic/event/subject filters, apply header subset matching, and dedupe realtime subscriptions by subscription_id?",
+    "relevant": [
+      {"file": "packages/core/src/internal/repository-subscribers.ts", "start_line": 218, "end_line": 380, "grade": 3}
+    ]
+  },
+  {
+    "id": "cfpubsub-deploy-service-binding-order",
+    "query": "Where does the deploy command apply remote migrations, deploy pre/post processors, deploy engine and gateway, then deploy claimed subscribers, rewrite service bindings, redeploy broker pieces, and detect service binding deploy order failures?",
+    "relevant": [
+      {"file": "packages/cli/src/commands-runtime.ts", "start_line": 169, "end_line": 255, "grade": 3}
+    ]
+  }
+]

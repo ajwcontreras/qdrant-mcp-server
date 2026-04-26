@@ -7,13 +7,15 @@
   "bin": {
     "qdrant-mcp": "./src/mcp-qdrant-openai-wrapper.py",
     "qdrant-indexer": "./src/qdrant-openai-indexer.py",
-    "qdrant-control": "./src/qdrant-indexer-control.cjs"
+    "qdrant-control": "./src/qdrant-indexer-control.cjs",
+    "qdrant-project": "./scripts/qdrant-project.cjs"
   },
   "scripts": {
     "start": "node src/qdrant-indexer-control.cjs start",
     "stop": "node src/qdrant-indexer-control.cjs stop",
     "status": "node src/qdrant-indexer-control.cjs status",
     "index": "python3 src/qdrant-openai-indexer.py",
+    "project": "node scripts/qdrant-project.cjs",
     "test": "jest",
     "lint": "eslint src/**/*.js",
     "format": "prettier --write ."

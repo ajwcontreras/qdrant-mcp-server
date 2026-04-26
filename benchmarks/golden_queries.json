@@ -1,0 +1,23 @@
+[
+  {
+    "id": "openai-client-gateway",
+    "query": "Where is the OpenAI client configured with Cloudflare AI Gateway base_url and HTTP/2?",
+    "relevant": [
+      {"file": "query_openai.py", "start_line": 550, "end_line": 640, "grade": 3}
+    ]
+  },
+  {
+    "id": "qdrant-line-metadata",
+    "query": "Where does the Qdrant indexer store start_line end_line and line_range metadata for chunks?",
+    "relevant": [
+      {"file": "src/qdrant-openai-indexer.py", "grade": 3}
+    ]
+  },
+  {
+    "id": "mcp-search-line-return",
+    "query": "Where does the MCP search result return file start_line end_line and line_range at top level?",
+    "relevant": [
+      {"file": "src/mcp-qdrant-openai-wrapper.py", "grade": 3}
+    ]
+  }
+]

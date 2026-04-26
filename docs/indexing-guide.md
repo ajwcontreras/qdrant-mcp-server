@@ -4,6 +4,19 @@ This directory contains utility scripts for indexing the KinDash codebase into Q
 
 ## Scripts Overview
 
+## Recommended Setup Pass
+
+Before a first full index, do a quick repository tree audit and identify files that are useful for agents versus files that are merely build output, vendored libraries, lockfiles, generated CSS, source maps, or minified bundles. The index should optimize for source-grounded retrieval, not byte coverage.
+
+The Python indexer applies these guardrails by default:
+
+- skips obvious dependency/build directories such as `node_modules`, `.git`, `dist`, `build`, `coverage`, `.next`, and `vendor`;
+- skips lockfiles, source maps, minified assets, logs, and known generated Tailwind CSS outputs;
+- skips very large files and generated one-line `.css`, `.js`, `.json`, or `.xml` assets;
+- hard-splits any remaining overlong single line so a file cannot create a huge 100KB+ chunk.
+
+If a project has domain-specific generated files, add them to the exclusion rules before running an expensive embedding or HyDE pass.
+
 ### 1. `index-codebase-qdrant.cjs`
 **Main indexing utility** - Comprehensive script for scanning and indexing all project files.
 

@@ -1,0 +1,4102 @@
+{
+  "query_count": 240,
+  "limit": 10,
+  "variants": {
+    "ai_search_bare": {
+      "recall_at_5": 0.8166666666666667,
+      "recall_at_10": 0.8583333333333333,
+      "mrr": 0.6595006613756613,
+      "ndcg_at_10": 0.6640247249084612,
+      "p95_latency_ms": 644.6892500389367
+    },
+    "ai_search_hyde": {
+      "recall_at_5": 0.8625,
+      "recall_at_10": 0.9,
+      "mrr": 0.7252810846560848,
+      "ndcg_at_10": 0.7371232732643915,
+      "p95_latency_ms": 989.2852080520242
+    }
+  },
+  "per_query": [
+    {
+      "id": "lumae-7c8fb1b1a798",
+      "query": "How to get the current user ID in the chat tools module?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      }
+    },
+    {
+      "id": "lumae-48e7f7fcd458",
+      "query": "What is the purpose of the `_dispatch_chat_document_scan_job` function?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-ac88a53dde75",
+      "query": "How are blog post images resolved for different themes?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-f594602aeb77",
+      "query": "How are QAT parameters structured and what fields do they contain?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-7ecd079c019b",
+      "query": "What is the purpose of the QATParameter class in qat_models?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-e0831a2018ed",
+      "query": "Find the definition of QATPurchaseData model.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-f1867ca03d54",
+      "query": "How does the _normalize_portal_document_type function handle aliases?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.125,
+        "ndcg_at_10": 0.10642269850451405
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.36746270439439016
+      }
+    },
+    {
+      "id": "lumae-e11bee0cab8f",
+      "query": "Show me the code for normalizing document types in the upload portal.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-791f278c80f5",
+      "query": "How to get the default fee schedule in QAT?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-04b6f0e05f0f",
+      "query": "Find the route for getting default fee schedules.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-8eaa5e3fcfde",
+      "query": "How are QAT comparison analyses shared and secured?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.9197207891481876
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.9197207891481876
+      }
+    },
+    {
+      "id": "lumae-37220783f719",
+      "query": "What is the purpose of the _ensure_share_credentials function?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-0eb2bd879b23",
+      "query": "Show me the OpenAI error types that can be raised.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-08ea5ef8e929",
+      "query": "How to build a web search tool configuration in query_openai.py?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-03a033791eda",
+      "query": "What is the structure of a refinance borrower set in agent tests?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-664871e43e5e",
+      "query": "How are Gunicorn workers and threads configured?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.6131471927654584
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.6131471927654584
+      }
+    },
+    {
+      "id": "lumae-f9892d9d2960",
+      "query": "How to handle missing context_type in chat_history_entries for older deployments?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.16666666666666666,
+        "ndcg_at_10": 0.3562071871080222
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-adc762508f1a",
+      "query": "What is the default trial prompt limit and how is it configured?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-02b86618ddfb",
+      "query": "How to generate an unsubscribe token for users?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-8b6b5df0333d",
+      "query": "What are the prerequisites for using Redis for rate limiting?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-bc01724516dc",
+      "query": "How to save file analysis metadata to storage?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-b58cfebe0470",
+      "query": "Upload original file only from a stream",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-66247c0d7e41",
+      "query": "How to handle Azure Blob Storage URL configuration for file analysis?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.16666666666666666,
+        "ndcg_at_10": 0.3562071871080222
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-a37691a8e1c1",
+      "query": "What is the purpose of _ensure_chat_history_context_type function?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714574
+      }
+    },
+    {
+      "id": "lumae-3c582e3a67ff",
+      "query": "How to get the current user ID in the signup process?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714574
+      }
+    },
+    {
+      "id": "lumae-96db2ac78ee6",
+      "query": "How to build details for file analysis async stages?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      }
+    },
+    {
+      "id": "lumae-87ae6a8f0476",
+      "query": "How to read boolean environment variables safely?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-2f1a03b9c399",
+      "query": "What is the default admin tool timeout?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-c58e619c2884",
+      "query": "How to store chat uploaded files when only the original is needed?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      }
+    },
+    {
+      "id": "lumae-914db7969eec",
+      "query": "What is the purpose of the _build_storage_options function in extensions?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-e3caeb2a9ffc",
+      "query": "How to kill processes listening on a specific port in the local browser script?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.541942129480027
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8838695436828513
+      }
+    },
+    {
+      "id": "lumae-115b83595d6c",
+      "query": "Parse 1003 XML for loan originator name",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-80bb77a162a9",
+      "query": "Grant admin access to a user with a specific role",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.3935773014954859
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.9324441894571632
+      }
+    },
+    {
+      "id": "lumae-04da8c7661bb",
+      "query": "Send beta invites with access codes",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-7b388e23c358",
+      "query": "Celery worker configuration for document processing",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8935773014954859
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.9073218002554915
+      }
+    },
+    {
+      "id": "lumae-a8a79805d81c",
+      "query": "What are the available Celery queues?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.43067655807339306
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-8c8f944e8f2f",
+      "query": "How to configure Celery beat schedule?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-47e2369980c9",
+      "query": "Find the User model",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.3065735963827292
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.3065735963827292
+      }
+    },
+    {
+      "id": "lumae-276d3082a47c",
+      "query": "How to parse MISMO 1003 XML for refinance details?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.43067655807339306
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-c9758b005caf",
+      "query": "Check if a user has experimental features enabled",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.43067655807339306
+      }
+    },
+    {
+      "id": "lumae-f075d32a28bb",
+      "query": "How to get listening PIDs for a port?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-b69191af1eb9",
+      "query": "What tasks are included in the generic Celery worker?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-9d63b9416c9c",
+      "query": "How to kill a process by PID?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-411a73743849",
+      "query": "What is the purpose of `backend.core.celery.__init__.py`?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-5111be01d80b",
+      "query": "How is the Redis URL constructed from environment variables?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-27e4fe358a50",
+      "query": "What are the settings for handling long documents during chat uploads?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5437713091520254
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8772153153380492
+      }
+    },
+    {
+      "id": "lumae-237380988741",
+      "query": "What is the purpose of the `_resolve_file_message` function?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.43067655807339306
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-7db2d56465e2",
+      "query": "How are database models aliased from legacy models?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.5045411175298192
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.7116179486056783
+      }
+    },
+    {
+      "id": "lumae-fa95a14d7cbf",
+      "query": "What is the purpose of `build_failure_signatures`?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.125,
+        "ndcg_at_10": 0.31546487678572877
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      }
+    },
+    {
+      "id": "lumae-5c98cbfe12f4",
+      "query": "How to calculate category pass rates from run data?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.14285714285714285,
+        "ndcg_at_10": 0.33333333333333337
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.43067655807339306
+      }
+    },
+    {
+      "id": "lumae-4ac84304389e",
+      "query": "What are the heuristic fix proposals based on failure signatures?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-834c52b31167",
+      "query": "How does the auth service handle database errors during OAuth user processing?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-d4fc26663432",
+      "query": "What is the purpose of the BETA_PRO_EXPIRY constant?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-f1139ced2c8b",
+      "query": "How are beta access codes validated and removed from the file?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-316136c041fc",
+      "query": "What events are considered part of the income calculator tool suite?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-0e3406608db0",
+      "query": "How to safely load beta tester emails from a CSV file?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      }
+    },
+    {
+      "id": "lumae-1bc9571cc85a",
+      "query": "What are the default steps in an e-signature audit trail?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-f993ece589dc",
+      "query": "How to clean and validate a string map for e-signature data?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-4478b4be1635",
+      "query": "What is the purpose of the advisory lock key in FRED scheduler config?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-71047f137485",
+      "query": "How does the FRED scheduler handle timezone configuration?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-b94366782dd4",
+      "query": "What are the constraints on FRED scheduler poll seconds?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-354b7f2c6670",
+      "query": "How to record LLM usage events with success/error details?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-36503e7f5277",
+      "query": "What surfaces are allowed for LLM usage telemetry?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-66072723ad1b",
+      "query": "How to generate WebAuthn registration options for a user?",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-099b43c1d937",
+      "query": "What are the required configurations for WebAuthn?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-4f954092bcaa",
+      "query": "How are security email notification settings managed and cached?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6653152460429406
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6653152460429406
+      }
+    },
+    {
+      "id": "lumae-b7bc85aa9053",
+      "query": "How are security metrics like login success and failures aggregated over time?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-0fced92cc890",
+      "query": "What is the purpose of the _ensure_utc function in security_metrics.py?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-310a90172a4c",
+      "query": "How to resolve the wwwroot path for model configuration?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-4a13208ab12d",
+      "query": "How to configure market data settings for rate change refresh?",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6271448173568673
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5388668879616774
+      }
+    },
+    {
+      "id": "lumae-6072a3b0277a",
+      "query": "How does Alembic handle schema changes in online mode?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-f4f7d4dcbc87",
+      "query": "What is the purpose of the `_ensure_list` function in email delegation?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-26972ea5f5ad",
+      "query": "How are pipeline agentic analyzer settings configured and where are defaults loaded from?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-a6c67d1d56a7",
+      "query": "How is the LOE status updated in pipeline chat metadata?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-1d4d0493cb2b",
+      "query": "What are the Pydantic models for document judging, specifically the status literals?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-7ecea7d81a02",
+      "query": "How to create a schema for a nullable string with an enum in manifest docs?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-db215b69b708",
+      "query": "Debugging: Why is the LOE share token not being accessed correctly?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.5912352048230277
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.125,
+        "ndcg_at_10": 0.1934264036172708
+      }
+    },
+    {
+      "id": "lumae-a16bfef81c34",
+      "query": "How to compute fee totals based on loan amount and point percentage?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-5aadb43290f8",
+      "query": "Find the Pydantic model for e-signature audit events.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-57c6a529f709",
+      "query": "How are document types normalized for pipeline needs, including aliases?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.1111111111111111,
+        "ndcg_at_10": 0.18457569677956817
+      }
+    },
+    {
+      "id": "lumae-95efb7e4c433",
+      "query": "What are the configuration options for the Agentic Analyzer, like max loops and tool calls?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.23719771276929622
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.57064171895532
+      }
+    },
+    {
+      "id": "lumae-81e10381b4d2",
+      "query": "Show me the Pydantic model for a single fee item, including its paid_by options.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8503449055347546
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8503449055347546
+      }
+    },
+    {
+      "id": "lumae-c664b388fd5f",
+      "query": "How does the system handle rate limiting for the plans blueprint?",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-4ce527346a7b",
+      "query": "What are the different types of document judge statuses available?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-7aaa4a22c57f",
+      "query": "Find the schema definition for a string array in manifest documents.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-9391ef922603",
+      "query": "How to load JSON data from a file path?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-3d2d369b6244",
+      "query": "Find function to normalize category strings",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.2960819109658653
+      }
+    },
+    {
+      "id": "lumae-b01771d5d0cf",
+      "query": "How to get the repository root directory?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.3026024134988135
+      }
+    },
+    {
+      "id": "lumae-66dd18c8d4d8",
+      "query": "What is the purpose of `_resolve_single_borrower_key`?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-b0b2e5465c31",
+      "query": "How are duplicate borrower groups detected?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.3065735963827292
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.38685280723454163
+      }
+    },
+    {
+      "id": "lumae-48ab2472c504",
+      "query": "Find the function that builds the markdown report",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-8959d524ccd7",
+      "query": "How to parse CSV data from a string?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-df259df85fc8",
+      "query": "What does `_extract_incumbent_strategy` do?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-3fa86918bb02",
+      "query": "How to discover test fixtures based on category?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.370291336443826
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8854598815714875
+      }
+    },
+    {
+      "id": "lumae-e36cdf74b527",
+      "query": "What are the default fixtures used in the deduplication script?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-cb5071cfa3e3",
+      "query": "How to write JSON data to a file?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-9ab8d30fcd6a",
+      "query": "Debugging: How to handle proxy environment variables for OpenAI calls?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-7ed10cd22e5e",
+      "query": "How does the system handle Chargebee subscription activation events?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.4932355239595741
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.606422698504514
+      }
+    },
+    {
+      "id": "lumae-7972276ed075",
+      "query": "How is a trusted device token hashed for security?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-5cfd8d7eefd0",
+      "query": "What is the default cookie name for trusted devices?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-7ff4fa9ab994",
+      "query": "How are usage events parsed from a payload, and which ones are allowed?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8339912323981488
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8339912323981488
+      }
+    },
+    {
+      "id": "lumae-7d21bd5b4923",
+      "query": "What are the allowed event names for usage tracking?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-5514dae07611",
+      "query": "How is performance telemetry for the dashboard collected and sent?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.3373519727104165
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.3373519727104165
+      }
+    },
+    {
+      "id": "lumae-8af0800d24dc",
+      "query": "What is the purpose of the fileanalysis_async_bridge.js script?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-fa5d6a0b387c",
+      "query": "How does the create_org_stepper handle navigation between steps?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8339912323981488
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8339912323981488
+      }
+    },
+    {
+      "id": "lumae-908cdb82fe57",
+      "query": "What is the logic for determining if a file analysis is in a terminal state?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-69aafd1bc326",
+      "query": "How are beta invites loaded from a CSV file, and what data is extracted?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.43067655807339306
+      }
+    },
+    {
+      "id": "lumae-9f391fc8f365",
+      "query": "What is the function of the _load_hmac_key_bytes helper in trusted_devices.py?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-278aec9c66f9",
+      "query": "How to parse command line arguments for the streaming load harness script?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-b0d6fca35a85",
+      "query": "Find the function that extracts CSRF tokens from HTML.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-410811f5cfc2",
+      "query": "What are the different test scopes defined in run_scoped_pytest.py?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-1a15df92c376",
+      "query": "How to run tests specifically for the 'income' scope?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-c52e32b2f61d",
+      "query": "How does the upload_drop_server handle incoming requests?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-441e42fa250a",
+      "query": "Find the function to parse command line arguments in upload_fetch_benchmark.mjs.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-3d2d218a9504",
+      "query": "How to calculate percentiles in the fetch benchmark script?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-a03ce4cb3ecb",
+      "query": "What is the project root directory defined in scripts?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-2e0f28f4ba8b",
+      "query": "how to normalize loan types like FHA or VA",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.23719771276929622
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8175295903539446
+      }
+    },
+    {
+      "id": "lumae-3fd264c68c5d",
+      "query": "calculate monthly income from weekly pay",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-f989c72d7423",
+      "query": "how is qualifying monthly income calculated for child support",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.38685280723454163
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.4486438193521591
+      }
+    },
+    {
+      "id": "lumae-81f9758b483a",
+      "query": "what is the gross up factor for FHA loans",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-6f4057db59c0",
+      "query": "how to handle different rental income calculation methods",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6934264036172708
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.5012658353418871
+      }
+    },
+    {
+      "id": "lumae-c0c7ebebed5a",
+      "query": "calculate lease cash flow considering transition status",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6934264036172708
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.57064171895532
+      }
+    },
+    {
+      "id": "lumae-410e2de3a379",
+      "query": "how to round currency values to two decimal places",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.24425847927021385
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.4412576003965277
+      }
+    },
+    {
+      "id": "lumae-6992a3d71395",
+      "query": "how to normalize pay periods like bi-weekly",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-167fa018540b",
+      "query": "what is the purpose of modal_autosave.js",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-2fae3820faca",
+      "query": "debug autosave not sending messages",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.1111111111111111,
+        "ndcg_at_10": 0.1845756967795682
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.6131471927654584
+      }
+    },
+    {
+      "id": "lumae-242e413354d7",
+      "query": "commit changes to loan file",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.6131471927654584
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.38685280723454163
+      }
+    },
+    {
+      "id": "lumae-39b1a67af5f2",
+      "query": "how to calculate Schedule E monthly income",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.2640681225725909
+      }
+    },
+    {
+      "id": "lumae-e4d46d811719",
+      "query": "what are the different SSI benefit types",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.3065735963827292
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.16666666666666666,
+        "ndcg_at_10": 0.411833840435435
+      }
+    },
+    {
+      "id": "lumae-df50de964390",
+      "query": "What is the schema for the materialized state?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6090899172578711
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.9324441894571632
+      }
+    },
+    {
+      "id": "lumae-3c97481a1be8",
+      "query": "Standalone mode autosave logic",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.95583058934618
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.95583058934618
+      }
+    },
+    {
+      "id": "lumae-2a3a41700c36",
+      "query": "What is the structure of a StreamResult object?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-5b4f473248e0",
+      "query": "How to recompute employer income data using wageCalcMath?",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.14285714285714285,
+        "ndcg_at_10": 0.33333333333333337
+      }
+    },
+    {
+      "id": "lumae-f91be7676606",
+      "query": "What is the purpose of the AuthChallenge model?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.16867598635520825
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.46116502685289423
+      }
+    },
+    {
+      "id": "lumae-9889304a7b84",
+      "query": "How is the step-up email verification link generated?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      }
+    },
+    {
+      "id": "lumae-a178f8566ac2",
+      "query": "Find the function to compute authentication event hashes.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-db12b4616d18",
+      "query": "What are the different authentication risk signals?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-664a3c5b3544",
+      "query": "How does the auth policy decide whether to allow, step-up, or block a login?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-07a122b12f40",
+      "query": "How to normalize income fields for scoring?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.43067655807339306
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-655247492000",
+      "query": "Find the function that extracts the artifact directory from output text.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.16666666666666666,
+        "ndcg_at_10": 0.3562071871080222
+      }
+    },
+    {
+      "id": "lumae-eb50d8043223",
+      "query": "What are the default fixture roots used in the agentic test suite?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-3e93cbfc378c",
+      "query": "Check trace invariants with tolerance",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.6131471927654584
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.6131471927654584
+      }
+    },
+    {
+      "id": "lumae-cc2d858c5017",
+      "query": "How to build the borrower needs guideline matrix?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-2af6b8a1fb2b",
+      "query": "Inspect FAISS indexes for guidelines",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.14285714285714285,
+        "ndcg_at_10": 0.20438239758848614
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.23719771276929622
+      }
+    },
+    {
+      "id": "lumae-ef565fab152c",
+      "query": "How to handle Windows path for shell scripts?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-90b9a5656a45",
+      "query": "Migrate legacy pipeline clients to ChatHistoryEntry",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-7ee4ec3effac",
+      "query": "What is the purpose of normalize_compact function?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.43067655807339306
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-c66d596d792e",
+      "query": "How to get the next fixture ID from seed JSON?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      }
+    },
+    {
+      "id": "lumae-deb282516c4d",
+      "query": "Find the function to load JSON files.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-90b95fc43e16",
+      "query": "What are the different types of income fields normalized?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.16666666666666666,
+        "ndcg_at_10": 0.3562071871080222
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-1664bee3f9e6",
+      "query": "How to run a single agentic test harness cycle?",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      }
+    },
+    {
+      "id": "lumae-6d734c0e28a2",
+      "query": "Function to normalize monthly income from payload",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-27da2ff9ad83",
+      "query": "How to handle localStorage quota exceeded error in standalone mode?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-447438749cb6",
+      "query": "Asset depletion calculation formula",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.38685280723454163
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-5693944994f1",
+      "query": "Child Support / Alimony calculation rules",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8846711923905052
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6653152460429406
+      }
+    },
+    {
+      "id": "lumae-389757b905f0",
+      "query": "How to calculate qualifying income for boarder income?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-f746116999df",
+      "query": "Housing allowance eligibility criteria",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-7058a6d6382c",
+      "query": "Integration with pipeline API for workspace data",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.95583058934618
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.95583058934618
+      }
+    },
+    {
+      "id": "lumae-e02a52488ad5",
+      "query": "What is the structure of the state object?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-e3bf2a4ce4e8",
+      "query": "How to apply guideline to a payload?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-4431c69a570b",
+      "query": "How do I normalize guideline labels like FHA or VA?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-2544c94b96f9",
+      "query": "Show me the code for rendering the hero section of the hub.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-db67bdcbe1c7",
+      "query": "What are the available income types and their descriptions?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-4217a75609a2",
+      "query": "How does the iframe modal handle messages from the child frame?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-cd6d3db84358",
+      "query": "How is the initial state seeded with a borrower?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-204a0db8aac0",
+      "query": "Implement prefilling income calculator state from a pipeline response.",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-a7998045da0f",
+      "query": "Get the SVG icon for a briefcase.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-640c563e8139",
+      "query": "How to detect the guideline from prefill data?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-655e1323adcf",
+      "query": "Export the current income calculator state to a JSON file.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-e25baaccabac",
+      "query": "Debug: Why is the commit button not visible?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.4306765580733931
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      }
+    },
+    {
+      "id": "lumae-8937aa9f468c",
+      "query": "What happens when the iframe modal loads?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-d6d2c5d359de",
+      "query": "How to map a guideline label to a loan type like FHA or VA?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-f4c055552824",
+      "query": "What is the structure of the prefill data for wage income?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714574
+      }
+    },
+    {
+      "id": "lumae-9eabf16ea01f",
+      "query": "How to update the status of a processing stage in the upload modal?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-51e098f44a3c",
+      "query": "What are the pending states for backend managed documents?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-0c2e280aa091",
+      "query": "Find the function that handles chat assistant status messages.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.1,
+        "ndcg_at_10": 0.2890648263178878
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.125,
+        "ndcg_at_10": 0.31546487678572877
+      }
+    },
+    {
+      "id": "lumae-93891e51033d",
+      "query": "How is the 1003 XML content parsed into JSON?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.16666666666666666,
+        "ndcg_at_10": 0.12016719726451973
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.1111111111111111,
+        "ndcg_at_10": 0.23695714672525509
+      }
+    },
+    {
+      "id": "lumae-f96688a14880",
+      "query": "What is the logic for determining if reduced motion is preferred?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-b00e33628c0a",
+      "query": "How to check if a user has inflight backend managed documents?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-5a1fe9d6a171",
+      "query": "What are the default system prompts used in the admin portal?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-81af4120ce2a",
+      "query": "How to schedule a packet search rebuild check task?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-a1d42bbda9a1",
+      "query": "Find the function to apply stage states in the upload processing modal.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-5d45dc7a53b0",
+      "query": "How does the system handle MFA enforcement for admin portal logins?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5388668879616774
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6419288461539238
+      }
+    },
+    {
+      "id": "lumae-ba18466f9da2",
+      "query": "What is the purpose of the `_chat_state_lock` function?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.14285714285714285,
+        "ndcg_at_10": 0.33333333333333337
+      }
+    },
+    {
+      "id": "lumae-45cee1ba81ee",
+      "query": "How are liabilities mapped from the 1003 XML to the client object?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-76b9db4dce8a",
+      "query": "How to scroll chat messages to the bottom?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-b826f2bb8168",
+      "query": "What is the expected number of documents for the 'income_minimal_single_w2_salaried' fixture?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-166ae32ea5d7",
+      "query": "How does the CSRF token get handled in fetch requests?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.6131471927654584
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.3065735963827292
+      }
+    },
+    {
+      "id": "lumae-24334f7ebfaf",
+      "query": "Show me the code for the send email tool modal.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-abf7464f8b9d",
+      "query": "How is the slug availability checked?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.3935773014954859
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6653152460429406
+      }
+    },
+    {
+      "id": "lumae-e4cbd5562c99",
+      "query": "What are the available tools in the tool menu?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-e947a1dfe166",
+      "query": "How to handle retries for network requests?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-eaa933f634bc",
+      "query": "Code for initializing the dashboard tour.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-225c475e5a61",
+      "query": "Find the code that handles the slug checker state.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-7ea13ac95482",
+      "query": "How is the tool menu popup created and managed?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-623fbbc1f987",
+      "query": "How is qualifying monthly income calculated for disability benefits?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.95583058934618
+      }
+    },
+    {
+      "id": "lumae-3a18c2f8f5ee",
+      "query": "What are the rules for qualifying foster care income based on history?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-38edc871e2bd",
+      "query": "How to parse dates in the income calculator?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.49818925746641285
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.3433743193603766
+      }
+    },
+    {
+      "id": "lumae-26ba7a506018",
+      "query": "Show me the code for handling RSU vesting periods.",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-cab76d74c60b",
+      "query": "What is the purpose of the draft bridge?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.6131471927654584
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-45d6629aed9b",
+      "query": "How to ensure the toast container exists in the media editor?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-47b1a63ad407",
+      "query": "How does the agentic test suite handle parse errors?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-7a221e9bc5b2",
+      "query": "What is the purpose of the _load_scoring_module function?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-41cebd235e18",
+      "query": "How are auth events emitted for forced reauthentication?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.445431733592294
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.4514596926579187
+      }
+    },
+    {
+      "id": "lumae-c15a26aec5df",
+      "query": "How is the risk score calculated for login attempts?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-b5992a40a8b2",
+      "query": "How to mock Google OAuth client for testing?",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-5ad08b0f679d",
+      "query": "What are the default values for PipelineAgenticAnalyzerNeedItem?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.7871546029909718
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6419288461539238
+      }
+    },
+    {
+      "id": "lumae-b89c0a580916",
+      "query": "Verify the cash calculator tool is registered correctly.",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-ee1723a7ddef",
+      "query": "How does the Chargebee webhook signature verification work?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-f764f9145082",
+      "query": "What are the expected HTTP status codes for invalid Chargebee webhook credentials?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.95583058934618
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6653152460429406
+      }
+    },
+    {
+      "id": "lumae-5508d732acff",
+      "query": "How to set up a test Flask application for authentication tests?",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6309297535714575
+      }
+    },
+    {
+      "id": "lumae-16ae311efca9",
+      "query": "How to parse appreciation percentage with a percent sign?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-22a9c0292ecb",
+      "query": "What's the function to normalize cow percent values?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-886c5d81c6e4",
+      "query": "How does _resolve_cow_location_hint handle missing address info?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6934264036172708
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.6934264036172708
+      }
+    },
+    {
+      "id": "lumae-c63fc8dd1d13",
+      "query": "Find the DOM helper for getting input values.",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.12298716509766383
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.6661609974703122
+      }
+    },
+    {
+      "id": "lumae-64cdbced52f3",
+      "query": "How does the rental income calculator handle different ownership types?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.9073218002554915
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-e35535c92020",
+      "query": "Implement a date mask for input fields.",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.25,
+        "ndcg_at_10": 0.4824755593907551
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.4838128831667769
+      }
+    },
+    {
+      "id": "lumae-e4e8251ea821",
+      "query": "What is the logic for SSI/VA disability gross-up?",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.18448074764649575
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.555629269681194
+      }
+    },
+    {
+      "id": "lumae-9c04679917b2",
+      "query": "How to generate dynamic input fields based on mortgage date?",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-3cbb0260a57a",
+      "query": "Explain the RSU calculation for collected shares and pending shares.",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-ce900787404b",
+      "query": "How to handle prefill data for sub-calculators?",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.5,
+        "ndcg_at_10": 0.1821252421493118
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.6735439182299785
+      }
+    },
+    {
+      "id": "lumae-3df057a4c144",
+      "query": "How to initialize the select-on-focus behavior for inputs?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-b61a72658393",
+      "query": "Where is the API endpoint for borrower needs defined?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-a8f1fd045987",
+      "query": "How does the profile image loader handle retries and cache busting?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-5db171f4daca",
+      "query": "What are the different drag types for borrower needs?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-66f3be202aba",
+      "query": "How to get the CSRF token for authenticated requests?",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.7541985434892589
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8318724637288826
+      }
+    },
+    {
+      "id": "lumae-2c70e020cd5a",
+      "query": "Code for applying media styles based on kind and framing.",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-3b43eb95caa6",
+      "query": "What is the purpose of the `clickState` in select-on-focus?",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.6131471927654584
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-ac16966a60d0",
+      "query": "How to initialize the data attribute formatters for currency and percentage?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-711dfc204f47",
+      "query": "Logic for handling QAT field warning rules and dismissals.",
+      "type": "behavioral",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8339912323981488
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 0.8339912323981488
+      }
+    },
+    {
+      "id": "lumae-e323c5d5ea57",
+      "query": "How to set the crosshair position in the media editor?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-75945baa4084",
+      "query": "What are the available QAT API endpoints?",
+      "type": "architectural",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.14285714285714285,
+        "ndcg_at_10": 0.33333333333333337
+      }
+    },
+    {
+      "id": "lumae-684a0f032836",
+      "query": "Code for uploading and cropping profile images.",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-457258dd6122",
+      "query": "How to parse numbers with fallback values in utility functions?",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    },
+    {
+      "id": "lumae-10a29d62aee6",
+      "query": "Sanitize market snapshot to keep rate change points",
+      "type": "debugging",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-4804b9bf1f3c",
+      "query": "How to combine packet and chat upload citations?",
+      "type": "data_flow",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-7ed55ee409c5",
+      "query": "Javascript for rendering assistant file sources",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.2,
+        "ndcg_at_10": 0.38685280723454163
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-e5188ab6c0fe",
+      "query": "How does the chunked upload system handle blob storage?",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 0.3333333333333333,
+        "ndcg_at_10": 0.5
+      }
+    },
+    {
+      "id": "lumae-c7e10773b218",
+      "query": "Test setup for chunked uploads with fake storage",
+      "type": "integration",
+      "ai_search_bare": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 1.0,
+        "recall_at_10": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_10": 1.0
+      }
+    },
+    {
+      "id": "lumae-903a2a7cb515",
+      "query": "Cow calculator tool definition and usage",
+      "type": "symbol_lookup",
+      "ai_search_bare": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      },
+      "ai_search_hyde": {
+        "recall_at_5": 0.0,
+        "recall_at_10": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_10": 0.0
+      }
+    }
+  ]
+}

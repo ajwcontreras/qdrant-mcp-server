@@ -1,0 +1,57 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "qdrant-openai-batch",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-21",
+  "compatibility_flags": ["nodejs_compat"],
+  "account_id": "776ba01baf2a9a9806fa0edb1b5ddc96",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "kv_namespaces": [
+    {
+      "binding": "OPENAI_STATE",
+      "id": "452552446b554f3db1878e3eaaad103f"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "JOBS_BUCKET",
+      "bucket_name": "qdrant-openai-jobs"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "JOB_COORDINATOR",
+        "class_name": "HyDEJobCoordinator"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1_hyde_job_coordinator",
+      "new_sqlite_classes": ["HyDEJobCoordinator"]
+    }
+  ],
+  "vars": {
+    // Use an unauthenticated provider-specific AI Gateway. Do not switch this
+    // to an authenticated/unified gateway unless provider keys and
+    // cf-aig-authorization are configured and both OpenAI + Vertex smokes pass.
+    "OPENAI_BASE_URL": "https://gateway.ai.cloudflare.com/v1/776ba01baf2a9a9806fa0edb1b5ddc96/default/openai",
+    "EMBEDDING_MODEL": "text-embedding-3-large",
+    "EMBEDDING_MAX_BATCH_SIZE": "32",
+    "HYDE_PROVIDER": "gemini_vertex",
+    "GEMINI_BASE_URL": "https://gateway.ai.cloudflare.com/v1/776ba01baf2a9a9806fa0edb1b5ddc96/gemini-harness-v2/google-vertex-ai",
+    "GEMINI_PROJECT": "evrylo",
+    "GEMINI_LOCATION": "global",
+    "GEMINI_MODEL": "gemini-3.1-flash-lite-preview",
+    "HYDE_ALLOWED_MODELS": "gemini-3.1-flash-lite-preview,gemini-3-flash-preview",
+    "HYDE_MODEL": "gemini-3.1-flash-lite-preview",
+    "HYDE_QUESTION_COUNT": "12",
+    "MAX_BATCH_SIZE": "25",
+    "OPENAI_CONCURRENCY": "6"
+  }
+}

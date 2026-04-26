@@ -1,0 +1,44 @@
+[
+  {
+    "id": "dynamic-generate-code-deepseek-cleanup",
+    "query": "Where does the API Worker call DeepSeek chat completions from a schema prompt and then strip markdown fences, function wrappers, TypeScript annotations, and compute prompt cache token cost?",
+    "relevant": [
+      {"file": "workers/api/src/index.ts", "start_line": 106, "end_line": 186, "grade": 3}
+    ]
+  },
+  {
+    "id": "dynamic-sandbox-domparser-isolation",
+    "query": "Where is the dynamic sandbox wrapper assembled with a DOMParser polyfill module and globalOutbound null so generated transform code cannot make network calls?",
+    "relevant": [
+      {"file": "workers/api/src/index.ts", "start_line": 189, "end_line": 299, "grade": 3}
+    ]
+  },
+  {
+    "id": "dynamic-transform-route-phases",
+    "query": "Where does /api/transform validate data and instruction, run schema inference, generate AI code, support dryRun, execute in the sandbox, and return schemaTime aiTime sandboxTime totalTime?",
+    "relevant": [
+      {"file": "workers/api/src/index.ts", "start_line": 237, "end_line": 330, "grade": 3}
+    ]
+  },
+  {
+    "id": "dynamic-schema-orchestrator-format-switch",
+    "query": "Where does the generated schema inferrer strip BOM, assess entropy, detect json/jsonl/csv/html/xml/logs/yaml/sql/graphql/protobuf/avro/json_schema formats, and skip supplementary profiling for simple formats?",
+    "relevant": [
+      {"file": "workers/api/src/build-schema-inferrer.ts", "start_line": 81, "end_line": 150, "grade": 3}
+    ]
+  },
+  {
+    "id": "dynamic-graphql-root-operation-remap",
+    "query": "Where does the GraphQL SDL inferrer parse definitions, handle SchemaDefinition custom query mutation subscription root type remapping, and collect queries mutations subscriptions from the resolved root types?",
+    "relevant": [
+      {"file": "workers/api/src/algorithms/infer-graphql.js", "start_line": 14, "end_line": 191, "grade": 3}
+    ]
+  },
+  {
+    "id": "dynamic-json-sampling-jsonl-boundary",
+    "query": "Where does the UI sampling utility distinguish JSON arrays, newline-delimited JSONL objects, and single JSON objects, truncating JSONL at a complete line boundary?",
+    "relevant": [
+      {"file": "workers/ui/src/lib/json-sampling.ts", "start_line": 19, "end_line": 72, "grade": 3}
+    ]
+  }
+]
