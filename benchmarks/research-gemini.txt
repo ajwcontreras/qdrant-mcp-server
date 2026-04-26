@@ -1,0 +1,75 @@
+This is an excellent breakdown of your evaluation pipeline. The discrepancy you are seeing—where Vectorize+D1 provides the best Recall@10 (0.921) but the worst MRR (0.476)—is a classic symptom of an untuned hybrid pipeline: your system is successfully fetching the relevant documents into the top 10, but failing to sort the best match to rank 1.
+
+Here is a comprehensive breakdown of the research and actionable recommendations for each of your optimization areas to help push your system toward 0.95+ Recall with high MRR.
+
+1. RRF Fusion Optimization
+
+Reciprocal Rank Fusion (RRF) is excellent because it merges score lists without requiring strict normalization, avoiding the pitfalls of differing distributions between BM25 and vector scores.
+
+The Optimal k: Microsoft Azure AI Search and OpenSearch both establish k=60 as the robust standard across various distributions, including hybrid pipelines.
+
+The Problem with RRF for Code: RRF purely evaluates rank and ignores the margin of difference in absolute scores. For code search, an exact BM25 identifier match is often a definitive signal, but RRF will treat a massive BM25 score spike identically to a marginal vector similarity win.
+
+Alternatives: To improve your MRR, consider shifting away from strict RRF toward Convex Combination (or Weighted Rank Fusion). Convex combination scales scores using min-max normalization and then applies a weighted sum (e.g., Score=α⋅Dense+(1−α)⋅Sparse). Because code relies heavily on exact symbol matches, tuning your α to give a slight edge to the sparse channel often dramatically improves MRR for symbol-lookup and debugging queries.
+
+2. Reranking for Code Search
+
+If your Recall is at 0.921 but your MRR is 0.476, a cross-encoder reranker is the single most impactful architectural change you can make. * Why it works: Vector search often ranks candidates poorly on its own because it compresses entire chunks into a single semantic point. A cross-encoder reranker reads both the user's query and the retrieved code chunk together, applying full cross-attention token-by-token.
+
+Expected MRR Lift: Recent implementations combining BM25, dense retrieval, and cross-encoder reranking (such as the open-source Vera code search tool) report MRR@10 improvements jumping from ~0.28 (vector only) up to 0.60+ when reranking is applied.
+
+Recommendations: bge-reranker-base is highly capable, but multilingual code rerankers like jina-reranker-v2-base-multilingual have proven to be exceptionally efficient for source code. Pass your top 30-50 retrieved candidates from your D1+Vectorize fusion into the reranker to finalize the sort.
+
+3. Chunking Strategy for Code
+
+Naive line-based chunking with arbitrary overlaps (e.g., 1500 chars) is a recognized anti-pattern for code search because it arbitrarily splits logic and breaks context.
+
+State of the Art: The industry standard for semantic code retrieval has shifted entirely to AST-aware structural chunking.
+
+How it works: By using parsers like Tree-sitter, modern systems extract discrete functions, classes, and methods as individual chunks. This ensures the embedding accurately represents a single functional unit rather than a messy overlap of two unrelated methods. Moving to AST chunking will likely eliminate the noise pulling down your MRR.
+
+4. HyDE (Hypothetical Document Embeddings) for Code
+
+Your observation that prepending HyDE questions improves recall but degrades debugging queries is perfectly aligned with the literature—you are experiencing embedding dilution. By appending natural language questions to raw code, you alter the token distribution, weakening the dense vector's representation of the strict code syntax.
+
+The Architecture Fix: The solution is Multi-Representation Indexing. Instead of mutating the actual source chunk, generate your HyDE questions and store them as separate vectors linked to the same parent document ID in your database. During retrieval, your system can match against the hyde_dense vector, but return the pristine code chunk to the user.
+
+5. Embedding Model Selection for Code
+
+General natural language benchmarks (like the standard MTEB) are inadequate for predicting code retrieval performance. The newly established CoIR (Code Information Retrieval) benchmark directly measures these capabilities.
+
+Model Selection: Older pre-trained models like CodeBERT and UniXcoder were foundational, but they are generally limited by 512-token context windows and 768d limits.
+
+Modern Benchmarks: Recent evaluations show that modern models like BGE-M3 (1024d) and specific code-instruct LLM embeddings vastly outperform older architectures. Your choice to test Gemini and Qwen is sound, but BGE-M3 is highly recommended as it natively supports multi-vector generation and massive 8192 token contexts.
+
+6. BM25 Tokenization for Code
+
+FTS5 with a trigram tokenizer is excellent for fuzzy matching and partial string lookups (e.g., typing "auth" to match "authentication"). However, it comes at the cost of ballooning your inverted index and sometimes hurting precision for exact identifier lookups.
+
+The Naming Convention Problem: Standard text tokenizers often fail on source code because they cannot intelligently handle camelCase or snake_case transitions.
+
+Best Practice: The optimal strategy for code BM25 is to utilize custom tokenization that extracts identifiers and splits them into sub-tokens while preserving the original string. For example, getAuthToken should be indexed as ["getAuthToken", "get", "auth", "token"]. This guarantees that exact identifier matches receive the maximum possible BM25 TF-IDF score.
+
+7. Query Understanding / Rewriting
+
+Query Expansion (QE) via LLMs remains highly effective for bridging the vocabulary gap between short user queries and domain-specific codebases.
+
+For code search, the literature points toward two specific rewriting strategies: Decomposition (splitting complex requests into multiple parallel vector searches) and Expansion (enriching the initial query with contextually related APIs or pseudocode to increase overlap with relevant documents).
+
+8. Multi-Vector vs Single-Vector
+
+Yes, multi-vector architectures are genuinely superior for specialized retrieval tasks like source code.
+
+The Evidence: Late interaction models (like ColBERT) generate a vector for every single token in the document and query, relying on MaxSim to find maximum similarity between specific tokens rather than forcing the whole document into a single bottlenecked embedding.
+
+Performance: Systems adopting multi-vector search frequently see recall improvements of 40-60% over single-vector baselines because they preserve granular semantics (e.g., the specific behavior of a variable). If latency is a concern on Cloudflare Workers, new multi-vector algorithms like MUVERA allow you to approximate multi-vector representations into a single vector for initial retrieval, retaining the speed of single-vector while capturing the accuracy of Late Interaction.
+
+Strategic Summary to hit >0.95 Recall with High MRR:
+
+Switch your chunking to Tree-sitter AST parsing.
+
+Separate your HyDE questions from the code body into a multi-representation index format.
+
+Keep the Vectorize+D1 recall engine, but insert bge-reranker-base to ingest the top 40 candidates before returning the final sorted list.
+
+Since you are analyzing a Flask application (lumae.ai), have you considered applying hard metadata filtering (e.g., tagging chunks as route, model, or util during AST generation) to let users explicitly narrow the search space before the vector math even runs?
