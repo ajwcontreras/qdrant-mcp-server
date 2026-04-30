@@ -2533,3 +2533,22 @@ Next exact step:
   - `google_token_requests: 0`.
 - Next exact step: run a larger bounded full-mode smoke, then full lumae indexing if rate limits and artifact volume look acceptable.
 - Blockers or verification gaps: POC 22 used one file only and did not publish to the live MCP URL.
+
+### 2026-04-30T12:39:18-0400
+- Completed POC 23: Larger Bounded Full-Mode Index Smoke.
+- Ran a 10-file full-mode smoke for `/Users/awilliamspcsevents/PROJECTS/lumae-fresh` using throwaway slug `lumae-fresh-full-smoke-10`, with no publish URL.
+- Verification first run:
+  - `files_to_index_count: 10`;
+  - `chunk_count: 11`;
+  - `embeddings_written: 11`;
+  - `google_token_requests: 1`;
+  - `publish_skipped: true`.
+- Verification resume run:
+  - `chunks_written: 0`;
+  - `hyde_written: 0`;
+  - `embeddings_written: 0`;
+  - `embeddings_skipped: 11`;
+  - `google_token_requests: 0`.
+- Updated `EXECUTION_PLAN.md` with POC 23 pass evidence.
+- Next exact step: decide whether to run full 663-file lumae indexing and publish to the live MCP URL, or add file filtering first to avoid indexing agent/tooling metadata.
+- Blockers or verification gaps: smoke proved resumability and token reuse over 10 files, but selected files included `.agents` and `.github` metadata; production full indexing may need ignore/filter rules.

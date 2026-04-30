@@ -221,3 +221,27 @@ POCs 10 and 11 can run in parallel.
 - [x] Resume rerun wrote zero embeddings and reported `google_token_requests: 0` — second run `embeddings_written: 0`, `embeddings_skipped: 1`.
 
 **Run:** `node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh-token-smoke --mode full --limit 1 --resume`
+
+---
+
+## POC 23: Larger Bounded Full-Mode Index Smoke ✅
+
+**Status:** PASS — 2026-04-30 — 10-file full-mode smoke and resume exited 0.
+
+**Proves:** The production indexer can process a larger bounded full-mode sample with cached Google auth before the 663-file full redo.
+
+**Build:**
+- Reuse `cloudflare-mcp/scripts/index-codebase.mjs`.
+- Run full mode over the first 10 tracked files using a throwaway repo slug.
+- Do not publish to the live MCP endpoint.
+- Rerun with `--resume` and verify no embedding work repeats.
+
+**Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, Google service-account JSON, and live Vertex AI prediction endpoint.
+
+**Pass criteria:**
+- [x] First bounded run wrote more than one chunk and at least one embedding — `chunk_count: 11`, `embeddings_written: 11`.
+- [x] First bounded run reported `google_token_requests: 1`.
+- [x] Resume run reported zero chunks, HyDE artifacts, and embeddings written — `chunks_written: 0`, `hyde_written: 0`, `embeddings_written: 0`.
+- [x] Resume run reported `google_token_requests: 0`.
+
+**Run:** `node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh-full-smoke-10 --mode full --limit 10 --resume`
