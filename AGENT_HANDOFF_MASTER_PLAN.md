@@ -2294,3 +2294,19 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-13-mcp-hybrid-search.mjs` exited 0.
 - Next exact step: commit POC 13 locally, attempt push, then implement POC 14 Multi-Channel Search over separate code and HyDE indexes.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T10:52:00-0400
+- Continuing with POC 14 after POC 13 local commit `050b83d`.
+- Updated POC 14 plan before implementation: two separate Vectorize bindings (`CODE_INDEX`, `HYDE_INDEX`), one D1 hydration table, MCP `search` queries both channels, RRF-style merges, and dedupes by `chunk_identity`.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-14-multi-channel-search.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:10:29-0400
+- Completed POC 14: multi-channel search.
+- Built `cloudflare-mcp/poc/14-multi-channel-search-worker/*` and `cloudflare-mcp/scripts/poc-14-multi-channel-search.mjs`.
+- Passing run created throwaway code and HyDE Vectorize indexes plus D1, deployed MCP Worker, seeded overlapping channel vectors, and verified the top result was a single deduped `chunk-upload-handler` with both `code` and `hyde` channels.
+- Result evidence: score `0.03278688524590164`; pass criteria `multiChannelHit` and `dedupe` both passed.
+- Cleanup deleted Worker, `cfcode-poc-14-code`, `cfcode-poc-14-hyde`, and D1 database.
+- Verification: `node cloudflare-mcp/scripts/poc-14-multi-channel-search.mjs` exited 0.
+- Next exact step: commit POC 14 locally, attempt push, then implement POC 15 Active Publication Cutover.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.

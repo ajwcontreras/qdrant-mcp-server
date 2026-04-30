@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-14-multi-channel-search",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "vectorize": [
+    {
+      "binding": "CODE_INDEX",
+      "index_name": "cfcode-poc-14-code"
+    },
+    {
+      "binding": "HYDE_INDEX",
+      "index_name": "cfcode-poc-14-hyde"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cfcode-poc-14-multi-channel-search",
+      "database_id": "__DATABASE_ID__"
+    }
+  ]
+}

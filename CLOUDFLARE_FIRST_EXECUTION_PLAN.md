@@ -327,7 +327,7 @@ The MCP Worker exposes:
 
 ### POC 13: MCP Hybrid Search ✅
 
-**Status:** PASS — 2026-04-30 — authless MCP `search` fused Vectorize and D1 FTS results.
+**Status:** PASS — local commit `050b83d` — 2026-04-30 — authless MCP `search` fused Vectorize and D1 FTS results.
 
 - [x] Created throwaway Vectorize index and D1 database.
 - [x] Deployed authless MCP Worker at `https://cfcode-poc-13-mcp-hybrid-search.frosty-butterfly-d821.workers.dev/mcp`.
@@ -351,13 +351,34 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-13-mcp-hybrid-search.mjs`
 
-### POC 14: Multi-Channel Search
+### POC 14: Multi-Channel Search ✅
+
+**Status:** PASS — 2026-04-30 — separate code and HyDE Vectorize indexes queried and merged by chunk identity.
+
+- [x] Created throwaway `cfcode-poc-14-code` Vectorize index.
+- [x] Created throwaway `cfcode-poc-14-hyde` Vectorize index.
+- [x] Deployed MCP Worker with `CODE_INDEX`, `HYDE_INDEX`, and D1 bindings.
+- [x] Query returned `chunk-upload-handler` from both `code` and `hyde` channels.
+- [x] Merged result deduped `chunk-upload-handler` into one row.
+- [x] Deleted Worker, both Vectorize indexes, and D1 database.
 
 **Proves:** Separate `code` and `hyde` indexes can be searched and RRF-merged.
+
+**Build:**
+- `cloudflare-mcp/poc/14-multi-channel-search-worker/`
+- `cloudflare-mcp/scripts/poc-14-multi-channel-search.mjs`
+- creates two throwaway Vectorize indexes: code and HyDE
+- deploys authless MCP Worker with `CODE_INDEX`, `HYDE_INDEX`, and D1 bindings
+- seeds overlapping channel vectors for the same chunk identity
+- MCP `search` queries both channels, merges, and dedupes by `chunk_identity`
+
+**Input:** deterministic POC vectors/snippets; no production resources.
 
 **Pass criteria:**
 - query hits both indexes
 - merged result dedupes by `chunk_identity`
+
+**Run:** `node cloudflare-mcp/scripts/poc-14-multi-channel-search.mjs`
 
 ### POC 15: Active Publication Cutover
 
