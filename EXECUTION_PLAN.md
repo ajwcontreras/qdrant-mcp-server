@@ -324,9 +324,17 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26A: Local Packager Uploads Source Artifacts To R2
+## POC 26A: Local Packager Uploads Source Artifacts To R2 — STOPPED
 
-**Proves:** This machine can package a filtered codebase snapshot and upload source/chunk inputs to Cloudflare R2 quickly, without doing embeddings locally.
+**Status:** STOPPED — 2026-04-30 — two failed runs in a row; split into POCs 26A1-26A4.
+
+**Failure evidence:**
+- Run 1 failed at TypeScript validation due `@cloudflare/workers-types` conflicting with default DOM libs.
+- Run 2 failed after deploy with `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`, meaning endpoint/response validation was too broad for a combined resource/deploy/upload POC.
+- Throwaway resources were cleaned up: Worker `cfcode-poc-26a-packager`, R2 bucket `cfcode-poc-26a-artifacts`, D1 database `cfcode-poc-26a-jobs`.
+- Uncommitted POC 26A files were removed.
+
+**Original proves:** This machine can package a filtered codebase snapshot and upload source/chunk inputs to Cloudflare R2 quickly, without doing embeddings locally.
 
 **Build:**
 - Add `cloudflare-mcp/poc/26-cloud-index-worker/`.
@@ -343,6 +351,91 @@ POCs 10 and 11 can run in parallel.
 - [ ] Job status endpoint returns machine-readable progress JSON.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26a-r2-packager-smoke.mjs`
+
+---
+
+## POC 26A1: Worker Toolchain Compiles With R2 And D1 Bindings
+
+**Proves:** The Cloudflare Worker TypeScript/package baseline for R2+D1 compiles before any remote resources are created.
+
+**Build:**
+- `cloudflare-mcp/poc/26a1-r2-d1-compile-worker/`
+- Minimal Worker with `/health`, R2 binding type, and D1 binding type.
+- No deploy and no Cloudflare resource creation.
+
+**Input:** Local Node/npm toolchain.
+
+**Pass criteria:**
+- [ ] `npm install` exits 0.
+- [ ] `npm run check` exits 0.
+- [ ] No Cloudflare resources are created.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26a1-r2-d1-compile-smoke.mjs`
+
+---
+
+## POC 26A2: R2 Upload Endpoint Only
+
+**Proves:** A deployed Worker can accept a local artifact upload and store it in R2, without D1 or job state.
+
+**Build:**
+- Reuse the POC 26A1 Worker baseline.
+- Add `/artifact/put` and `/artifact/head`.
+- Provision only a throwaway R2 bucket and Worker.
+- Verify the response content type before parsing JSON.
+
+**Input:** Five filtered lumae files packaged by this machine.
+
+**Pass criteria:**
+- [ ] Worker deploy URL is discovered and `/health` returns JSON.
+- [ ] `/artifact/put` stores a JSONL artifact in R2.
+- [ ] `/artifact/head` reports artifact exists and byte size matches upload.
+- [ ] Throwaway Worker and R2 bucket are cleaned up.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26a2-r2-upload-smoke.mjs`
+
+---
+
+## POC 26A3: D1 Job Row Endpoint Only
+
+**Proves:** A deployed Worker can create and read D1 job rows, without R2 artifact upload.
+
+**Build:**
+- Minimal Worker with `/jobs/start` and `/jobs/:id/status`.
+- Provision only a throwaway D1 database and Worker.
+- Worker creates schema itself on request.
+
+**Input:** Repo slug, indexed path, artifact key, and file counts from this machine.
+
+**Pass criteria:**
+- [ ] Worker deploy URL is discovered and `/health` returns JSON.
+- [ ] `/jobs/start` inserts a D1 row.
+- [ ] `/jobs/:id/status` returns the inserted repo path, slug, artifact key, count, and status.
+- [ ] Throwaway Worker and D1 database are cleaned up.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26a3-d1-job-smoke.mjs`
+
+---
+
+## POC 26A4: Combined Local Packager To R2 And D1
+
+**Proves:** The two proven endpoints compose: this machine packages files once, Worker stores the artifact in R2, and D1 records the job.
+
+**Build:**
+- Combine POC 26A2 and POC 26A3 only after both pass.
+- Provision Worker, R2 bucket, and D1 database.
+- Upload bounded lumae package and record one job.
+
+**Input:** Five filtered lumae files on this machine.
+
+**Pass criteria:**
+- [ ] R2 contains source/chunk input artifact for the bounded sample.
+- [ ] D1 job row records repo path, slug, artifact key, and counts.
+- [ ] Local script exits without calling Vertex.
+- [ ] Job status endpoint returns machine-readable progress JSON.
+- [ ] Throwaway resources are cleaned up.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26a4-packager-r2-d1-smoke.mjs`
 
 ---
 

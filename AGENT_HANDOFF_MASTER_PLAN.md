@@ -2611,3 +2611,23 @@ Next exact step:
 - Added `.gitignore` rules for reproducible `cloudflare-mcp/sessions/index-codebase/*/{chunks,hyde,embeddings}/` artifacts.
 - Next exact step: implement POC 26A as a small Cloudflare Worker + local script proving source/chunk upload to R2 and job row creation in D1.
 - Blockers or verification gaps: Cloudflare Queue fan-out is planned but not yet implemented; slow local full run was intentionally stopped before completion.
+
+### 2026-04-30T13:06:33-0400
+- Started POC 26A but stopped it after two failed runs in a row per POC discipline.
+- Failure 1: `npm run check` failed with `@cloudflare/workers-types` and default DOM lib conflicts.
+- Failure 2: after tsconfig adjustment, the script failed with `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`, showing the combined deploy/upload/status POC was too broad and lacked response-type validation.
+- Cleaned up POC 26A throwaway resources:
+  - Worker `cfcode-poc-26a-packager`;
+  - R2 bucket `cfcode-poc-26a-artifacts`;
+  - D1 database `cfcode-poc-26a-jobs`.
+- Reverted only POC 26A's uncommitted files:
+  - removed `cloudflare-mcp/poc/26a-r2-packager-worker/`;
+  - removed `cloudflare-mcp/scripts/poc-26a-r2-packager-smoke.mjs`.
+- Revised `EXECUTION_PLAN.md`:
+  - POC 26A marked STOPPED;
+  - added POC 26A1 Worker toolchain compile;
+  - added POC 26A2 R2 upload endpoint only;
+  - added POC 26A3 D1 job row endpoint only;
+  - added POC 26A4 combined local packager to R2 and D1.
+- Next exact step: implement and run POC 26A1 only.
+- Blockers or verification gaps: no Cloudflare fan-out implementation yet; this was a disciplined split after an over-broad POC failed twice.
