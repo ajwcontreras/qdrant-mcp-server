@@ -1,8 +1,8 @@
 # Agent Handoff Master Plan: Qdrant MCP Agentic Code Search
 
-Last atomic update: 2026-04-30T12:04:04-04:00
-Previous atomic update: 2026-04-22T04:22:42-04:00
-Status: POC 26A4 passed; next exact step is POC 26B Queue fan-out embedding smoke.
+Last atomic update: 2026-04-30T12:07:40-04:00
+Previous atomic update: 2026-04-30T12:04:04-04:00
+Status: POC 26B passed; next exact step is POC 26C Queue publication to Vectorize and D1.
 
 ## Non-Negotiable Operating Rule
 
@@ -107,6 +107,15 @@ Council sanity check on 2026-04-22 converged on this corrected design:
 - [x] Verify compile/tests.
 
 ## Progress Log
+
+### 2026-04-30T12:07:40-04:00
+- Completed POC 26B Queue fan-out embedding smoke.
+- Verification: `node cloudflare-mcp/scripts/poc-26b-queue-fanout-embed-smoke.mjs` exited 0.
+- Evidence: Worker `https://cfcode-poc-26b-queue-embed.frosty-butterfly-d821.workers.dev`, job `fe6fb860-f1a3-4d2d-8cf1-3d6a63c1d129`, 3 queued messages, 3 completed 1536-dimensional Vertex embeddings, 3 R2 result artifacts, 0 local Vertex calls.
+- Cleanup evidence: throwaway Worker, Queue `cfcode-poc-26b-embed`, DLQ `cfcode-poc-26b-embed-dlq`, R2 bucket `cfcode-poc-26b-artifacts`, and D1 database `cfcode-poc-26b-jobs` were deleted by the smoke script.
+- Files touched: `EXECUTION_PLAN.md`, `AGENT_HANDOFF_MASTER_PLAN.md`, `cloudflare-mcp/scripts/poc-26b-queue-fanout-embed-smoke.mjs`, `cloudflare-mcp/poc/26b-queue-fanout-embed-worker/*`.
+- Exact next step: implement POC 26C Cloudflare-side publication from completed embedding artifacts into Vectorize and D1, with active run metadata read by MCP collection info.
+- Blockers or verification gaps: POC 26C has not yet proven Vectorize/D1 publication from Queue-produced embedding artifacts.
 
 ### 2026-04-30T12:04:04-04:00
 - Completed POC 26A4 combined local packager to R2 and D1.

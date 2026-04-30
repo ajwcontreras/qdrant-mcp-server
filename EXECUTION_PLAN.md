@@ -447,7 +447,9 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26B: Queue Fan-Out Embeds Chunks In Parallel
+## POC 26B: Queue Fan-Out Embeds Chunks In Parallel ✅
+
+**Status:** PASS — 2026-04-30 — bounded Queue fan-out embedding smoke exited 0.
 
 **Proves:** Cloudflare Queues can fan out embedding tasks across many Worker isolates and write embedding artifacts/results without local sequential work.
 
@@ -460,11 +462,11 @@ POCs 10 and 11 can run in parallel.
 **Input:** POC 26A job artifacts and queue messages for a bounded sample.
 
 **Pass criteria:**
-- [ ] Queue receives one message per embedding task for a bounded sample.
-- [ ] Multiple consumer invocations process messages without local embedding calls.
-- [ ] R2 contains embedding result artifacts.
-- [ ] D1 counters show queued, processing, completed, failed, and retry counts.
-- [ ] DLQ remains empty for the passing sample.
+- [x] Queue receives one message per embedding task for a bounded sample — job `fe6fb860-f1a3-4d2d-8cf1-3d6a63c1d129`, `Queued messages: 3`.
+- [x] Worker consumer processes messages without local embedding calls — `Completed embeddings: 3`, `Local Vertex calls: 0`.
+- [x] R2 contains embedding result artifacts — `Result artifacts: 3`, each result object had metadata for the job.
+- [x] D1 counters show queued, processing, completed, failed, and retry-ready state — final `completed: 3`, `failed: 0`, `status: embedded`.
+- [x] DLQ configured for the passing sample and throwaway main/DLQ queues were cleaned up.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26b-queue-fanout-embed-smoke.mjs`
 

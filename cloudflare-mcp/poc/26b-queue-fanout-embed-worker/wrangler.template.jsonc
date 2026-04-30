@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-26b-queue-embed",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-poc-26b-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-poc-26b-jobs", "database_id": "__DATABASE_ID__" }],
+  "queues": {
+    "producers": [{ "binding": "EMBED_QUEUE", "queue": "cfcode-poc-26b-embed" }],
+    "consumers": [{
+      "queue": "cfcode-poc-26b-embed",
+      "max_batch_size": 2,
+      "max_batch_timeout": 2,
+      "max_retries": 2,
+      "dead_letter_queue": "cfcode-poc-26b-embed-dlq"
+    }]
+  },
+  "vars": {
+    "GOOGLE_LOCATION": "us-central1",
+    "GOOGLE_EMBEDDING_MODEL": "gemini-embedding-001",
+    "GOOGLE_EMBEDDING_DIMENSIONS": "1536",
+    "GOOGLE_EMBEDDING_TASK_TYPE": "RETRIEVAL_DOCUMENT"
+  }
+}
