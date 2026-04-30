@@ -1,8 +1,8 @@
 # Agent Handoff Master Plan: Qdrant MCP Agentic Code Search
 
-Last atomic update: 2026-04-30T12:15:53-04:00
-Previous atomic update: 2026-04-30T12:13:56-04:00
-Status: POC 26C1 passed; next exact step is POC 26C2 R2 embedding artifact publication input proof.
+Last atomic update: 2026-04-30T12:17:30-04:00
+Previous atomic update: 2026-04-30T12:15:53-04:00
+Status: POC 26C2 passed; next exact step is POC 26C3 Vectorize visibility proof.
 
 ## Non-Negotiable Operating Rule
 
@@ -107,6 +107,15 @@ Council sanity check on 2026-04-22 converged on this corrected design:
 - [x] Verify compile/tests.
 
 ## Progress Log
+
+### 2026-04-30T12:17:30-04:00
+- Completed POC 26C2 R2 embedding artifact publication input proof.
+- Verification: `node cloudflare-mcp/scripts/poc-26c2-r2-publication-artifact-smoke.mjs` exited 0.
+- Evidence: Worker `https://cfcode-poc-26c2-r2-publication.frosty-butterfly-d821.workers.dev`, artifact `publication/lumae-fresh-poc-26c2/3fc18a8e0bdf810a.jsonl`, 90685 bytes, `/artifact/head` metadata matched repo/publication.
+- Cleanup evidence: remote R2 object was deleted with `wrangler r2 object delete ... --remote`, then bucket `cfcode-poc-26c2-artifacts` and Worker were deleted.
+- Files touched: `EXECUTION_PLAN.md`, `AGENT_HANDOFF_MASTER_PLAN.md`, `cloudflare-mcp/scripts/poc-26c2-r2-publication-artifact-smoke.mjs`, `cloudflare-mcp/poc/26c2-r2-publication-artifact-worker/*`.
+- Exact next step: implement and run `node cloudflare-mcp/scripts/poc-26c3-vectorize-visibility-smoke.mjs`.
+- Blockers or verification gaps: POC 26C3 has not yet proven Vectorize query visibility after 1536-dimensional upserts with bounded polling.
 
 ### 2026-04-30T12:15:53-04:00
 - Completed POC 26C1 Queue consumer binding cleanup proof.
