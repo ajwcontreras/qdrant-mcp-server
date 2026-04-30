@@ -49,89 +49,77 @@
 
 ---
 
-## Remaining POCs — Isolation Tests
+## POC 10 ✅ — Vectorize+D1 with Gemini 768d embeddings (172s total)
+## POC 10b ✅ — Eval: Vec+D1 vs AI Search (Vec wins Recall, AI Search wins MRR)
+## POC 10c ✅ — Eval: Vec+D1+Reranker vs AI Search — RERANKER WINS ALL 4 METRICS
 
-Each POC isolates ONE variable to measure its impact.
-
-### POC 10: AI Search with Gemini embeddings (auto-chunk)
-
-**Proves:** Does swapping from Qwen 0.6B → Gemini 1536d improve retrieval with the same auto-chunking?
-
-**Config:** Same as POC 7 but `embedding_model: "google-ai-studio/gemini-embedding-001"`
-
-**Isolates:** Embedding model quality (Qwen vs Gemini), everything else held constant.
-
-**Pass criteria:**
-- Instance created with Gemini embeddings
-- Same 356 files uploaded
-- Eval against same 240 golden queries
-- Compare: POC 7 scores (Qwen auto-chunk) vs POC 10 scores (Gemini auto-chunk)
-
----
-
-### POC 11: AI Search with our chunking vs auto-chunking (same embeddings)
-
-**Proves:** Does deterministic code-aware pre-chunking beat AI Search's recursive chunking?
-
-**Config:** `chunk: false`, Gemini embeddings, upload pre-chunked files (function/symbol boundaries)
-
-**Isolates:** Chunking strategy, embedding model held constant (both Gemini).
-
-**Build:**
-- Pre-chunk lumae.ai using the indexer's line-based chunking (1500 chars, 200 overlap)
-- Upload each chunk as individual file with `chunk: false`
-- Each file named: `{rel_path}__L{start}-{end}.md`
-
-**Pass criteria:**
-- All pre-chunks uploaded
-- Eval against 240 golden queries
-- Compare: POC 10 scores (Gemini auto-chunk) vs POC 11 scores (Gemini our-chunk)
-
----
-
-### POC 12: Two-index HyDE (code + questions, separate)
-
-**Proves:** Does a clean separation (code embeddings in one index, HyDE question embeddings in another, merged at query time) beat the naive prepend approach?
-
-**Config:**
-- Index A: `lumae-eval-code` — pre-chunked code only, `chunk: false`, Gemini embeddings
-- Index B: `lumae-eval-hyde-qs` — HyDE questions only (one file per chunk), `chunk: false`, Gemini embeddings
-- Query: hit both indexes, merge results by file+chunk_id
-
-**Isolates:** HyDE architecture (prepend vs separate indexes)
-
-**Build:**
-- Reuse chunks from POC 11 for code index
-- For HyDE index: upload just the questions per chunk, with metadata mapping to chunk ID
-- Query Worker or script: `Promise.all([searchCodeIndex, searchHydeIndex])` → merge via RRF
-
-**Pass criteria:**
-- Both indexes created and populated
-- Merged search returns results
-- Eval against 240 golden queries
-- Compare: POC 8 (naive prepend) vs POC 12 (two-index) — especially debugging queries
-
----
-
-### POC 13: Full comparison matrix
-
-**Proves:** Which combination wins across all dimensions.
-
-**Eval matrix (all AI Search, all measured):**
-
-| # | Embedding | Chunking | HyDE | Instance |
+| Metric | Vec+D1 | + Reranker | AI Search | Reranker Δ |
 |---|---|---|---|---|
-| 7 | Qwen auto | Auto | None | lumae-eval-bare |
-| 8 | Qwen auto | Auto | Prepended | lumae-eval-hyde |
-| 10 | Gemini | Auto | None | lumae-eval-gemini |
-| 11 | Gemini | Our chunks | None | lumae-eval-gemini-prechunk |
-| 12a | Gemini | Our chunks | Separate index | lumae-eval-code + lumae-eval-hyde-qs |
+| Recall@5 | 0.804 | **0.833** | 0.817 | +0.029 |
+| Recall@10 | **0.921** | 0.871 | 0.858 | -0.050 |
+| MRR | 0.476 | **0.703** | 0.660 | **+0.227** |
+| nDCG@10 | 0.534 | **0.717** | 0.664 | **+0.183** |
 
-**Output:**
-- 5-way comparison table
-- Per-type breakdown
-- Clear winner with confidence
-- Recommendation: which config to productionize
+**Winning architecture: Vectorize (Gemini 768d) + D1 FTS5 (trigram) + bge-reranker-base**
+
+---
+
+## Remaining POCs — Quality Optimization
+
+Council research (Gemini Pro + ChatGPT) identified 4 phases. Phase 1 (reranker) is done.
+
+### POC 11: AST-aware chunking (Tree-sitter)
+
+**Proves:** Does function/class-level chunking beat naive 1500-char line splits?
+
+**Build:**
+- Install tree-sitter with Python and JavaScript grammars
+- Chunk at function/method/class boundaries
+- Small functions: merge siblings up to token budget
+- Large functions: split by AST blocks, repeat signature as context
+- Upload to Vectorize with `chunk: false`, Gemini embeddings
+- Rerank with bge-reranker-base
+
+**Isolates:** Chunking strategy (AST vs line-based), everything else held constant.
+
+---
+
+### POC 12: BM25F multi-field search
+
+**Proves:** Does weighting identifier/path/signature fields higher than body text improve BM25 precision?
+
+**Build:**
+- D1 schema: separate columns for identifier_exact, identifier_subtokens, path, signature, decorators, body
+- FTS5 with column weights: identifiers > path > signature > body
+- camelCase/snake_case splitting for identifier subtokens
+
+**Isolates:** BM25 tokenization and field weighting.
+
+---
+
+### POC 13: Two-index HyDE (code + questions, separate)
+
+**Proves:** Does separating code embeddings from HyDE question embeddings beat the naive prepend and eliminate debugging query regression?
+
+**Build:**
+- Vectorize index A: clean code chunks only
+- Vectorize index B: HyDE questions per chunk
+- Query: search both, merge by chunk ID via RRF, then rerank
+
+**Isolates:** HyDE architecture (prepend vs separate indexes).
+
+---
+
+### POC 14: Tuned RRF weights + query-type routing
+
+**Proves:** Does biasing BM25 for symbol queries and vector for architectural queries improve per-type scores?
+
+**Build:**
+- Grid search: k ∈ {5, 10, 20, 30, 60}, BM25 weight ∈ {0.8, 1.0, 1.5, 2.0}
+- Query-type classifier (lightweight, based on query structure)
+- Per-type fusion weights
+
+**Isolates:** Fusion parameters and query-type awareness.
 
 ---
 
@@ -157,3 +145,56 @@ POCs 10 and 11 can run in parallel.
 | 12 (two-index) | ~$0 (beta) | ~5 min |
 | 13 (eval comparison) | ~$0.02 (Gemini embed for Qdrant queries) | ~5 min |
 | **Total remaining** | **~$0.02** | **~16 min** |
+
+---
+
+## POC 15: Google Embedding Smoke Benchmark ✅
+
+**Status:** PASS — 2026-04-30 — local smoke command exited 0.
+
+- [x] Auth token minted from `/Users/awilliamspcsevents/Downloads/team (1).json`.
+- [x] 12 Google Vertex embedding configurations returned numeric vectors.
+- [x] Best tiny-corpus score: `text-embedding-005`, 768 dimensions, query `RETRIEVAL_QUERY`, document `RETRIEVAL_DOCUMENT`, Recall@3 1.000, MRR 1.000, 2313 ms.
+- [x] Runner-up high-quality Gemini option: `gemini-embedding-001`, 1536 dimensions, query `RETRIEVAL_QUERY`, document `RETRIEVAL_DOCUMENT`, Recall@3 1.000, MRR 1.000, 2580 ms.
+
+**Proves:** Which Google Vertex embedding model, dimension, and query task type is the best first candidate for this repo's Qdrant code-search workload.
+
+**Build:**
+- `src/poc/15-google-embedding-smoke.mjs`
+- Authenticates with a local Google service-account JSON.
+- Calls Vertex `:predict` for Google text embedding models.
+- Embeds labeled local code snippets as `RETRIEVAL_DOCUMENT`.
+- Embeds natural-language code-search queries as `CODE_RETRIEVAL_QUERY` and `RETRIEVAL_QUERY`.
+- Ranks snippets by cosine similarity and reports Recall@K, MRR, latency, and vector dimensions.
+
+**Input:** Local source files in this repo and `GOOGLE_APPLICATION_CREDENTIALS` or `/Users/awilliamspcsevents/Downloads/team (1).json`.
+
+**Pass criteria:**
+- Auth token is minted from the service account.
+- At least two embedding configurations return numeric vectors.
+- The script prints ranked retrieval metrics and exits 0.
+
+**Run:** `GOOGLE_APPLICATION_CREDENTIALS="/Users/awilliamspcsevents/Downloads/team (1).json" node src/poc/15-google-embedding-smoke.mjs`
+
+---
+
+## POC 21: Google Embedding Token Cache For Full Indexing ✅
+
+**Status:** PASS — 2026-04-30 — local live Vertex smoke command exited 0.
+
+**Proves:** Full-repo Google embedding runs can reuse one Vertex OAuth token across many `gemini-embedding-001` one-input prediction calls.
+
+**Build:**
+- `cloudflare-mcp/scripts/poc-21-google-embedding-token-cache.mjs`
+- Authenticates with `/Users/awilliamspcsevents/Downloads/team (1).json`.
+- Embeds three representative code-search texts with `gemini-embedding-001` at 1536 dimensions.
+- Uses an in-process token cache so only one OAuth token request is made.
+
+**Input:** Google service-account JSON and live Vertex AI prediction endpoint.
+
+**Pass criteria:**
+- [x] One OAuth token request served all embedding calls — output `Token requests: 1`.
+- [x] Three embedding calls returned numeric 1536-dimensional vectors — all outputs `length=1536`.
+- [x] The script printed timing/norm evidence and exited 0 — norms `0.691349`, `0.687950`, `0.690907`; elapsed `534`, `198`, `213` ms.
+
+**Run:** `node cloudflare-mcp/scripts/poc-21-google-embedding-token-cache.mjs`

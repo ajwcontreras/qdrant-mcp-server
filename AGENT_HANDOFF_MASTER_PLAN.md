@@ -2497,3 +2497,16 @@ Next exact step:
   - live MCP client search and `collection_info`.
 - Next exact step: fix GitHub credentials and push the local commits, or run `index-codebase.mjs --mode full --resume` for a complete 663-file lumae redo if desired.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials. Full repo indexing was not run because the verified production command indexed the current diff set incrementally.
+
+### 2026-04-30T12:25:44-0400
+- Completed POC 21: Google Embedding Token Cache For Full Indexing.
+- Built `cloudflare-mcp/scripts/poc-21-google-embedding-token-cache.mjs`.
+- Updated `EXECUTION_PLAN.md` with POC 21 pass criteria and evidence.
+- Verification: `node cloudflare-mcp/scripts/poc-21-google-embedding-token-cache.mjs` exited 0.
+- Evidence:
+  - `Token requests: 1`;
+  - three live Vertex `gemini-embedding-001` calls returned `length=1536`;
+  - norms were `0.691349`, `0.687950`, `0.690907`;
+  - elapsed times were `534`, `198`, `213` ms.
+- Next exact step: integrate token caching into `cloudflare-mcp/scripts/index-codebase.mjs`, then run a bounded resume-safe production smoke before attempting full lumae indexing.
+- Blockers or verification gaps: full 663-file indexing has still not been run; this POC only proved token reuse for the current one-input Gemini embedding API.
