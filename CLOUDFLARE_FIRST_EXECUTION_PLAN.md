@@ -299,7 +299,7 @@ The MCP Worker exposes:
 
 ### POC 12: MCP Search Over Vectorize ✅
 
-**Status:** PASS — 2026-04-30 — authless MCP `search` tool queried Vectorize and hydrated D1 snippet metadata.
+**Status:** PASS — local commit `8be5f4c` — 2026-04-30 — authless MCP `search` tool queried Vectorize and hydrated D1 snippet metadata.
 
 - [x] Created throwaway Vectorize index and D1 database.
 - [x] Deployed authless MCP Worker at `https://cfcode-poc-12-mcp-search-vectorize.frosty-butterfly-d821.workers.dev/mcp`.
@@ -325,13 +325,31 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-12-mcp-search-vectorize.mjs`
 
-### POC 13: MCP Hybrid Search
+### POC 13: MCP Hybrid Search ✅
+
+**Status:** PASS — 2026-04-30 — authless MCP `search` fused Vectorize and D1 FTS results.
+
+- [x] Created throwaway Vectorize index and D1 database.
+- [x] Deployed authless MCP Worker at `https://cfcode-poc-13-mcp-hybrid-search.frosty-butterfly-d821.workers.dev/mcp`.
+- [x] Seeded deterministic vectors, D1 snippets, and D1 FTS rows.
+- [x] Semantic upload query returned `app.py:10-30`.
+- [x] Lexical symbol query `fred_rates update_market_rates` returned `update_market_rate_change.py:1-20` with `fts:` match reason.
+- [x] Deleted Worker, Vectorize index, and D1 database.
 
 **Proves:** MCP can fuse Vectorize + D1 FTS results.
+
+**Build:**
+- `cloudflare-mcp/poc/13-mcp-hybrid-search-worker/`
+- `cloudflare-mcp/scripts/poc-13-mcp-hybrid-search.mjs`
+- extends POC 12 with D1 FTS5 lexical search and simple RRF-style fusion
+
+**Input:** deterministic POC vectors/snippets and FTS rows; no production resources.
 
 **Pass criteria:**
 - symbol query gets exact/FTS boost
 - semantic query gets vector boost
+
+**Run:** `node cloudflare-mcp/scripts/poc-13-mcp-hybrid-search.mjs`
 
 ### POC 14: Multi-Channel Search
 

@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-13-mcp-hybrid-search",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "cfcode-poc-13-mcp-hybrid-search"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cfcode-poc-13-mcp-hybrid-search",
+      "database_id": "8dc18067-c2e9-4494-86a1-10b30d69d94a"
+    }
+  ]
+}

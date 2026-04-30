@@ -2276,3 +2276,21 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-12-mcp-search-vectorize.mjs` exited 0 on rerun.
 - Next exact step: commit POC 12 locally, attempt push, then implement POC 13 MCP Hybrid Search with Vectorize + D1 FTS fusion.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials; POC 12 uses deterministic query vector routing instead of live Google query embeddings.
+
+### 2026-04-30T10:48:35-0400
+- Committed POC 12 locally as `8be5f4c` (`POC 12 PASS: expose MCP search over Vectorize`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 13 plan before implementation: extend the proven POC 12 MCP Worker with D1 FTS5 lexical search and fused match reasons.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-13-mcp-hybrid-search.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T10:51:11-0400
+- Completed POC 13: MCP hybrid search.
+- Built `cloudflare-mcp/poc/13-mcp-hybrid-search-worker/*` and `cloudflare-mcp/scripts/poc-13-mcp-hybrid-search.mjs`.
+- Passing run created throwaway Vectorize/D1 resources, deployed MCP Worker, seeded vectors/snippets/FTS rows, listed `search`, and verified:
+  - semantic upload query top result `app.py:10-30`;
+  - lexical symbol query `fred_rates update_market_rates` top result `update_market_rate_change.py:1-20` with `fts:` match reason.
+- Cleanup deleted Worker, Vectorize index, and D1 database.
+- Verification: `node cloudflare-mcp/scripts/poc-13-mcp-hybrid-search.mjs` exited 0.
+- Next exact step: commit POC 13 locally, attempt push, then implement POC 14 Multi-Channel Search over separate code and HyDE indexes.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
