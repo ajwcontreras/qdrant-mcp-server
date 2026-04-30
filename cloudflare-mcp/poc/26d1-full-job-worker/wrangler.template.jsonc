@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-26d-lumae",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "__R2_BUCKET__" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "__D1_NAME__", "database_id": "__D1_ID__" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "__VECTORIZE_INDEX__" }],
+  "queues": {
+    "producers": [{ "binding": "WORK_QUEUE", "queue": "__QUEUE_NAME__" }],
+    "consumers": [{
+      "queue": "__QUEUE_NAME__",
+      "max_batch_size": 3,
+      "max_batch_timeout": 5,
+      "max_retries": 3,
+      "dead_letter_queue": "__DLQ_NAME__"
+    }]
+  }
+}

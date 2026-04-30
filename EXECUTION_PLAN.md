@@ -631,7 +631,9 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26D1: Combined Worker Compiles With All Bindings
+## POC 26D1: Combined Worker Compiles With All Bindings ✅
+
+**Status:** PASS — 2026-04-30
 
 **Proves:** A single Worker combining 26D0 safety schema, 26B Vertex embedding, and 26C4 publication compiles and type-checks with R2/D1/Vectorize/Queue bindings.
 
@@ -645,9 +647,11 @@ POCs 10 and 11 can run in parallel.
 **Input:** None (compile check only).
 
 **Pass criteria:**
-- [ ] `npm install` exits 0.
-- [ ] `npm run check` (tsc --noEmit) exits 0.
-- [ ] No Cloudflare resources created.
+- [x] `npm install` exits 0.
+- [x] `npm run check` (tsc --noEmit) exits 0.
+- [x] No Cloudflare resources created.
+
+**Evidence:** `node cloudflare-mcp/scripts/poc-26d1-full-job-compile.mjs` exited 0. Combined Worker has ingest, Queue consumer (Vertex embed + Vectorize publish + D1 write), search with D1 active filtering, collection_info, status, and deactivate endpoints.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26d1-full-job-compile.mjs`
 
