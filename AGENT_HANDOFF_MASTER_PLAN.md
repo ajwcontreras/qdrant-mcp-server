@@ -2383,3 +2383,21 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-18-per-codebase-mcp-url.mjs` exited 0 on rerun.
 - Next exact step: commit POC 18 locally, attempt push, then implement POC 19 Throwaway Resource Cleanup.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:20:10-0400
+- Committed POC 18 locally as `4e9fb40` (`POC 18 PASS: serve per-codebase MCP URL`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 19 plan before implementation: create one small throwaway Worker, Vectorize index, D1 DB, and R2 bucket, write cleanup manifest, delete exactly those resources from the manifest, and verify they are gone.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-19-throwaway-resource-cleanup.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:23:31-0400
+- Completed POC 19: throwaway resource cleanup.
+- Built `cloudflare-mcp/poc/19-cleanup-worker/*` and `cloudflare-mcp/scripts/poc-19-throwaway-resource-cleanup.mjs`.
+- First run failed because Wrangler R2 bucket delete no longer accepts `--force`; Worker, Vectorize, and D1 cleanup succeeded, R2 bucket remained. Fixed script to use current `wrangler r2 bucket delete <bucket>` syntax and added best-effort pre-clean for stale resources.
+- Passing run created Worker, Vectorize index, D1 DB, and R2 bucket, wrote `cloudflare-mcp/sessions/poc-19/cleanup-manifest.json`, deleted all resources from the manifest, and verified all were gone.
+- Verification: `node cloudflare-mcp/scripts/poc-19-throwaway-resource-cleanup.mjs` exited 0 on rerun.
+- User added a new requirement: every indexed codebase must get a generated docs file like `/Users/awilliamspcsevents/PROJECTS/cf-docs-mcp/README.md`, including indexed path, unique MCP URL, CLI install snippets, and incremental/resumable reindex commands.
+- Added POC 19.5 to prove docs generation before final POC 20.
+- Next exact step: commit POC 19 locally, attempt push, then implement POC 19.5 Generated Codebase MCP Docs.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.

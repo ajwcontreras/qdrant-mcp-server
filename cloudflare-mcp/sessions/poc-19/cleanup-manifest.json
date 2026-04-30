@@ -1,0 +1,1 @@
+{"schema_version":"cfcode.cleanup_manifest.v1","resources":[{"type":"worker","name":"cfcode-poc-19-cleanup-worker"},{"type":"vectorize","name":"cfcode-poc-19-cleanup-index"},{"type":"d1","name":"cfcode-poc-19-cleanup-db","id":"c6a462ea-f587-4e55-90c9-f79b2c5cd704"},{"type":"r2","name":"cfcode-poc-19-cleanup-bucket"}]}

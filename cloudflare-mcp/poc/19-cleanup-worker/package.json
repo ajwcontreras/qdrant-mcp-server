@@ -1,0 +1,12 @@
+{
+  "name": "cfcode-poc-19-cleanup-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "wrangler": "^4.84.1"
+  }
+}

@@ -462,7 +462,7 @@ The MCP Worker exposes:
 
 ### POC 18: Per-Codebase MCP URL ✅
 
-**Status:** PASS — 2026-04-30 — unauthenticated `/mcp` URL served one configured codebase.
+**Status:** PASS — local commit `4e9fb40` — 2026-04-30 — unauthenticated `/mcp` URL served one configured codebase.
 
 - [x] Deployed Worker at `https://cfcode-poc-18-lumae-fresh-mcp.frosty-butterfly-d821.workers.dev/mcp`.
 - [x] MCP client listed `collection_info`.
@@ -489,13 +489,55 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-18-per-codebase-mcp-url.mjs`
 
-### POC 19: Throwaway Resource Cleanup
+### POC 19: Throwaway Resource Cleanup ✅
+
+**Status:** PASS — 2026-04-30 — cleanup manifest deleted throwaway Worker, Vectorize, D1, and R2 resources.
+
+- [x] Created throwaway Worker `cfcode-poc-19-cleanup-worker`.
+- [x] Created throwaway Vectorize index `cfcode-poc-19-cleanup-index`.
+- [x] Created throwaway D1 database `cfcode-poc-19-cleanup-db`.
+- [x] Created throwaway R2 bucket `cfcode-poc-19-cleanup-bucket`.
+- [x] Wrote `cloudflare-mcp/sessions/poc-19/cleanup-manifest.json`.
+- [x] Cleanup manifest drove deletion of all four resources.
+- [x] Post-cleanup checks confirmed Worker, Vectorize index, D1 DB, and R2 bucket were gone.
 
 **Proves:** Scripts can delete throwaway Workers, Vectorize indexes, D1 DBs, and R2 buckets created by POCs.
+
+**Build:**
+- `cloudflare-mcp/scripts/poc-19-throwaway-resource-cleanup.mjs`
+- creates one small throwaway Worker, Vectorize index, D1 DB, and R2 bucket
+- writes `cloudflare-mcp/sessions/poc-19/cleanup-manifest.json`
+- deletes resources by reading the manifest
+- verifies resources are gone through Wrangler/API commands
+
+**Input:** throwaway resources created by this POC only.
 
 **Pass criteria:**
 - cleanup manifest drives deletion
 - post-cleanup list confirms no throwaway resources remain
+
+**Run:** `node cloudflare-mcp/scripts/poc-19-throwaway-resource-cleanup.mjs`
+
+### POC 19.5: Generated Codebase MCP Docs
+
+**PIVOT NOTE:** User clarified every indexed codebase must receive a generated documentation file like `/Users/awilliamspcsevents/PROJECTS/cf-docs-mcp/README.md`, with the indexed local path, unique MCP URL, CLI install snippets, and incremental/resumable reindex commands.
+
+**Proves:** Indexing emits a per-codebase README/install/reindex document.
+
+**Build:**
+- `cloudflare-mcp/scripts/poc-19_5-codebase-doc-generator.mjs`
+- reads codebase path, MCP URL, active publication, and indexing command metadata
+- writes `cloudflare-mcp/sessions/poc-19_5/lumae-fresh-MCP.md`
+
+**Input:** POC metadata for `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`.
+
+**Pass criteria:**
+- doc includes indexed absolute path
+- doc includes unique `/mcp` URL
+- doc includes Claude/Cursor/Claude Desktop config snippets
+- doc includes incremental diff reindex and resume commands
+
+**Run:** `node cloudflare-mcp/scripts/poc-19_5-codebase-doc-generator.mjs`
 
 ### POC 20: Lumae Fresh End-to-End
 
