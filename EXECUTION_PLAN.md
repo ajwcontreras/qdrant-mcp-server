@@ -376,7 +376,9 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26A2: R2 Upload Endpoint Only
+## POC 26A2: R2 Upload Endpoint Only ✅
+
+**Status:** PASS — 2026-04-30 — R2 upload endpoint smoke exited 0 after adding deploy health polling.
 
 **Proves:** A deployed Worker can accept a local artifact upload and store it in R2, without D1 or job state.
 
@@ -389,10 +391,10 @@ POCs 10 and 11 can run in parallel.
 **Input:** Five filtered lumae files packaged by this machine.
 
 **Pass criteria:**
-- [ ] Worker deploy URL is discovered and `/health` returns JSON.
-- [ ] `/artifact/put` stores a JSONL artifact in R2.
-- [ ] `/artifact/head` reports artifact exists and byte size matches upload.
-- [ ] Throwaway Worker and R2 bucket are cleaned up.
+- [x] Worker deploy URL was discovered and `/health` returned JSON after bounded polling.
+- [x] `/artifact/put` stored a JSONL artifact in R2 — key `jobs/lumae-fresh-poc-26a2/046f19fac98c9b4c.jsonl`.
+- [x] `/artifact/head` reported artifact exists and byte size matched upload — `4277` bytes.
+- [x] Throwaway Worker and R2 bucket were cleaned up.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26a2-r2-upload-smoke.mjs`
 

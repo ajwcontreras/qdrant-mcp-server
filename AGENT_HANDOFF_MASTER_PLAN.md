@@ -2646,3 +2646,18 @@ Next exact step:
   - `noCloudflareResources: PASS`.
 - Next exact step: implement and run POC 26A2 R2 upload endpoint only.
 - Blockers or verification gaps: POC 26A1 compiles a local Worker baseline only; no remote deploy or R2 write yet.
+
+### 2026-04-30T13:17:29-0400
+- Completed POC 26A2: R2 Upload Endpoint Only.
+- First run failed because `/health` returned Cloudflare HTML 404 immediately after deploy; patched the POC script with bounded health polling and JSON content-type validation.
+- Built:
+  - `cloudflare-mcp/poc/26a2-r2-upload-worker/*`;
+  - `cloudflare-mcp/scripts/poc-26a2-r2-upload-smoke.mjs`.
+- Passing run:
+  - deployed Worker `cfcode-poc-26a2-r2-upload`;
+  - uploaded JSONL artifact `jobs/lumae-fresh-poc-26a2/046f19fac98c9b4c.jsonl`;
+  - verified `/artifact/head` returned the same `4277` byte size and `repo_slug` metadata;
+  - cleaned up throwaway Worker and R2 bucket.
+- Verification: `node cloudflare-mcp/scripts/poc-26a2-r2-upload-smoke.mjs` exited 0.
+- Next exact step: implement and run POC 26A3 D1 job row endpoint only.
+- Blockers or verification gaps: POC 26A2 covers R2 only; no D1 job state yet.
