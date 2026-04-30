@@ -2177,3 +2177,20 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-06-google-embedding-worker.mjs` exited 0.
 - Next exact step: commit and push POCs 01-06 as scoped Cloudflare-first proof history, then POC 07 Snapshot Manifest Builder.
 - Blockers or verification gaps: Google embedding is live-service dependent; later embedding POCs should persist fixtures/manifests so downstream pipeline steps are deterministic.
+
+### 2026-04-30T10:35:45-0400
+- Committed Cloudflare-first POCs 01-06 locally as `cde935c` (`POC 01-06 PASS: prove Cloudflare MCP primitives`).
+- Push attempts failed:
+  - `git push mine main`: GitHub 403 for `awilliamsevrylo` against `ajwcontreras/qdrant-mcp-server`.
+  - `git push origin main`: GitHub 403 for `awilliamsevrylo` against `steiner385/qdrant-mcp-server`.
+- Updated `CLOUDFLARE_FIRST_EXECUTION_PLAN.md` to record `cde935c` as the local proof commit for POCs 01-06.
+- Next exact step: continue with POC 07 locally; pushing requires corrected GitHub credentials/remote permissions.
+- Blockers or verification gaps: remote push remains blocked by auth, not by tests or code.
+
+### 2026-04-30T10:36:54-0400
+- Completed POC 07: deterministic snapshot manifest builder.
+- Built `cloudflare-mcp/scripts/poc-07-snapshot-manifest.mjs` and generated `cloudflare-mcp/sessions/poc-07/snapshot-manifest.json`.
+- Manifest covers 663 tracked files in `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, total bytes `26336809`, entries hash `70689e14fe58d317d63da00c884b078e6d6fc7e88986d241535a5b714e6b85f2`, snapshot ID `23c63e09629087a9681963d2600c55c2`.
+- Verification: `node cloudflare-mcp/scripts/poc-07-snapshot-manifest.mjs` exited 0 with all pass criteria.
+- Next exact step: commit POC 07 locally, attempt push, then start POC 08 Chunk Artifact Builder using the snapshot manifest as input.
+- Blockers or verification gaps: push still blocked by GitHub auth; POC 07 uses tracked working-tree file contents, so dirty tracked files are intentionally reflected in the content hashes.

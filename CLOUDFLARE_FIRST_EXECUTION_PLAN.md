@@ -48,7 +48,7 @@ The MCP Worker exposes:
 
 ### POC 01: Authless Worker MCP Hello ✅
 
-**Status:** PASS — 2026-04-30 — throwaway Worker deployed and deleted.
+**Status:** PASS — local commit `cde935c` — 2026-04-30 — throwaway Worker deployed and deleted.
 
 - [x] `wrangler deploy` returned `https://cfcode-poc-01-authless-mcp.frosty-butterfly-d821.workers.dev/mcp`.
 - [x] MCP client listed `ping` and `echo`.
@@ -70,7 +70,7 @@ The MCP Worker exposes:
 
 ### POC 02: R2 Artifact Bucket Smoke ✅
 
-**Status:** PASS — 2026-04-30 — throwaway R2 bucket and Worker deployed, verified, and deleted.
+**Status:** PASS — local commit `cde935c` — 2026-04-30 — throwaway R2 bucket and Worker deployed, verified, and deleted.
 
 - [x] Created `cfcode-poc-02-r2-artifacts`.
 - [x] Deployed `https://cfcode-poc-02-r2-artifact.frosty-butterfly-d821.workers.dev`.
@@ -88,7 +88,7 @@ The MCP Worker exposes:
 
 ### POC 03: D1 Metadata Smoke ✅
 
-**Status:** PASS — 2026-04-30 — throwaway D1 database and Worker deployed, verified, and deleted.
+**Status:** PASS — local commit `cde935c` — 2026-04-30 — throwaway D1 database and Worker deployed, verified, and deleted.
 
 - [x] Created D1 database `cfcode-poc-03-d1-metadata`.
 - [x] Generated Worker binding config from returned database UUID.
@@ -105,7 +105,7 @@ The MCP Worker exposes:
 
 ### POC 04: D1 FTS5 Smoke ✅
 
-**Status:** PASS — 2026-04-30 — throwaway D1 FTS5 Worker verified and deleted.
+**Status:** PASS — local commit `cde935c` — 2026-04-30 — throwaway D1 FTS5 Worker verified and deleted.
 
 - [x] Created FTS5 virtual table in remote D1.
 - [x] Seeded code chunk lexical fields.
@@ -121,7 +121,7 @@ The MCP Worker exposes:
 
 ### POC 05: Vectorize 1536d Index Smoke ✅
 
-**Status:** PASS — 2026-04-30 — 3072d rejected by Cloudflare, 1536d Worker-bound Vectorize verified and deleted.
+**Status:** PASS — local commit `cde935c` — 2026-04-30 — 3072d rejected by Cloudflare, 1536d Worker-bound Vectorize verified and deleted.
 
 - [x] Live 3072d create attempt failed with Cloudflare API dimension limit `[32, 1536]`.
 - [x] Created `cfcode-poc-05-vectorize-1536` with cosine metric.
@@ -142,7 +142,7 @@ The MCP Worker exposes:
 
 ### POC 06: Google Embedding Worker Binding ✅
 
-**Status:** PASS — 2026-04-30 — throwaway Worker minted Google OAuth from service-account secret, embedded through Vertex, and was deleted.
+**Status:** PASS — local commit `cde935c` — 2026-04-30 — throwaway Worker minted Google OAuth from service-account secret, embedded through Vertex, and was deleted.
 
 - [x] Service account JSON was loaded from local credentials without printing secret material.
 - [x] Worker compiled with `tsc --noEmit`.
@@ -158,13 +158,30 @@ The MCP Worker exposes:
 - `/embed` returns `gemini-embedding-001` 1536d vector
 - no OpenAI env vars required
 
-### POC 07: Snapshot Manifest Builder
+### POC 07: Snapshot Manifest Builder ✅
+
+**Status:** PASS — 2026-04-30 — deterministic tracked-file manifest generated for `lumae-fresh`.
+
+- [x] Read 663 tracked files from `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`.
+- [x] Manifest recorded file path, byte size, and sha256 for every tracked file.
+- [x] Total snapshot payload was 26,336,809 bytes.
+- [x] Rerun in the same process produced the same snapshot ID `23c63e09629087a9681963d2600c55c2`.
+- [x] Wrote `cloudflare-mcp/sessions/poc-07/snapshot-manifest.json` at 91,161 bytes.
 
 **Proves:** Local script can produce a deterministic repo snapshot manifest without indexing.
+
+**Build:**
+- `cloudflare-mcp/scripts/poc-07-snapshot-manifest.mjs`
+- reads `git ls-files` from `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`
+- writes `cloudflare-mcp/sessions/poc-07/snapshot-manifest.json`
+
+**Input:** local tracked file tree only; no Qdrant, no Cloudflare resources, no embeddings.
 
 **Pass criteria:**
 - manifest lists tracked files, file hashes, byte sizes
 - rerun on unchanged repo produces same snapshot ID
+
+**Run:** `node cloudflare-mcp/scripts/poc-07-snapshot-manifest.mjs`
 
 ### POC 08: Chunk Artifact Builder
 
