@@ -491,7 +491,7 @@ The MCP Worker exposes:
 
 ### POC 19: Throwaway Resource Cleanup ✅
 
-**Status:** PASS — 2026-04-30 — cleanup manifest deleted throwaway Worker, Vectorize, D1, and R2 resources.
+**Status:** PASS — local commit `ee27861` — 2026-04-30 — cleanup manifest deleted throwaway Worker, Vectorize, D1, and R2 resources.
 
 - [x] Created throwaway Worker `cfcode-poc-19-cleanup-worker`.
 - [x] Created throwaway Vectorize index `cfcode-poc-19-cleanup-index`.
@@ -518,7 +518,16 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-19-throwaway-resource-cleanup.mjs`
 
-### POC 19.5: Generated Codebase MCP Docs
+### POC 19.5: Generated Codebase MCP Docs ✅
+
+**Status:** PASS — 2026-04-30 — generated per-codebase install and incremental reindex documentation.
+
+- [x] Generated `cloudflare-mcp/sessions/poc-19_5/lumae-fresh-MCP.md`.
+- [x] Document includes indexed path `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`.
+- [x] Document includes unique MCP URL `https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/mcp`.
+- [x] Document includes Claude Code, Claude Desktop, Cursor, and curl snippets.
+- [x] Document includes incremental diff reindex command with `--mode incremental`, `--diff-base origin/main`, and `--resume`.
+- [x] Document states resumable reuse rules for chunks, HyDE, embeddings, publication, and active cutover.
 
 **PIVOT NOTE:** User clarified every indexed codebase must receive a generated documentation file like `/Users/awilliamspcsevents/PROJECTS/cf-docs-mcp/README.md`, with the indexed local path, unique MCP URL, CLI install snippets, and incremental/resumable reindex commands.
 
@@ -541,9 +550,10 @@ The MCP Worker exposes:
 
 ### POC 20: Lumae Fresh End-to-End
 
-**Proves:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh` has a public authless MCP URL with equivalent search behavior to the current local MCP.
+**Proves:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh` has a public authless MCP URL, generated user docs, and equivalent search behavior to the current local MCP.
 
 **Pass criteria:**
 - remote MCP inspector lists tools
 - `search` returns relevant lumae chunks with snippets
 - `collection_info` reports Cloudflare backend and active embedding run
+- generated MCP docs include install and incremental reindex commands

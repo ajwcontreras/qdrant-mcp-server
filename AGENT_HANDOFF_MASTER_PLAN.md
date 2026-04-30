@@ -2401,3 +2401,25 @@ Next exact step:
 - Added POC 19.5 to prove docs generation before final POC 20.
 - Next exact step: commit POC 19 locally, attempt push, then implement POC 19.5 Generated Codebase MCP Docs.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:24:05-0400
+- Committed POC 19 locally as `ee27861` (`POC 19 PASS: delete resources from cleanup manifest`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 19 status with local commit hash.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-19_5-codebase-doc-generator.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:24:48-0400
+- Completed POC 19.5: generated codebase MCP docs.
+- Built `cloudflare-mcp/scripts/poc-19_5-codebase-doc-generator.mjs`.
+- Generated `cloudflare-mcp/sessions/poc-19_5/lumae-fresh-MCP.md`.
+- Verification output passed all criteria:
+  - indexed absolute path present;
+  - unique `/mcp` URL present;
+  - Claude Code, Claude Desktop, Cursor, and curl snippets present;
+  - incremental command includes `--mode incremental`, `--diff-base origin/main`, and `--resume`;
+  - docs explain resumable reuse of chunk, HyDE, embedding, publication, and active cutover artifacts.
+- Updated POC 20 pass criteria to require generated MCP docs.
+- Verification: `node cloudflare-mcp/scripts/poc-19_5-codebase-doc-generator.mjs` exited 0.
+- Next exact step: commit POC 19.5 locally, attempt push, then implement POC 20 Lumae Fresh End-to-End.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials. The documented `index-codebase.mjs` command is specified but the production script still needs to be assembled in POC 20 from the proven POC parts.
