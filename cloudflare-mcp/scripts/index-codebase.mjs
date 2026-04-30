@@ -39,6 +39,33 @@ function runGit(repo, args, allowFailure = false) {
   return result;
 }
 
+function isIndexablePath(filePath) {
+  const normalized = filePath.replace(/\\/g, "/");
+  const segments = normalized.split("/");
+  const excludedDirs = new Set([
+    ".agents",
+    ".claude",
+    ".cursor",
+    ".git",
+    ".github",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "__pycache__",
+    "build",
+    "coverage",
+    "dist",
+    "node_modules",
+    "venv",
+  ]);
+  if (segments.some((segment) => excludedDirs.has(segment))) return false;
+  if (/(^|\/)(package-lock|pnpm-lock|yarn\.lock|uv\.lock|poetry\.lock|Pipfile\.lock)$/i.test(normalized)) return false;
+  if (/\.(png|jpe?g|gif|webp|ico|pdf|zip|gz|tar|tgz|mp4|mov|mp3|wav|sqlite|db)$/i.test(normalized)) return false;
+  return /\.(py|js|mjs|cjs|ts|tsx|jsx|svelte|html|css|scss|json|jsonc|ya?ml|toml|md|mdx|txt|sh|bash|sql|d2|env\.example)$/i.test(normalized)
+    || /(^|\/)(Dockerfile|Makefile|Procfile|README|AGENTS\.md)$/i.test(normalized);
+}
+
 function changedPathFromStatus(line) {
   const value = line.slice(3).trim();
   if (!value.includes(" -> ")) return value;
@@ -350,11 +377,13 @@ async function main() {
   const linesPerChunk = intArg("--lines-per-chunk", 120);
   const maxChars = intArg("--max-chars", 12000);
   const limit = intArg("--limit", 0);
+  const includeNonSource = has("--include-non-source");
   const serviceAccountPath = arg("--service-account", process.env.GOOGLE_APPLICATION_CREDENTIALS || defaultServiceAccountPath);
   if (!repo || !repoSlug) throw new Error("--repo and --repo-slug are required");
   if (!["incremental", "full"].includes(mode)) throw new Error("--mode must be incremental or full");
 
-  const tracked = runGit(repo, ["ls-files"]).stdout.trim().split("\n").filter(Boolean);
+  const allTracked = runGit(repo, ["ls-files"]).stdout.trim().split("\n").filter(Boolean);
+  const tracked = includeNonSource ? allTracked : allTracked.filter(isIndexablePath);
   const { changedPaths, pathsForIndex } = selectFiles({ repo, mode, diffBase, tracked });
   const selected = limit > 0 ? pathsForIndex.slice(0, limit) : pathsForIndex;
   const sessionDir = path.resolve("cloudflare-mcp/sessions/index-codebase", repoSlug);
@@ -366,7 +395,9 @@ async function main() {
     diff_base: diffBase,
     resume,
     dry_run: dryRun,
-    tracked_file_count: tracked.length,
+    tracked_file_count: allTracked.length,
+    indexable_file_count: tracked.length,
+    include_non_source: includeNonSource,
     changed_file_count: changedPaths.size,
     files_to_index_count: selected.length,
     files_to_index: selected,

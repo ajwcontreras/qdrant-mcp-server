@@ -2552,3 +2552,17 @@ Next exact step:
 - Updated `EXECUTION_PLAN.md` with POC 23 pass evidence.
 - Next exact step: decide whether to run full 663-file lumae indexing and publish to the live MCP URL, or add file filtering first to avoid indexing agent/tooling metadata.
 - Blockers or verification gaps: smoke proved resumability and token reuse over 10 files, but selected files included `.agents` and `.github` metadata; production full indexing may need ignore/filter rules.
+
+### 2026-04-30T12:43:37-0400
+- Completed POC 24: Default Source File Filtering.
+- Updated `cloudflare-mcp/scripts/index-codebase.mjs` with a default source-file filter and `--include-non-source` override.
+- Filter excludes common agent/tooling/dependency/generated directories including `.agents`, `.claude`, `.cursor`, `.github`, `.venv`, `venv`, `node_modules`, `dist`, `build`, caches, lock files, and binary assets.
+- Verification command: `node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh-filter-smoke --mode full --limit 10 --resume --dry-run`.
+- Evidence:
+  - `tracked_file_count: 663`;
+  - `indexable_file_count: 602`;
+  - `include_non_source: false`;
+  - first 10 selected files exclude `.agents/` and `.github/`;
+  - selected examples include `1003ingest/parse_1003.py`, `README.md`, prompt `.txt`, and admin `.py` files.
+- Next exact step: run a bounded full-mode smoke after filtering, then full lumae indexing and publish to the live MCP URL if volume/rate limits are acceptable.
+- Blockers or verification gaps: POC 24 was dry-run only; no embeddings or publication happened.

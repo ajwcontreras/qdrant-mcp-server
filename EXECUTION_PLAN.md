@@ -245,3 +245,26 @@ POCs 10 and 11 can run in parallel.
 - [x] Resume run reported `google_token_requests: 0`.
 
 **Run:** `node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh-full-smoke-10 --mode full --limit 10 --resume`
+
+---
+
+## POC 24: Default Source File Filtering ✅
+
+**Status:** PASS — 2026-04-30 — full dry-run filter smoke exited 0.
+
+**Proves:** Full-mode indexing skips agent/tooling metadata, dependency folders, generated outputs, and non-source assets by default.
+
+**Build:**
+- Update `cloudflare-mcp/scripts/index-codebase.mjs`.
+- Add a conservative default `isIndexablePath` filter.
+- Keep tracked file count and indexable file count visible in the plan.
+- Allow override with `--include-non-source`.
+
+**Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh` git tracked files.
+
+**Pass criteria:**
+- [x] Full dry-run plan includes `indexable_file_count` — output reported `indexable_file_count: 602` out of `tracked_file_count: 663`.
+- [x] First 10 selected files exclude `.agents/` and `.github/`.
+- [x] First 10 selected files include source/documentation files only — examples include `1003ingest/parse_1003.py`, `README.md`, prompt `.txt`, and admin `.py` files.
+
+**Run:** `node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh-filter-smoke --mode full --limit 10 --resume --dry-run`
