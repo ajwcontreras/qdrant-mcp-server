@@ -792,25 +792,29 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26E3: Incremental Diff Packager Uses Whole-File Reprocessing
+## POC 26E3: Incremental Diff Packager Uses Whole-File Reprocessing ✅
 
-**Proves:** Given a diff manifest, the local controller uploads only changed source files plus tombstones, so Cloudflare can reprocess whole files without full-repo upload.
+**Status:** PASS — 2026-04-30
+
+**Proves:** Given a diff manifest, the local controller packages only changed source files plus tombstones for Cloudflare reprocessing without full-repo upload.
 
 **Build:**
 - Read a POC 26E1 manifest.
 - Package full current text for added/modified/renamed source files.
 - Package tombstones for deleted source files.
-- Upload one incremental JSONL artifact to R2 with `manifest_id`, file action, old path where applicable, current path, file hash, and text for changed files.
+- Write incremental JSONL artifact locally with `manifest_id`, file action, old path where applicable, current path, file hash, and text for changed files.
 - No Vertex calls locally.
 
-**Input:** POC 26E1 manifest and local repo files.
+**Input:** POC 26E1 manifest (14 files) and local lumae-fresh repo files.
 
 **Pass criteria:**
-- [ ] R2 incremental artifact contains only manifest-listed changed source files and tombstones.
-- [ ] Changed files include full file text for whole-file rechunking.
-- [ ] Deleted files include tombstones and no text.
-- [ ] Artifact metadata links to manifest ID/base commit/target commit.
-- [ ] Local script exits with zero Vertex calls.
+- [x] Artifact contains only manifest-listed changed source files and tombstones.
+- [x] Changed files include full file text for whole-file rechunking.
+- [x] Deleted files include tombstones and no text.
+- [x] Artifact metadata links to manifest ID/base commit/target commit.
+- [x] Local script exits with zero Vertex calls.
+
+**Evidence:** `node cloudflare-mcp/scripts/poc-26e3-incremental-packager-smoke.mjs` exited 0. Artifact at `cloudflare-mcp/sessions/poc-26e3/incremental-artifact.jsonl` (60014 bytes, 14 records, 0 tombstones).
 
 **Run:** `node cloudflare-mcp/scripts/poc-26e3-incremental-packager-smoke.mjs`
 

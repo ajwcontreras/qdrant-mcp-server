@@ -1,0 +1,10 @@
+{
+  "manifest_id": "392ac55e55ce9a11",
+  "repo_slug": "lumae-fresh",
+  "base_commit": "7469bd725f1accc20150c581c8c0d7af9b88b1da",
+  "target_commit": "fafea4e36db5e3791d227a39e2a64d214ee10ba5",
+  "changed_files": 14,
+  "tombstones": 0,
+  "artifact_sha256": "372ef51f4bd70437c8972dd9955bcf787514e64dfeacbb09689188be5deda6f8",
+  "artifact_bytes": 60014
+}
