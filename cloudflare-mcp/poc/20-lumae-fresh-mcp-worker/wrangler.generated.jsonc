@@ -7,7 +7,7 @@
   "vars": {
     "REPO_SLUG": "lumae-fresh",
     "INDEXED_PATH": "/Users/awilliamspcsevents/PROJECTS/lumae-fresh",
-    "ACTIVE_EMBEDDING_RUN_ID": "19e2c2bf4fdc8521e63af051f55d75a8"
+    "ACTIVE_EMBEDDING_RUN_ID": "5ace95704a2adaff69a5a642dff92fdc"
   },
   "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-lumae-fresh-hyde-1536" }],
   "d1_databases": [{ "binding": "DB", "database_name": "cfcode-lumae-fresh", "database_id": "ac4ee10e-a9cf-4c8b-9fbb-d387e401c3eb" }]

@@ -561,6 +561,11 @@ The MCP Worker exposes:
 - [x] `search` returned `app.py:10-30` with snippet and score.
 - [x] `collection_info` reported Cloudflare backend, repo `lumae-fresh`, and active embedding run `19e2c2bf4fdc8521e63af051f55d75a8`.
 - [x] Generated `cloudflare-mcp/sessions/poc-20/lumae-fresh-MCP.md` with install and incremental reindex commands.
+- [x] Upgraded `index-codebase.mjs` from dry-run planning to executable incremental indexing.
+- [x] Real incremental run chunked `chat_messege.py` and `extensions.py`, generated 16 HyDE artifacts, embedded 16 vectors with Google `gemini-embedding-001` at 1536d, and published them to the live Worker.
+- [x] Worker search now embeds queries with the same Google embedding model using a Worker secret.
+- [x] Resume rerun skipped 16 existing chunk artifacts, 16 HyDE artifacts, and 16 embedding artifacts.
+- [x] Live MCP search returned indexed `extensions.py` results for a Redis limiter query.
 
 **Proves:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh` has a public authless MCP URL, generated user docs, and equivalent search behavior to the current local MCP.
 
@@ -582,3 +587,5 @@ The MCP Worker exposes:
 - generated MCP docs include install and incremental reindex commands
 
 **Run:** `node cloudflare-mcp/scripts/poc-20-lumae-fresh-e2e.mjs`
+
+**Production incremental run:** `node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh --mode incremental --diff-base HEAD --resume --publish-url https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/ingest --mcp-url https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/mcp`

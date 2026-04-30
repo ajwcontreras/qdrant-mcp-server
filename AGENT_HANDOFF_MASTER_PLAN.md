@@ -2462,3 +2462,20 @@ Next exact step:
 - Generated user docs remain at `cloudflare-mcp/sessions/poc-20/lumae-fresh-MCP.md`.
 - Next exact step: replace the POC20 deterministic sample seeding with the full production `index-codebase.mjs` execution path that chunks, reuses/generates HyDE, embeds with Google 1536d embeddings, publishes all changed chunks, and regenerates docs.
 - Blockers or verification gaps: remote push requires corrected GitHub credentials. The deployed MCP is a Cloudflare-first live proof and client endpoint, but not yet a full 663-file lumae production index.
+
+### 2026-04-30T11:49:32-0400
+- Replaced the `index-codebase.mjs` planning-only implementation with an executable incremental/full indexing pipeline.
+- Added Worker `/ingest` publication endpoint and upgraded Worker search to embed queries with Google `gemini-embedding-001` at 1536d via `GEMINI_SERVICE_ACCOUNT_B64`.
+- Set the live Worker secret from `/Users/awilliamspcsevents/Downloads/team (1).json` without committing secret material.
+- Redeployed `cfcode-lumae-fresh`; active embedding run is now `5ace95704a2adaff69a5a642dff92fdc`.
+- Ran real incremental indexing for `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`:
+  - files selected by diff/status: `chat_messege.py`, `extensions.py`;
+  - chunks: 16;
+  - HyDE artifacts: 16;
+  - Google embeddings: 16 at 1536d;
+  - published vectors: 16.
+- Reran the same command with `--resume`; it skipped 16 chunk artifacts, 16 HyDE artifacts, and 16 embedding artifacts, then republished the 16 vectors.
+- Live MCP verification returned Google-vector search results from `extensions.py` for query `redis limiter entra token storage options flask`; `collection_info` reported active run `5ace95704a2adaff69a5a642dff92fdc`.
+- Generated docs: `cloudflare-mcp/sessions/index-codebase/lumae-fresh/lumae-fresh-MCP.md`.
+- Next exact step: commit the production indexing upgrade locally and attempt push.
+- Blockers or verification gaps: remote push still requires corrected GitHub credentials. The current production run is incremental over changed tracked files, not a full 663-file redo; full redo is supported by `--mode full`.
