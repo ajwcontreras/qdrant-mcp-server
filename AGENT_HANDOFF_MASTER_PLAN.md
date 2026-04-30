@@ -2479,3 +2479,21 @@ Next exact step:
 - Generated docs: `cloudflare-mcp/sessions/index-codebase/lumae-fresh/lumae-fresh-MCP.md`.
 - Next exact step: commit the production indexing upgrade locally and attempt push.
 - Blockers or verification gaps: remote push still requires corrected GitHub credentials. The current production run is incremental over changed tracked files, not a full 663-file redo; full redo is supported by `--mode full`.
+
+### 2026-04-30T11:53:10-0400
+- Committed production indexing upgrade locally as `2294ec8` (`Implement Google-backed Cloudflare indexing pipeline`).
+- Attempted `git push mine main`; GitHub rejected it with 403: permission to `ajwcontreras/qdrant-mcp-server.git` denied to `awilliamsevrylo`.
+- Current live state:
+  - MCP URL: `https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/mcp`;
+  - Worker: `cfcode-lumae-fresh`;
+  - Vectorize: `cfcode-lumae-fresh-hyde-1536`;
+  - D1: `cfcode-lumae-fresh`;
+  - active embedding run: `5ace95704a2adaff69a5a642dff92fdc`.
+- Verification completed:
+  - `npm run check` in `cloudflare-mcp/poc/20-lumae-fresh-mcp-worker`;
+  - dry-run incremental plan;
+  - real incremental index/publish;
+  - resume rerun with 16 chunks/HyDE/embeddings skipped;
+  - live MCP client search and `collection_info`.
+- Next exact step: fix GitHub credentials and push the local commits, or run `index-codebase.mjs --mode full --resume` for a complete 663-file lumae redo if desired.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials. Full repo indexing was not run because the verified production command indexed the current diff set incrementally.
