@@ -625,28 +625,98 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26D: Full Cloudflare Job Runs Lumae End-To-End
+## POC 26D: Full Cloudflare Job Runs Lumae End-To-End — SUPERSEDED
 
-**Proves:** With this machine as the packager/controller, Cloudflare completes full filtered lumae indexing quickly via fan-out and the final MCP URL works.
+**Status:** SUPERSEDED — 2026-04-30 — split into POCs 26D1-26D4 because combining packaging, real Vertex embeddings, publication, MCP search, resume, and doc generation is too broad for one POC.
+
+---
+
+## POC 26D1: Combined Worker Compiles With All Bindings
+
+**Proves:** A single Worker combining 26D0 safety schema, 26B Vertex embedding, and 26C4 publication compiles and type-checks with R2/D1/Vectorize/Queue bindings.
 
 **Build:**
-- Local controller uploads full filtered lumae artifacts to R2 and starts the job.
-- Cloudflare Queues fan out embedding and publication.
-- Status endpoint polls D1 counters until complete.
-- Generated docs include indexed local path, MCP URL, full redo command, incremental redo command, and job/status URLs.
-- Use POC 26D0's safety contracts: deterministic IDs, idempotent Queue handling, D1 active filtering, and Vectorize metadata indexes created before inserts.
+- `cloudflare-mcp/poc/26d1-full-job-worker/`
+- Merge ingest, Queue consumer (embed + publish), search with D1 active filter, collection_info, status endpoints.
+- Google service account OAuth for Vertex `gemini-embedding-001` at 1536d.
+- Deterministic chunk IDs and INSERT OR REPLACE from 26D0.
+- No deploy. Local compile only.
 
-**Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, live Cloudflare R2/D1/Queues/Vectorize/Worker, Google service-account Worker secret.
+**Input:** None (compile check only).
 
 **Pass criteria:**
-- [ ] Full filtered lumae job completes from Cloudflare status endpoint.
-- [ ] Runtime and throughput are reported.
-- [ ] Resume/retry command skips completed chunks.
-- [ ] Duplicate-safe counters show no over-counting across retries/resume.
-- [ ] Generated docs include local path and unique MCP URL.
-- [ ] Live MCP `search` returns relevant full-codebase results.
+- [ ] `npm install` exits 0.
+- [ ] `npm run check` (tsc --noEmit) exits 0.
+- [ ] No Cloudflare resources created.
 
-**Run:** `node cloudflare-mcp/scripts/poc-26d-full-cloud-job-lumae.mjs`
+**Run:** `node cloudflare-mcp/scripts/poc-26d1-full-job-compile.mjs`
+
+---
+
+## POC 26D2: Bounded Lumae Job With Real Vertex Embeddings
+
+**Proves:** The combined Worker deploys, accepts a bounded 5-file lumae package, embeds with real Vertex, publishes to Vectorize/D1, and search returns results.
+
+**Build:**
+- Deploy 26D1 Worker with throwaway R2/D1/Vectorize/Queue resources.
+- Local script packages 5 filtered lumae files, uploads to Worker `/ingest`.
+- Queue consumer calls Vertex `gemini-embedding-001` and publishes to Vectorize/D1.
+- Search with D1 active filtering returns a published chunk.
+- Cleanup deletes all throwaway resources.
+
+**Input:** 5 filtered files from `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, Google service-account secret.
+
+**Pass criteria:**
+- [ ] 5 files packaged and ingested.
+- [ ] Queue consumer produces real 1536d Vertex embeddings (no deterministic fakes).
+- [ ] Search returns a published chunk with D1 hydration.
+- [ ] Status endpoint shows completed count matching input.
+- [ ] Cleanup deletes Worker/Queue/DLQ/R2/D1/Vectorize.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26d2-bounded-lumae-job.mjs`
+
+---
+
+## POC 26D3: Full Lumae Job With Persistent Resources
+
+**Proves:** Full filtered lumae codebase indexes through persistent Cloudflare resources with fan-out, and the live MCP URL returns relevant results.
+
+**Build:**
+- Create persistent `cfcode-lumae-fresh` Worker, Vectorize, D1, Queues.
+- Local script packages all filtered lumae files and uploads to `/ingest`.
+- Poll status endpoint until job completes.
+- Report runtime and throughput.
+- Verify MCP search returns relevant results for lumae queries.
+
+**Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh` (all filtered files), Google service-account secret.
+
+**Pass criteria:**
+- [ ] Full filtered lumae job completes from status endpoint.
+- [ ] Runtime and throughput are reported.
+- [ ] Live MCP `search` returns relevant full-codebase results.
+- [ ] Persistent resources are NOT deleted (left for 26D4 and production use).
+
+**Run:** `node cloudflare-mcp/scripts/poc-26d3-full-lumae-job.mjs`
+
+---
+
+## POC 26D4: Resume, Docs, And MCP Client Install
+
+**Proves:** Resume skips completed chunks, generated docs include install snippets, and the MCP URL is usable by Claude/agents.
+
+**Build:**
+- Rerun the 26D3 command with `--resume`; verify zero re-embedding.
+- Generate docs under `cloudflare-mcp/sessions/index-codebase/lumae-fresh/`.
+- Docs include MCP URL, indexed path, full redo, incremental placeholder, resume/retry, and status.
+
+**Input:** Persistent resources from 26D3.
+
+**Pass criteria:**
+- [ ] Resume rerun shows zero embeddings written and zero Vertex calls.
+- [ ] Generated docs include local path and unique MCP URL.
+- [ ] Docs include Claude Code, Claude Desktop, and curl install snippets.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26d4-resume-and-docs.mjs`
 
 ---
 
