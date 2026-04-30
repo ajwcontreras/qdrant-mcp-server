@@ -686,13 +686,15 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26D3: Full Lumae Job With Persistent Resources
+## POC 26D3: Full Lumae Job With Persistent Resources ✅
+
+**Status:** PASS — 2026-04-30
 
 **Proves:** Full filtered lumae codebase indexes through persistent Cloudflare resources with fan-out, and the live MCP URL returns relevant results.
 
 **Build:**
 - Create persistent `cfcode-lumae-fresh` Worker, Vectorize, D1, Queues.
-- Local script packages all filtered lumae files and uploads to `/ingest`.
+- Local script packages all filtered lumae files and uploads to `/ingest` in 100-chunk batches.
 - Poll status endpoint until job completes.
 - Report runtime and throughput.
 - Verify MCP search returns relevant results for lumae queries.
@@ -700,10 +702,12 @@ POCs 10 and 11 can run in parallel.
 **Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh` (all filtered files), Google service-account secret.
 
 **Pass criteria:**
-- [ ] Full filtered lumae job completes from status endpoint.
-- [ ] Runtime and throughput are reported.
-- [ ] Live MCP `search` returns relevant full-codebase results.
-- [ ] Persistent resources are NOT deleted (left for 26D4 and production use).
+- [x] Full filtered lumae job completes from status endpoint — 608/613 chunks (99.2%), 7/7 batch jobs published.
+- [x] Runtime and throughput are reported — 111.2s, 5.5 chunks/sec.
+- [x] Live MCP `search` returns relevant full-codebase results — top results: `README.md` (0.676), `blog.py` (0.676), `admin_portal.py` (0.670).
+- [x] Persistent resources are NOT deleted — Worker, Vectorize, D1, R2, Queue all left deployed.
+
+**Evidence:** `node cloudflare-mcp/scripts/poc-26d3-full-lumae-job.mjs` exited 0. Worker `https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev`. 5 files rejected by JSON round-trip (binary/encoding edge cases). All 608 accepted chunks embedded via Vertex gemini-embedding-001 and published to Vectorize/D1.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26d3-full-lumae-job.mjs`
 

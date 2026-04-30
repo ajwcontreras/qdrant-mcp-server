@@ -1,8 +1,8 @@
 # Agent Handoff Master Plan: Qdrant MCP Agentic Code Search
 
-Last atomic update: 2026-04-30T17:15:00-04:00
-Previous atomic update: 2026-04-30T14:30:00-04:00
-Status: POC 26D2 PASS. Next step is POC 26D3 full lumae job with persistent resources.
+Last atomic update: 2026-04-30T17:25:00-04:00
+Previous atomic update: 2026-04-30T17:15:00-04:00
+Status: POC 26D3 PASS. Full lumae indexed (608 chunks, 111s, 5.5/sec). Persistent resources deployed. Next step is POC 26D4 resume and docs.
 
 ## Non-Negotiable Operating Rule
 
