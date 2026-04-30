@@ -354,7 +354,9 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26A1: Worker Toolchain Compiles With R2 And D1 Bindings
+## POC 26A1: Worker Toolchain Compiles With R2 And D1 Bindings ✅
+
+**Status:** PASS — 2026-04-30 — local compile smoke exited 0.
 
 **Proves:** The Cloudflare Worker TypeScript/package baseline for R2+D1 compiles before any remote resources are created.
 
@@ -366,9 +368,9 @@ POCs 10 and 11 can run in parallel.
 **Input:** Local Node/npm toolchain.
 
 **Pass criteria:**
-- [ ] `npm install` exits 0.
-- [ ] `npm run check` exits 0.
-- [ ] No Cloudflare resources are created.
+- [x] `npm install` exited 0.
+- [x] `npm run check` exited 0.
+- [x] No Cloudflare resources were created — POC only ran local npm install/typecheck.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26a1-r2-d1-compile-smoke.mjs`
 

@@ -2631,3 +2631,18 @@ Next exact step:
   - added POC 26A4 combined local packager to R2 and D1.
 - Next exact step: implement and run POC 26A1 only.
 - Blockers or verification gaps: no Cloudflare fan-out implementation yet; this was a disciplined split after an over-broad POC failed twice.
+
+### 2026-04-30T13:11:44-0400
+- Completed POC 26A1: Worker Toolchain Compiles With R2 And D1 Bindings.
+- Built:
+  - `cloudflare-mcp/poc/26a1-r2-d1-compile-worker/package.json`;
+  - `cloudflare-mcp/poc/26a1-r2-d1-compile-worker/tsconfig.json`;
+  - `cloudflare-mcp/poc/26a1-r2-d1-compile-worker/src/index.ts`;
+  - `cloudflare-mcp/scripts/poc-26a1-r2-d1-compile-smoke.mjs`.
+- Verification: `node cloudflare-mcp/scripts/poc-26a1-r2-d1-compile-smoke.mjs` exited 0.
+- Evidence:
+  - `npm install: PASS`;
+  - `typecheck: PASS`;
+  - `noCloudflareResources: PASS`.
+- Next exact step: implement and run POC 26A2 R2 upload endpoint only.
+- Blockers or verification gaps: POC 26A1 compiles a local Worker baseline only; no remote deploy or R2 write yet.
