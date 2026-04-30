@@ -2566,3 +2566,24 @@ Next exact step:
   - selected examples include `1003ingest/parse_1003.py`, `README.md`, prompt `.txt`, and admin `.py` files.
 - Next exact step: run a bounded full-mode smoke after filtering, then full lumae indexing and publish to the live MCP URL if volume/rate limits are acceptable.
 - Blockers or verification gaps: POC 24 was dry-run only; no embeddings or publication happened.
+
+### 2026-04-30T12:47:26-0400
+- Completed POC 25: Post-Filter Bounded Full-Mode Embedding Smoke.
+- Ran filtered full-mode indexing over the first 10 indexable lumae files using throwaway slug `lumae-fresh-filtered-smoke-10`, with no publish URL.
+- First run evidence:
+  - `tracked_file_count: 663`;
+  - `indexable_file_count: 602`;
+  - selected files excluded `.agents/` and `.github/`;
+  - `chunk_count: 19`;
+  - `embeddings_written: 19`;
+  - `google_token_requests: 1`;
+  - `publish_skipped: true`.
+- Resume run evidence:
+  - `chunks_written: 0`;
+  - `hyde_written: 0`;
+  - `embeddings_written: 0`;
+  - `embeddings_skipped: 19`;
+  - `google_token_requests: 0`.
+- Updated `EXECUTION_PLAN.md` with POC 25 pass evidence.
+- Next exact step: run full filtered lumae indexing and publish to `https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/ingest`, then verify the `/mcp` search and regenerated docs.
+- Blockers or verification gaps: POC 25 did not publish; full 602-indexable-file run remains pending.

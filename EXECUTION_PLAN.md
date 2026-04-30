@@ -268,3 +268,28 @@ POCs 10 and 11 can run in parallel.
 - [x] First 10 selected files include source/documentation files only — examples include `1003ingest/parse_1003.py`, `README.md`, prompt `.txt`, and admin `.py` files.
 
 **Run:** `node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh-filter-smoke --mode full --limit 10 --resume --dry-run`
+
+---
+
+## POC 25: Post-Filter Bounded Full-Mode Embedding Smoke ✅
+
+**Status:** PASS — 2026-04-30 — filtered 10-file embedding smoke and resume exited 0.
+
+**Proves:** After source filtering, the production indexer can embed a representative 10-file full-mode sample and resume without repeated work.
+
+**Build:**
+- Reuse `cloudflare-mcp/scripts/index-codebase.mjs`.
+- Run full mode over the first 10 filtered source/doc files using a throwaway repo slug.
+- Do not publish to the live MCP endpoint.
+- Rerun with `--resume`.
+
+**Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, Google service-account JSON, and live Vertex AI prediction endpoint.
+
+**Pass criteria:**
+- [x] First run selected filtered source/doc files, not `.agents` or `.github` — selected files included `1003ingest/parse_1003.py`, `README.md`, prompt `.txt`, and admin `.py`.
+- [x] First run wrote more than 10 chunks and embeddings — `chunk_count: 19`, `embeddings_written: 19`.
+- [x] First run reported `google_token_requests: 1`.
+- [x] Resume run wrote zero chunks, HyDE artifacts, and embeddings — `chunks_written: 0`, `hyde_written: 0`, `embeddings_written: 0`.
+- [x] Resume run reported `google_token_requests: 0`.
+
+**Run:** `node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh-filtered-smoke-10 --mode full --limit 10 --resume`
