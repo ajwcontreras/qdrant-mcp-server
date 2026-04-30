@@ -1,8 +1,8 @@
 # Agent Handoff Master Plan: Qdrant MCP Agentic Code Search
 
-Last atomic update: 2026-04-30T12:19:42-04:00
-Previous atomic update: 2026-04-30T12:17:30-04:00
-Status: POC 26C3 passed; next exact step is POC 26C4 combined Queue publication proof.
+Last atomic update: 2026-04-30T12:23:42-04:00
+Previous atomic update: 2026-04-30T12:19:42-04:00
+Status: POC 26C4 passed; next exact step is POC 26D full Cloudflare job for lumae.
 
 ## Non-Negotiable Operating Rule
 
@@ -107,6 +107,15 @@ Council sanity check on 2026-04-22 converged on this corrected design:
 - [x] Verify compile/tests.
 
 ## Progress Log
+
+### 2026-04-30T12:23:42-04:00
+- Completed POC 26C4 combined Queue publication to Vectorize and D1.
+- Verification: `node cloudflare-mcp/scripts/poc-26c4-cloud-publication-smoke.mjs` exited 0.
+- Evidence: Worker `https://cfcode-poc-26c4-publication.frosty-butterfly-d821.workers.dev`, publication `pub-29a6f4b5839f546b`, 3 Queue publication messages, 3 published vectors, Vectorize search matches included `vec-e22bc966d9352957`, D1 active publication metadata matched `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`.
+- Cleanup evidence: cleanup used explicit Queue consumer removal, Worker/Queue/DLQ deletion, remote R2 object deletion, R2 bucket deletion, Vectorize deletion, and D1 deletion.
+- Files touched: `EXECUTION_PLAN.md`, `AGENT_HANDOFF_MASTER_PLAN.md`, `cloudflare-mcp/scripts/poc-26c4-cloud-publication-smoke.mjs`, `cloudflare-mcp/poc/26c4-cloud-publication-worker/*`.
+- Exact next step: implement POC 26D full Cloudflare job for lumae by composing 26A4 packaging, 26B Queue embedding, and 26C4 publication into a persistent per-codebase Worker flow and generated MCP docs.
+- Blockers or verification gaps: full filtered lumae end-to-end Cloudflare job is not yet implemented; current 26C4 uses deterministic vectors rather than live Vertex output artifacts.
 
 ### 2026-04-30T12:19:42-04:00
 - Completed POC 26C3 Vectorize visibility after upsert proof.

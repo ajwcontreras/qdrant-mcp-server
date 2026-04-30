@@ -570,7 +570,9 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26C4: Combined Queue Publication To Vectorize And D1
+## POC 26C4: Combined Queue Publication To Vectorize And D1 ✅
+
+**Status:** PASS — 2026-04-30 — combined Queue publication smoke exited 0.
 
 **Proves:** After cleanup and Vectorize visibility are separately proven, Queue publication can read R2 embedding artifacts, upsert Vectorize, write D1 chunk metadata, and expose MCP-style collection/search endpoints.
 
@@ -582,11 +584,11 @@ POCs 10 and 11 can run in parallel.
 **Input:** Three deterministic embedding records.
 
 **Pass criteria:**
-- [ ] Publication Queue receives one message per embedding record.
-- [ ] Vectorize contains published vectors and search returns the expected chunk.
-- [ ] D1 contains chunk metadata/snippets for published vectors.
-- [ ] `collection_info` reads active run metadata from D1.
-- [ ] All throwaway resources are cleaned up with explicit Queue consumer removal and remote R2 object deletion.
+- [x] Publication Queue receives one message per embedding record — publication `pub-29a6f4b5839f546b`, 3 messages.
+- [x] Vectorize contains published vectors and search returns the expected chunk — matches included `vec-e22bc966d9352957`.
+- [x] D1 contains chunk metadata/snippets for published vectors — `Published vectors: 3`.
+- [x] `collection_info` reads active run metadata from D1 — active publication matched indexed path `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`.
+- [x] All throwaway resources are cleaned up with explicit Queue consumer removal and remote R2 object deletion.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26c4-cloud-publication-smoke.mjs`
 

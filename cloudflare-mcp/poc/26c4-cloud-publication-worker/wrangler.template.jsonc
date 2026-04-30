@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-26c4-publication",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-poc-26c4-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-poc-26c4-jobs", "database_id": "__DATABASE_ID__" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-poc-26c4-vectorize" }],
+  "queues": {
+    "producers": [{ "binding": "PUBLICATION_QUEUE", "queue": "cfcode-poc-26c4-publication" }],
+    "consumers": [{
+      "queue": "cfcode-poc-26c4-publication",
+      "max_batch_size": 3,
+      "max_batch_timeout": 2,
+      "max_retries": 2,
+      "dead_letter_queue": "cfcode-poc-26c4-publication-dlq"
+    }]
+  }
+}
