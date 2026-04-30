@@ -503,7 +503,9 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26C1: Queue Consumer Binding Cleanup Proof
+## POC 26C1: Queue Consumer Binding Cleanup Proof ✅
+
+**Status:** PASS — 2026-04-30 — Queue consumer cleanup smoke exited 0.
 
 **Proves:** A throwaway Queue consumer Worker can be cleanly unbound and deleted before Queue/DLQ deletion, preventing stale queue-name failures.
 
@@ -514,10 +516,10 @@ POCs 10 and 11 can run in parallel.
 **Input:** Cloudflare credentials from `.cfapikeys`.
 
 **Pass criteria:**
-- [ ] Worker deploys as a Queue consumer.
-- [ ] Consumer binding is removed explicitly before deletion.
-- [ ] Worker, Queue, and DLQ delete cleanly.
-- [ ] Queue name can be recreated after cleanup.
+- [x] Worker deploys as a Queue consumer — `/health` returned JSON for `cfcode-poc-26c1-queue-cleanup`.
+- [x] Consumer binding is removed explicitly before deletion — `wrangler queues consumer remove cfcode-poc-26c1-queue cfcode-poc-26c1-queue-cleanup` passed.
+- [x] Worker, Queue, and DLQ delete cleanly.
+- [x] Queue name can be recreated after cleanup — `cfcode-poc-26c1-queue` was recreated after deletion.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26c1-queue-cleanup-smoke.mjs`
 

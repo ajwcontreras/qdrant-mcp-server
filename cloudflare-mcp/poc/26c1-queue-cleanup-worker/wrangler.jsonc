@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-26c1-queue-cleanup",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "queues": {
+    "producers": [{ "binding": "TEST_QUEUE", "queue": "cfcode-poc-26c1-queue" }],
+    "consumers": [{
+      "queue": "cfcode-poc-26c1-queue",
+      "max_batch_size": 2,
+      "max_batch_timeout": 2,
+      "max_retries": 2,
+      "dead_letter_queue": "cfcode-poc-26c1-dlq"
+    }]
+  }
+}

@@ -1,8 +1,8 @@
 # Agent Handoff Master Plan: Qdrant MCP Agentic Code Search
 
-Last atomic update: 2026-04-30T12:13:56-04:00
-Previous atomic update: 2026-04-30T12:07:40-04:00
-Status: POC 26C stopped after two failed runs and split; next exact step is POC 26C1 Queue consumer cleanup proof.
+Last atomic update: 2026-04-30T12:15:53-04:00
+Previous atomic update: 2026-04-30T12:13:56-04:00
+Status: POC 26C1 passed; next exact step is POC 26C2 R2 embedding artifact publication input proof.
 
 ## Non-Negotiable Operating Rule
 
@@ -107,6 +107,14 @@ Council sanity check on 2026-04-22 converged on this corrected design:
 - [x] Verify compile/tests.
 
 ## Progress Log
+
+### 2026-04-30T12:15:53-04:00
+- Completed POC 26C1 Queue consumer binding cleanup proof.
+- Verification: `node cloudflare-mcp/scripts/poc-26c1-queue-cleanup-smoke.mjs` exited 0.
+- Evidence: Worker deployed as Queue consumer, `wrangler queues consumer remove cfcode-poc-26c1-queue cfcode-poc-26c1-queue-cleanup` passed, Worker/Queue/DLQ deleted cleanly, and queue name `cfcode-poc-26c1-queue` was recreated after cleanup.
+- Files touched: `EXECUTION_PLAN.md`, `AGENT_HANDOFF_MASTER_PLAN.md`, `cloudflare-mcp/scripts/poc-26c1-queue-cleanup-smoke.mjs`, `cloudflare-mcp/poc/26c1-queue-cleanup-worker/*`.
+- Exact next step: implement and run `node cloudflare-mcp/scripts/poc-26c2-r2-publication-artifact-smoke.mjs`.
+- Blockers or verification gaps: POC 26C2 has not yet proven remote R2 artifact write/head/delete behavior for publication input artifacts.
 
 ### 2026-04-30T12:13:56-04:00
 - Stopped POC 26C after two failed runs in a row per POC discipline.
