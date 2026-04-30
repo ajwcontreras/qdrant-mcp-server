@@ -2209,3 +2209,17 @@ Next exact step:
 - Added `.gitignore` entry for `cloudflare-mcp/sessions/poc-08/chunks/` because per-chunk text artifacts are reproducible and about 1.1 MB.
 - Next exact step: commit POC 08 locally, attempt push, then implement POC 09 HyDE Artifact Builder keyed by `content_hash + hyde_version + hyde_model`.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials; POC 08 chunking is line-window based and intentionally bounded for proof size.
+
+### 2026-04-30T10:38:40-0400
+- Committed POC 08 locally as `0833d17` (`POC 08 PASS: build embedding-agnostic chunk artifacts`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 09 plan before implementation. POC 09 is intentionally scoped to deterministic HyDE artifact keying/resume semantics over POC 08 chunks; live LLM HyDE quality should be a separate proof so this POC does not combine provider variability with artifact design.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-09-hyde-artifact-builder.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T10:39:59-0400
+- Completed POC 09: resumable, embedding-agnostic HyDE artifact builder.
+- Built `cloudflare-mcp/scripts/poc-09-hyde-artifact-builder.mjs`; it reads POC 08 chunks, writes HyDE artifacts keyed by `content_hash + hyde_version + hyde_model`, and writes `cloudflare-mcp/sessions/poc-09/hyde-manifest.json`.
+- Verification output: input chunks `24`, first run written `24`, second run skipped `24`, HyDE keys hash `0b69afaa1e62aa19e58bf5a42c6558332a8e0a977d3f211a65a36eeafa2593a2`, required fields present, `embedding_agnostic: true`, and no embedding fields.
+- Next exact step: commit POC 09 locally, attempt push, then implement POC 10 Embedding Run Builder proving two embedding projections can be regenerated over the same chunk/HyDE artifacts without upstream changes.
+- Blockers or verification gaps: POC 09 uses deterministic template HyDE to prove artifact semantics. Live LLM HyDE quality is not proven here and should remain a separate proof.

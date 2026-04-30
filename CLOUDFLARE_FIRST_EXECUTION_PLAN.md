@@ -185,7 +185,7 @@ The MCP Worker exposes:
 
 ### POC 08: Chunk Artifact Builder ✅
 
-**Status:** PASS — 2026-04-30 — embedding-agnostic chunks generated from the POC 07 snapshot manifest.
+**Status:** PASS — local commit `0833d17` — 2026-04-30 — embedding-agnostic chunks generated from the POC 07 snapshot manifest.
 
 - [x] Read snapshot ID `23c63e09629087a9681963d2600c55c2`.
 - [x] Selected 8 bounded source files from the snapshot manifest.
@@ -210,14 +210,34 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-08-chunk-artifact-builder.mjs`
 
-### POC 09: HyDE Artifact Builder
+### POC 09: HyDE Artifact Builder ✅
+
+**Status:** PASS — 2026-04-30 — resumable HyDE artifacts generated independently from embeddings.
+
+- [x] Read 24 chunk artifacts from POC 08.
+- [x] First run wrote 24 HyDE artifacts under `cloudflare-mcp/sessions/poc-09/hyde/`.
+- [x] Second run skipped 24 existing HyDE artifacts.
+- [x] HyDE artifact includes `hyde_key`, `content_hash`, `hyde_version`, `hyde_model`, and 3 questions.
+- [x] HyDE artifact has `embedding_agnostic: true` and no embedding fields.
+- [x] Wrote `cloudflare-mcp/sessions/poc-09/hyde-manifest.json` with HyDE keys hash `0b69afaa1e62aa19e58bf5a42c6558332a8e0a977d3f211a65a36eeafa2593a2`.
 
 **Proves:** HyDE generation writes artifacts keyed by `content_hash + hyde_version + hyde_model`.
+
+**Build:**
+- `cloudflare-mcp/scripts/poc-09-hyde-artifact-builder.mjs`
+- reads `cloudflare-mcp/sessions/poc-08/chunk-manifest.json`
+- reads local chunk body artifacts from `cloudflare-mcp/sessions/poc-08/chunks/`
+- writes HyDE JSON artifacts under `cloudflare-mcp/sessions/poc-09/hyde/`
+- writes `cloudflare-mcp/sessions/poc-09/hyde-manifest.json`
+
+**Input:** POC 08 chunk artifacts. This POC uses deterministic template HyDE so it proves artifact keys/resume semantics without adding live LLM variability.
 
 **Pass criteria:**
 - generated questions stored in R2/local artifacts
 - rerun skips existing HyDE
 - embedding model changes do not invalidate HyDE
+
+**Run:** `node cloudflare-mcp/scripts/poc-09-hyde-artifact-builder.mjs`
 
 ### POC 10: Embedding Run Builder
 
