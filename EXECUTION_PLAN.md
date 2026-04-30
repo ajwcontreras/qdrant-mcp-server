@@ -198,3 +198,26 @@ POCs 10 and 11 can run in parallel.
 - [x] The script printed timing/norm evidence and exited 0 — norms `0.691349`, `0.687950`, `0.690907`; elapsed `534`, `198`, `213` ms.
 
 **Run:** `node cloudflare-mcp/scripts/poc-21-google-embedding-token-cache.mjs`
+
+---
+
+## POC 22: Production Indexer Uses Cached Google Token ✅
+
+**Status:** PASS — 2026-04-30 — bounded full-mode indexing and resume smoke exited 0.
+
+**Proves:** `index-codebase.mjs` uses the POC 21 token cache during real indexing, so bounded full-mode runs do not mint one OAuth token per chunk.
+
+**Build:**
+- Update `cloudflare-mcp/scripts/index-codebase.mjs`.
+- Add in-process Google token cache and token request accounting.
+- Include token request count in `last-summary.json`.
+- Run a bounded full-mode indexing smoke with a throwaway repo slug and no publish URL.
+
+**Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, Google service-account JSON, and live Vertex AI prediction endpoint.
+
+**Pass criteria:**
+- [x] Bounded full-mode indexing wrote at least one embedding artifact — first run `embeddings_written: 1`.
+- [x] Summary reported `google_token_requests: 1` when embeddings were written.
+- [x] Resume rerun wrote zero embeddings and reported `google_token_requests: 0` — second run `embeddings_written: 0`, `embeddings_skipped: 1`.
+
+**Run:** `node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh-token-smoke --mode full --limit 1 --resume`

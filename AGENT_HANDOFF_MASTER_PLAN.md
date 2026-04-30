@@ -2518,3 +2518,18 @@ Next exact step:
 - Operational note: avoid using `status` as a shell variable name in zsh; it is read-only.
 - Next exact step: integrate the token cache proven in POC 21 into `cloudflare-mcp/scripts/index-codebase.mjs`.
 - Blockers or verification gaps: none for POC 21. Full lumae indexing remains pending.
+
+### 2026-04-30T12:34:21-0400
+- Completed POC 22: Production Indexer Uses Cached Google Token.
+- Updated `cloudflare-mcp/scripts/index-codebase.mjs` with an in-process Google token cache and `google_token_requests` summary field.
+- Verification first run:
+  - command: `rm -rf cloudflare-mcp/sessions/index-codebase/lumae-fresh-token-smoke && node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh-token-smoke --mode full --limit 1 --resume`;
+  - `embeddings_written: 1`;
+  - `google_token_requests: 1`.
+- Verification resume run:
+  - command: `node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh-token-smoke --mode full --limit 1 --resume`;
+  - `embeddings_written: 0`;
+  - `embeddings_skipped: 1`;
+  - `google_token_requests: 0`.
+- Next exact step: run a larger bounded full-mode smoke, then full lumae indexing if rate limits and artifact volume look acceptable.
+- Blockers or verification gaps: POC 22 used one file only and did not publish to the live MCP URL.

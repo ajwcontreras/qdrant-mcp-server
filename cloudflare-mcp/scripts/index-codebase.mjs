@@ -8,6 +8,8 @@ const defaultServiceAccountPath = "/Users/awilliamspcsevents/Downloads/team (1).
 const chunkerVersion = "line-window-v2";
 const hydeVersion = "template-hyde-v1";
 const hydeModel = "deterministic-template";
+let googleTokenCache;
+let googleTokenRequestCount = 0;
 
 function arg(name, fallback = undefined) {
   const index = process.argv.indexOf(name);
@@ -88,7 +90,11 @@ function base64Url(value) {
 }
 
 async function googleToken(account) {
-  const now = Math.floor(Date.now() / 1000);
+  const nowMs = Date.now();
+  if (googleTokenCache && googleTokenCache.expiresAt - 60_000 > nowMs) return googleTokenCache.token;
+
+  googleTokenRequestCount += 1;
+  const now = Math.floor(nowMs / 1000);
   const header = base64Url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const claims = base64Url(JSON.stringify({
     iss: account.client_email,
@@ -109,7 +115,11 @@ async function googleToken(account) {
   if (!response.ok) throw new Error(`Google token request failed ${response.status}: ${raw.slice(0, 300)}`);
   const data = JSON.parse(raw);
   if (!data.access_token) throw new Error("Google token response did not include access_token");
-  return data.access_token;
+  googleTokenCache = {
+    token: data.access_token,
+    expiresAt: nowMs + Math.max(60, data.expires_in || 3600) * 1000,
+  };
+  return googleTokenCache.token;
 }
 
 async function embedGoogle({ account, text, dimension, model, location, taskType }) {
@@ -393,6 +403,7 @@ async function main() {
     embedding_run_id: embeddingResult.embeddingRunId,
     embeddings_written: embeddingResult.written,
     embeddings_skipped: embeddingResult.skipped,
+    google_token_requests: googleTokenRequestCount,
     published: publishResult.published,
     publish_skipped: publishResult.skipped,
     doc_path: docPath,
