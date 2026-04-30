@@ -1,8 +1,8 @@
 # Agent Handoff Master Plan: Qdrant MCP Agentic Code Search
 
-Last atomic update: 2026-04-30T12:23:42-04:00
-Previous atomic update: 2026-04-30T12:19:42-04:00
-Status: POC 26C4 passed; next exact step is POC 26D full Cloudflare job for lumae.
+Last atomic update: 2026-04-30T12:27:34-04:00
+Previous atomic update: 2026-04-30T12:23:42-04:00
+Status: Added git-diff incremental Cloudflare POCs; next exact step remains POC 26D full Cloudflare job for lumae.
 
 ## Non-Negotiable Operating Rule
 
@@ -107,6 +107,14 @@ Council sanity check on 2026-04-22 converged on this corrected design:
 - [x] Verify compile/tests.
 
 ## Progress Log
+
+### 2026-04-30T12:27:34-04:00
+- Updated `EXECUTION_PLAN.md` in response to user request for diff-driven incremental Cloudflare indexing.
+- Added POCs 26E1-26E5: git diff manifest JSON export, Cloudflare D1 git history state, whole-file incremental packaging, Cloudflare incremental diff processing, and generated docs with diff reindex commands.
+- Design decision recorded: v1 incremental mode reprocesses entire changed source files and creates tombstones for deleted files; AST/sub-file incremental rechunking is deferred.
+- Files touched: `EXECUTION_PLAN.md`, `AGENT_HANDOFF_MASTER_PLAN.md`.
+- Exact next step: continue POC 26D full Cloudflare job, then run POCs 26E1-26E5 in order.
+- Blockers or verification gaps: diff-driven incremental path is planned but not implemented until POC 26E1 starts.
 
 ### 2026-04-30T12:23:42-04:00
 - Completed POC 26C4 combined Queue publication to Vectorize and D1.

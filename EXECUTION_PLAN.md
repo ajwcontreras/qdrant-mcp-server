@@ -614,3 +614,119 @@ POCs 10 and 11 can run in parallel.
 - [ ] Live MCP `search` returns relevant full-codebase results.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26d-full-cloud-job-lumae.mjs`
+
+---
+
+## POC 26E1: Git Diff Manifest JSON Export
+
+**Proves:** This machine can export a deterministic, machine-readable git diff manifest that Cloudflare can store and process.
+
+**Build:**
+- Add a local script that reads repo git state with `git rev-parse`, `git status --porcelain=v1`, and `git diff --name-status`.
+- Emit JSON with repo slug, indexed path, base commit, target commit, working tree state, changed files, deleted files, renamed files, and file hashes for current changed files.
+- Use the existing source-file filter from POC 24.
+- Treat any changed source file as a whole-file reprocess unit for the first implementation.
+
+**Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, `base_ref`, `target_ref`.
+
+**Pass criteria:**
+- [ ] JSON manifest includes base commit, target commit, repo path, repo slug, and generated timestamp.
+- [ ] Manifest classifies added/modified/renamed/deleted source files.
+- [ ] Changed existing files include current `sha256`, byte count, and R2 source artifact key.
+- [ ] Deleted files produce tombstone records without chunk text.
+- [ ] Re-running the export for the same refs produces stable file identities and counts.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26e1-git-diff-manifest-smoke.mjs`
+
+---
+
+## POC 26E2: Cloudflare Stores Git History State
+
+**Proves:** A Worker can store and retrieve per-codebase git indexing state in D1, including the active indexed commit and diff manifest history.
+
+**Build:**
+- Add D1 tables for `codebase_git_state`, `diff_manifests`, and `diff_manifest_files`.
+- Worker endpoint `/git-state/import` accepts a POC 26E1 manifest and stores it.
+- Worker endpoint `/git-state/current` returns active indexed commit, last manifest ID, indexed path, repo slug, and file counts.
+- Worker endpoint `/git-state/manifests/:id` returns the stored manifest summary and file rows.
+
+**Input:** POC 26E1 manifest JSON.
+
+**Pass criteria:**
+- [ ] D1 stores one manifest row with base/target commits.
+- [ ] D1 stores one file row per manifest file/tombstone.
+- [ ] `/git-state/current` returns active commit metadata for the codebase.
+- [ ] `/git-state/manifests/:id` returns deterministic changed/deleted/renamed counts.
+- [ ] Throwaway Worker and D1 resources are cleaned up.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26e2-git-state-d1-smoke.mjs`
+
+---
+
+## POC 26E3: Incremental Diff Packager Uses Whole-File Reprocessing
+
+**Proves:** Given a diff manifest, the local controller uploads only changed source files plus tombstones, so Cloudflare can reprocess whole files without full-repo upload.
+
+**Build:**
+- Read a POC 26E1 manifest.
+- Package full current text for added/modified/renamed source files.
+- Package tombstones for deleted source files.
+- Upload one incremental JSONL artifact to R2 with `manifest_id`, file action, old path where applicable, current path, file hash, and text for changed files.
+- No Vertex calls locally.
+
+**Input:** POC 26E1 manifest and local repo files.
+
+**Pass criteria:**
+- [ ] R2 incremental artifact contains only manifest-listed changed source files and tombstones.
+- [ ] Changed files include full file text for whole-file rechunking.
+- [ ] Deleted files include tombstones and no text.
+- [ ] Artifact metadata links to manifest ID/base commit/target commit.
+- [ ] Local script exits with zero Vertex calls.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26e3-incremental-packager-smoke.mjs`
+
+---
+
+## POC 26E4: Cloudflare Incremental Job Processes Diff Manifest
+
+**Proves:** Cloudflare can process a diff manifest by deleting stale per-file chunks for changed/deleted files, re-embedding changed whole files, publishing replacements, and advancing stored git state.
+
+**Build:**
+- Worker accepts a diff manifest artifact and an incremental source artifact.
+- D1 tracks file-level chunk ownership by repo slug, file path, source hash, and active commit.
+- Deleted files mark prior chunks inactive or remove D1 rows and Vectorize IDs where supported.
+- Changed files are rechunked at whole-file/file-level granularity for v1, queued for Vertex embedding, published to Vectorize and D1, and counted separately from full jobs.
+- Active git state advances only after all changed-file tasks complete.
+
+**Input:** POC 26E2 stored git state and POC 26E3 incremental artifact.
+
+**Pass criteria:**
+- [ ] Incremental job queues only changed source files from the diff manifest.
+- [ ] Deleted files are represented as tombstones in D1 state and no longer appear in MCP search results.
+- [ ] Modified files are reprocessed as whole files and replace prior file-level chunks.
+- [ ] D1 counters distinguish manifest files, changed files, deleted files, queued, completed, failed, and published.
+- [ ] Active git commit advances to the manifest target commit after successful completion.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26e4-cloud-incremental-diff-smoke.mjs`
+
+---
+
+## POC 26E5: Generated Docs Include Diff Reindex Commands
+
+**Proves:** Every generated codebase MCP doc tells future agents exactly how to run full redo and git-diff incremental reindexing through the Cloudflare job path.
+
+**Build:**
+- Extend generated docs to include the indexed path, MCP URL, active commit, last manifest ID, full redo command, incremental diff command, resume/retry command, and status polling URL.
+- Include an example command for `--diff-base <commit-or-ref>` and `--diff-target HEAD`.
+- Include a short statement that v1 incremental mode reprocesses whole changed files and tombstones deleted files.
+
+**Input:** A completed full job and at least one stored diff manifest.
+
+**Pass criteria:**
+- [ ] Generated docs include exact MCP URL and indexed local path.
+- [ ] Docs include full redo, incremental diff, resume/retry, and status commands.
+- [ ] Docs include active commit and last manifest ID.
+- [ ] Docs clearly state that changed files are reprocessed whole-file in v1.
+- [ ] Docs are written under `cloudflare-mcp/sessions/index-codebase/<repo-slug>/`.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26e5-diff-doc-generator-smoke.mjs`
