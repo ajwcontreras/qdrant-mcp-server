@@ -2587,3 +2587,27 @@ Next exact step:
 - Updated `EXECUTION_PLAN.md` with POC 25 pass evidence.
 - Next exact step: run full filtered lumae indexing and publish to `https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/ingest`, then verify the `/mcp` search and regenerated docs.
 - Blockers or verification gaps: POC 25 did not publish; full 602-indexable-file run remains pending.
+
+### 2026-04-30T12:56:10-0400
+- User clarified that the process must be fast and leverage Cloudflare fan-out; local machine can be assumed as the controller/packager for now.
+- Stopped the slow local full-index process (`node cloudflare-mcp/scripts/index-codebase.mjs ... --mode full ...`) after it had generated about 4,796 chunk/HyDE artifacts and about 98 MB of local session data.
+- Asked Cloudflare docs MCP about Queues, R2, D1, Vectorize, and DO background-processing primitives.
+- Relevant docs findings:
+  - Queues consumer `max_concurrency` can be left unset so Cloudflare scales consumers to the supported maximum;
+  - Queues support `max_batch_size`, `max_batch_timeout`, `max_retries`, and `dead_letter_queue`;
+  - R2 is the correct object-artifact store from Workers;
+  - D1 prepared statements/batches are the state/counter store;
+  - Durable Objects can coordinate strongly consistent status/locking if needed.
+- Revised `EXECUTION_PLAN.md`:
+  - POC 26 local sequential full publish is now SUPERSEDED;
+  - added POC 26A local packager -> R2/D1;
+  - added POC 26B Queue fan-out embeddings;
+  - added POC 26C Queue publication to Vectorize/D1;
+  - added POC 26D full Cloudflare lumae end-to-end.
+- Updated global `cloudflare-codebase-mcp-indexing` skill copies to point agents at the Cloudflare fan-out architecture and fixed machine credential paths:
+  - `/Users/awilliamspcsevents/PROJECTS/qdrant-mcp-server/.cfapikeys`;
+  - `/Users/awilliamspcsevents/Downloads/team (1).json`;
+  - canonical repo/session paths.
+- Added `.gitignore` rules for reproducible `cloudflare-mcp/sessions/index-codebase/*/{chunks,hyde,embeddings}/` artifacts.
+- Next exact step: implement POC 26A as a small Cloudflare Worker + local script proving source/chunk upload to R2 and job row creation in D1.
+- Blockers or verification gaps: Cloudflare Queue fan-out is planned but not yet implemented; slow local full run was intentionally stopped before completion.

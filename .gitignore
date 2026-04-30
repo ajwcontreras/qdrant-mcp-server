@@ -61,6 +61,9 @@ cloudflare-mcp/sessions/poc-10/runs/*/vectors/
 cloudflare-mcp/sessions/poc-16/chunks/
 cloudflare-mcp/sessions/poc-16/hyde/
 cloudflare-mcp/sessions/poc-16/embeddings/
+cloudflare-mcp/sessions/index-codebase/*/chunks/
+cloudflare-mcp/sessions/index-codebase/*/hyde/
+cloudflare-mcp/sessions/index-codebase/*/embeddings/
 
 # Package files
 *.tgz

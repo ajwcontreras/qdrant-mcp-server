@@ -293,3 +293,122 @@ POCs 10 and 11 can run in parallel.
 - [x] Resume run reported `google_token_requests: 0`.
 
 **Run:** `node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh-filtered-smoke-10 --mode full --limit 10 --resume`
+
+---
+
+## POC 26: Full Filtered Lumae Publish — SUPERSEDED
+
+**Status:** SUPERSEDED — 2026-04-30 — local sequential full indexing was stopped because it is the wrong architecture for a process people will follow.
+
+**PIVOT NOTE:** The local controller can assume this machine has the repo and credentials, but the expensive indexing work must fan out on Cloudflare. A local one-request-at-a-time Vertex loop had already produced about 4,796 chunk/HyDE artifacts and 98 MB of local session data before being stopped. Cloudflare docs confirm Queues can autoscale consumers when `max_concurrency` is unset, with `max_batch_size`, retries, and DLQs; R2/D1/Vectorize are the right storage/publication primitives.
+
+**Original proves:** The full filtered lumae codebase can be indexed with Google embeddings, published to the live Cloudflare MCP Worker, documented, resumed, and queried remotely.
+
+**Build:**
+- Reuse `cloudflare-mcp/scripts/index-codebase.mjs`.
+- Run full mode over all indexable lumae files.
+- Publish to `https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/ingest`.
+- Generate docs for `https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/mcp`.
+- Verify live MCP `search` and `collection_info`.
+
+**Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, Google service-account JSON, live Vertex AI, live Cloudflare Worker/D1/Vectorize.
+
+**Pass criteria:**
+- [ ] Full run indexes all filtered files and publishes vectors.
+- [ ] Generated docs include the exact indexed path and MCP URL.
+- [ ] Resume rerun does not regenerate chunks, HyDE artifacts, or embeddings.
+- [ ] Live MCP `collection_info` returns the full-run active embedding ID.
+- [ ] Live MCP `search` returns relevant lumae source results.
+
+**Run:** `node cloudflare-mcp/scripts/index-codebase.mjs --repo /Users/awilliamspcsevents/PROJECTS/lumae-fresh --repo-slug lumae-fresh --mode full --resume --publish-url https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/ingest --mcp-url https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/mcp`
+
+---
+
+## POC 26A: Local Packager Uploads Source Artifacts To R2
+
+**Proves:** This machine can package a filtered codebase snapshot and upload source/chunk inputs to Cloudflare R2 quickly, without doing embeddings locally.
+
+**Build:**
+- Add `cloudflare-mcp/poc/26-cloud-index-worker/`.
+- Add a Worker endpoint `/jobs/start` that accepts repo metadata and a manifest upload plan.
+- Local script reads `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, applies the POC 24 source filter, and uploads compressed JSONL artifacts to R2.
+- D1 records one job row with repo path, slug, file counts, artifact keys, and status.
+
+**Input:** Local lumae repo on this machine, Cloudflare credentials, R2 bucket, D1 database.
+
+**Pass criteria:**
+- [ ] R2 contains source/chunk input artifacts for a bounded sample.
+- [ ] D1 job row records repo path, slug, artifact keys, and counts.
+- [ ] Local script exits without calling Vertex.
+- [ ] Job status endpoint returns machine-readable progress JSON.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26a-r2-packager-smoke.mjs`
+
+---
+
+## POC 26B: Queue Fan-Out Embeds Chunks In Parallel
+
+**Proves:** Cloudflare Queues can fan out embedding tasks across many Worker isolates and write embedding artifacts/results without local sequential work.
+
+**Build:**
+- Add a Queue producer bound to `/jobs/enqueue`.
+- Add a Queue consumer Worker with `max_batch_size` tuned small enough for Vertex rate limits and `max_concurrency` unset unless live limits require throttling.
+- Consumer reads chunk/HyDE input from R2, calls Vertex `gemini-embedding-001` at 1536 dimensions, writes embedding result to R2, and updates D1 counters.
+- Configure retries and a DLQ for failed chunk messages.
+
+**Input:** POC 26A job artifacts and queue messages for a bounded sample.
+
+**Pass criteria:**
+- [ ] Queue receives one message per embedding task for a bounded sample.
+- [ ] Multiple consumer invocations process messages without local embedding calls.
+- [ ] R2 contains embedding result artifacts.
+- [ ] D1 counters show queued, processing, completed, failed, and retry counts.
+- [ ] DLQ remains empty for the passing sample.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26b-queue-fanout-embed-smoke.mjs`
+
+---
+
+## POC 26C: Queue Publication Upserts To Vectorize And D1
+
+**Proves:** Cloudflare-side publication can batch completed embedding artifacts into Vectorize and D1 without local upload loops.
+
+**Build:**
+- Add publication queue messages that reference embedding result artifact keys.
+- Consumer batches Vectorize `upsert` calls and D1 snippet/metadata writes.
+- D1 tracks publication counters and active embedding run metadata.
+- MCP Worker reads active run metadata from D1 instead of hardcoded wrangler vars.
+
+**Input:** POC 26B embedding artifacts.
+
+**Pass criteria:**
+- [ ] Completed embedding artifacts are published to Vectorize.
+- [ ] D1 contains chunk metadata/snippets for published vectors.
+- [ ] Active run metadata is stored in D1.
+- [ ] MCP `collection_info` reads active run from D1.
+- [ ] MCP `search` returns newly published sample chunks.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26c-cloud-publication-smoke.mjs`
+
+---
+
+## POC 26D: Full Cloudflare Job Runs Lumae End-To-End
+
+**Proves:** With this machine as the packager/controller, Cloudflare completes full filtered lumae indexing quickly via fan-out and the final MCP URL works.
+
+**Build:**
+- Local controller uploads full filtered lumae artifacts to R2 and starts the job.
+- Cloudflare Queues fan out embedding and publication.
+- Status endpoint polls D1 counters until complete.
+- Generated docs include indexed local path, MCP URL, full redo command, incremental redo command, and job/status URLs.
+
+**Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, live Cloudflare R2/D1/Queues/Vectorize/Worker, Google service-account Worker secret.
+
+**Pass criteria:**
+- [ ] Full filtered lumae job completes from Cloudflare status endpoint.
+- [ ] Runtime and throughput are reported.
+- [ ] Resume/retry command skips completed chunks.
+- [ ] Generated docs include local path and unique MCP URL.
+- [ ] Live MCP `search` returns relevant full-codebase results.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26d-full-cloud-job-lumae.mjs`
