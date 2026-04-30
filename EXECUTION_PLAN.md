@@ -594,7 +594,9 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26D0: Full Job Safety Preflight
+## POC 26D0: Full Job Safety Preflight ✅
+
+**Status:** PASS — 2026-04-30
 
 **Proves:** The full-job Worker has the Cloudflare safety contracts needed before processing the full lumae repo: Vectorize metadata indexes exist before inserts, queue cleanup is explicit, D1 is authoritative for active chunks, and duplicate messages are idempotent.
 
@@ -604,17 +606,20 @@ POCs 10 and 11 can run in parallel.
 - Create a bounded Worker with R2, D1, Vectorize, and Queue bindings.
 - Create Vectorize metadata indexes for `repo_slug`, `file_path`, and `active_commit` before inserting vectors.
 - D1 schema includes deterministic `chunk_id`, `repo_slug`, `file_path`, `source_sha256`, `active`, `job_id`, and counters.
-- Queue consumer handles duplicate messages by `INSERT OR IGNORE`/`INSERT OR REPLACE` keyed by deterministic chunk ID.
+- Queue consumer handles duplicate messages by `INSERT OR REPLACE` keyed by deterministic chunk ID.
 - Search cross-checks Vectorize matches against D1 `active = 1` rows.
+- Counter updates use `SELECT COUNT(*)` from chunks table instead of blind increment, preventing over-counting on duplicate delivery.
 
 **Input:** Three deterministic file-level records.
 
 **Pass criteria:**
-- [ ] Metadata indexes are created before any vector upsert and listed by Wrangler.
-- [ ] Duplicate Queue messages do not create duplicate D1 chunks or over-count completed work.
-- [ ] Search filters inactive/tombstoned chunks through D1 even if Vectorize returns them.
-- [ ] Worker/Queue/DLQ/R2/D1/Vectorize cleanup uses explicit Queue consumer removal and remote R2 deletion.
-- [ ] No Vertex calls are made in this safety preflight.
+- [x] Metadata indexes are created before any vector upsert and listed by Wrangler — `repo_slug`, `file_path`, `active_commit` all created with mutation changesets.
+- [x] Duplicate Queue messages do not create duplicate D1 chunks or over-count completed work — after duplicate ingest, `chunk_rows=3` (not 6).
+- [x] Search filters inactive/tombstoned chunks through D1 even if Vectorize returns them — Vectorize returned 3, D1 filtered to 2 after deactivation.
+- [x] Worker/Queue/DLQ/R2/D1/Vectorize cleanup uses explicit Queue consumer removal and remote R2 deletion — all 7 cleanup steps passed.
+- [x] No Vertex calls are made in this safety preflight — deterministic vectors only.
+
+**Evidence:** `node cloudflare-mcp/scripts/poc-26d0-full-job-safety-preflight.mjs` exited 0. Worker deployed at `https://cfcode-poc-26d0-safety.frosty-butterfly-d821.workers.dev`, verified all 7 pass criteria, cleaned up all throwaway resources.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26d0-full-job-safety-preflight.mjs`
 

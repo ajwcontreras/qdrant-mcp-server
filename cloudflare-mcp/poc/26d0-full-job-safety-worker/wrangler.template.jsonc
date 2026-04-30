@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-26d0-safety",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-poc-26d0-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-poc-26d0-jobs", "database_id": "__DATABASE_ID__" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-poc-26d0-vectorize" }],
+  "queues": {
+    "producers": [{ "binding": "PUBLISH_QUEUE", "queue": "cfcode-poc-26d0-publish" }],
+    "consumers": [{
+      "queue": "cfcode-poc-26d0-publish",
+      "max_batch_size": 5,
+      "max_batch_timeout": 2,
+      "max_retries": 2,
+      "dead_letter_queue": "cfcode-poc-26d0-publish-dlq"
+    }]
+  }
+}
