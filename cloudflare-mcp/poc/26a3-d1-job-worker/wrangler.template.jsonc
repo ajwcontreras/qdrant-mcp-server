@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-26a3-d1-job",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-poc-26a3-jobs", "database_id": "__DATABASE_ID__" }]
+}

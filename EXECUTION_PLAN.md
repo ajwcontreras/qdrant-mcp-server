@@ -400,7 +400,9 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26A3: D1 Job Row Endpoint Only
+## POC 26A3: D1 Job Row Endpoint Only ✅
+
+**Status:** PASS — 2026-04-30 — D1 job row endpoint smoke exited 0.
 
 **Proves:** A deployed Worker can create and read D1 job rows, without R2 artifact upload.
 
@@ -412,10 +414,10 @@ POCs 10 and 11 can run in parallel.
 **Input:** Repo slug, indexed path, artifact key, and file counts from this machine.
 
 **Pass criteria:**
-- [ ] Worker deploy URL is discovered and `/health` returns JSON.
-- [ ] `/jobs/start` inserts a D1 row.
-- [ ] `/jobs/:id/status` returns the inserted repo path, slug, artifact key, count, and status.
-- [ ] Throwaway Worker and D1 database are cleaned up.
+- [x] Worker deploy URL was discovered and `/health` returned JSON.
+- [x] `/jobs/start` inserted a D1 row — job ID `83c982af-587d-4295-b07c-31270bd6f20b`.
+- [x] `/jobs/:id/status` returned the inserted repo path, slug, artifact key, count, and status.
+- [x] Throwaway Worker and D1 database were cleaned up.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26a3-d1-job-smoke.mjs`
 

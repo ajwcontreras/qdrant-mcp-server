@@ -2661,3 +2661,19 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-26a2-r2-upload-smoke.mjs` exited 0.
 - Next exact step: implement and run POC 26A3 D1 job row endpoint only.
 - Blockers or verification gaps: POC 26A2 covers R2 only; no D1 job state yet.
+
+### 2026-04-30T13:22:04-0400
+- Completed POC 26A3: D1 Job Row Endpoint Only.
+- Built:
+  - `cloudflare-mcp/poc/26a3-d1-job-worker/*`;
+  - `cloudflare-mcp/scripts/poc-26a3-d1-job-smoke.mjs`.
+- Passing run:
+  - created throwaway D1 database `cfcode-poc-26a3-jobs`;
+  - deployed Worker `cfcode-poc-26a3-d1-job`;
+  - `/health` returned JSON;
+  - `/jobs/start` inserted job ID `83c982af-587d-4295-b07c-31270bd6f20b`;
+  - `/jobs/:id/status` returned repo slug `lumae-fresh`, indexed path `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, artifact key, file count `5`, and status `uploaded`;
+  - cleaned up throwaway Worker and D1 database.
+- Verification: `node cloudflare-mcp/scripts/poc-26a3-d1-job-smoke.mjs` exited 0.
+- Next exact step: implement and run POC 26A4 combined local packager to R2 and D1.
+- Blockers or verification gaps: POC 26A3 covers D1 only; combined R2+D1 still pending.
