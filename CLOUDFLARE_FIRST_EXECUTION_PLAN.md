@@ -409,7 +409,7 @@ The MCP Worker exposes:
 
 ### POC 16: Resume Interrupted Index ✅
 
-**Status:** PASS — 2026-04-30 — interrupted staged index resumed without recomputing completed artifacts.
+**Status:** PASS — local commit `7d5c858` — 2026-04-30 — interrupted staged index resumed without recomputing completed artifacts.
 
 - [x] First run wrote 10 chunks and 4 HyDE artifacts, then interrupted before embeddings.
 - [x] Second run skipped 10 existing chunks, skipped 4 existing HyDE artifacts, wrote 6 missing HyDE artifacts, and wrote 10 embeddings.
@@ -433,14 +433,32 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-16-resume-interrupted-index.mjs`
 
-### POC 17: Redo Embeddings Only
+### POC 17: Redo Embeddings Only ✅
+
+**Status:** PASS — 2026-04-30 — embedding/publication manifests regenerated without chunk or HyDE work.
+
+- [x] Chunk count stayed `221` and chunk identity hash stayed unchanged.
+- [x] HyDE generation count was `0`; HyDE count stayed `24`.
+- [x] Wrote 768d embedding run `82963d8530bec9e8b788664c7e18f94e`.
+- [x] Wrote 1536d embedding run `19e2c2bf4fdc8521e63af051f55d75a8`.
+- [x] Publication manifests identify new Vectorize index names `cfcode-lumae-hyde-768-redo-a` and `cfcode-lumae-hyde-1536-redo-b`.
 
 **Proves:** Changing embedding model/dimension reruns only embedding and publication stages.
+
+**Build:**
+- `cloudflare-mcp/scripts/poc-17-redo-embeddings-only.mjs`
+- reads POC 08 chunk manifest and POC 09 HyDE manifest
+- writes two new embedding-run manifests for the same upstream inputs
+- writes publication manifests that point at distinct Vectorize index names
+
+**Input:** POC 08 chunk manifest and POC 09 HyDE manifest; no Cloudflare resources.
 
 **Pass criteria:**
 - chunk count unchanged
 - HyDE generation count zero
 - new Vectorize index created
+
+**Run:** `node cloudflare-mcp/scripts/poc-17-redo-embeddings-only.mjs`
 
 ### POC 18: Per-Codebase MCP URL
 

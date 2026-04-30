@@ -2346,3 +2346,23 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-16-resume-interrupted-index.mjs` exited 0.
 - Next exact step: commit POC 16 locally, attempt push, then implement POC 17 Redo Embeddings Only.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:14:35-0400
+- Committed POC 16 locally as `7d5c858` (`POC 16 PASS: resume interrupted indexing stages`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 17 plan before implementation: local proof reads unchanged chunk/HyDE manifests, writes two embedding-run manifests and publication manifests for different model/dim/index options, and reports zero chunk/HyDE generation.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-17-redo-embeddings-only.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:16:51-0400
+- Completed POC 17: redo embeddings only.
+- Built `cloudflare-mcp/scripts/poc-17-redo-embeddings-only.mjs`.
+- Verification output:
+  - chunk count stayed `221`;
+  - HyDE count stayed `24`;
+  - HyDE generation count was zero;
+  - generated 768d run `82963d8530bec9e8b788664c7e18f94e` -> `cfcode-lumae-hyde-768-redo-a`;
+  - generated 1536d run `19e2c2bf4fdc8521e63af051f55d75a8` -> `cfcode-lumae-hyde-1536-redo-b`.
+- Verification: `node cloudflare-mcp/scripts/poc-17-redo-embeddings-only.mjs` exited 0.
+- Next exact step: commit POC 17 locally, attempt push, then implement POC 18 Per-Codebase MCP URL.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.

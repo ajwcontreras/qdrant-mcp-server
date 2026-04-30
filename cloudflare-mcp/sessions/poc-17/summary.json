@@ -1,0 +1,1 @@
+{"schema_version":"cfcode.redo_embeddings_only.v1","chunk_generation_count":0,"hyde_generation_count":0,"runs":[{"embedding_run_id":"82963d8530bec9e8b788664c7e18f94e","dimension":768,"vectorize_index":"cfcode-lumae-hyde-768-redo-a"},{"embedding_run_id":"19e2c2bf4fdc8521e63af051f55d75a8","dimension":1536,"vectorize_index":"cfcode-lumae-hyde-1536-redo-b"}]}
