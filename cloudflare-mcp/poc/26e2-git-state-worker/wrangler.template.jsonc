@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-26e2-git-state",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-poc-26e2-git-state", "database_id": "__DATABASE_ID__" }]
+}

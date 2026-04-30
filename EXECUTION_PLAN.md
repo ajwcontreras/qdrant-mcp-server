@@ -765,24 +765,28 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26E2: Cloudflare Stores Git History State
+## POC 26E2: Cloudflare Stores Git History State ✅
 
-**Proves:** A Worker can store and retrieve per-codebase git indexing state in D1, including the active indexed commit and diff manifest history.
+**Status:** PASS — 2026-04-30
+
+**Proves:** A Worker can store and retrieve per-codebase git indexing state in D1.
 
 **Build:**
-- Add D1 tables for `codebase_git_state`, `diff_manifests`, and `diff_manifest_files`.
-- Worker endpoint `/git-state/import` accepts a POC 26E1 manifest and stores it.
-- Worker endpoint `/git-state/current` returns active indexed commit, last manifest ID, indexed path, repo slug, and file counts.
-- Worker endpoint `/git-state/manifests/:id` returns the stored manifest summary and file rows.
+- D1 tables: `codebase_git_state`, `diff_manifests`, `diff_manifest_files`.
+- `/git-state/import` stores POC 26E1 manifest + file rows.
+- `/git-state/current/:slug` returns active commit and last manifest.
+- `/git-state/manifests/:id` returns stored manifest summary and file rows.
 
-**Input:** POC 26E1 manifest JSON.
+**Input:** POC 26E1 manifest (14 files, manifest_id `392ac55e55ce9a11`).
 
 **Pass criteria:**
-- [ ] D1 stores one manifest row with base/target commits.
-- [ ] D1 stores one file row per manifest file/tombstone.
-- [ ] `/git-state/current` returns active commit metadata for the codebase.
-- [ ] `/git-state/manifests/:id` returns deterministic changed/deleted/renamed counts.
-- [ ] Throwaway Worker and D1 resources are cleaned up.
+- [x] D1 stores one manifest row with base/target commits — base `7469bd72`, target `fafea4e3`.
+- [x] D1 stores one file row per manifest file — 14/14 stored.
+- [x] `/git-state/current` returns active commit metadata — `active_commit=fafea4e3`, `last_manifest_id=392ac55e55ce9a11`.
+- [x] `/git-state/manifests/:id` returns deterministic counts — 14 files, base/target match.
+- [x] Throwaway Worker and D1 cleaned up.
+
+**Evidence:** `node cloudflare-mcp/scripts/poc-26e2-git-state-d1-smoke.mjs` exited 0.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26e2-git-state-d1-smoke.mjs`
 
