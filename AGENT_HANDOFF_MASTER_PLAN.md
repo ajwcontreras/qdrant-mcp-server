@@ -2510,3 +2510,11 @@ Next exact step:
   - elapsed times were `534`, `198`, `213` ms.
 - Next exact step: integrate token caching into `cloudflare-mcp/scripts/index-codebase.mjs`, then run a bounded resume-safe production smoke before attempting full lumae indexing.
 - Blockers or verification gaps: full 663-file indexing has still not been run; this POC only proved token reuse for the current one-input Gemini embedding API.
+
+### 2026-04-30T12:28:12-0400
+- Committed POC 21 locally as `617a8fe` (`POC 21 PASS: prove Google embedding token cache`).
+- Temporarily switched GitHub CLI auth to `ajwcontreras` for `mine` remote and pushed successfully to `https://github.com/ajwcontreras/qdrant-mcp-server.git`.
+- Switched GitHub CLI auth back to default active account `awilliamsevrylo` after the push.
+- Operational note: avoid using `status` as a shell variable name in zsh; it is read-only.
+- Next exact step: integrate the token cache proven in POC 21 into `cloudflare-mcp/scripts/index-codebase.mjs`.
+- Blockers or verification gaps: none for POC 21. Full lumae indexing remains pending.
