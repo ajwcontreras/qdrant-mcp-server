@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-03-d1-metadata",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cfcode-poc-03-d1-metadata",
+      "database_id": "__DATABASE_ID__"
+    }
+  ]
+}

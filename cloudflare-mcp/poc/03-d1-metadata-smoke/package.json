@@ -1,0 +1,15 @@
+{
+  "name": "cfcode-poc-03-d1-metadata-smoke",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "deploy": "wrangler deploy --config wrangler.generated.jsonc",
+    "delete": "wrangler delete --config wrangler.generated.jsonc --name cfcode-poc-03-d1-metadata --force",
+    "poc": "node ../../scripts/poc-03-d1-metadata-smoke.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "wrangler": "^4.84.1"
+  }
+}

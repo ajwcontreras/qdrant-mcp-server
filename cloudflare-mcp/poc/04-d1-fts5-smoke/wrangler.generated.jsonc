@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-04-d1-fts5",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cfcode-poc-04-d1-fts5",
+      "database_id": "fb5ac8d9-023e-444e-986f-0d06d6b3b818"
+    }
+  ]
+}

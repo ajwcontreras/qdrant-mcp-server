@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-06-google-embedding",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "vars": {
+    "GOOGLE_LOCATION": "us-central1",
+    "GOOGLE_EMBEDDING_MODEL": "gemini-embedding-001",
+    "GOOGLE_EMBEDDING_DIMENSIONS": "1536",
+    "GOOGLE_EMBEDDING_TASK_TYPE": "CODE_RETRIEVAL_QUERY"
+  }
+}

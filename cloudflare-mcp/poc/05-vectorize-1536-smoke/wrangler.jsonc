@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-05-vectorize-1536",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "cfcode-poc-05-vectorize-1536"
+    }
+  ]
+}

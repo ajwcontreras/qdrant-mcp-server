@@ -1,0 +1,15 @@
+{
+  "name": "cfcode-poc-02-r2-artifact-smoke",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "delete": "wrangler delete --name cfcode-poc-02-r2-artifact --force",
+    "poc": "node ../../scripts/poc-02-r2-artifact-smoke.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "wrangler": "^4.84.1"
+  }
+}
