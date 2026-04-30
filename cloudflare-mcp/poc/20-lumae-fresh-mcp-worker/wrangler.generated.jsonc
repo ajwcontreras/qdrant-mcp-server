@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-lumae-fresh",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "REPO_SLUG": "lumae-fresh",
+    "INDEXED_PATH": "/Users/awilliamspcsevents/PROJECTS/lumae-fresh",
+    "ACTIVE_EMBEDDING_RUN_ID": "19e2c2bf4fdc8521e63af051f55d75a8"
+  },
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-lumae-fresh-hyde-1536" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-lumae-fresh", "database_id": "ac4ee10e-a9cf-4c8b-9fbb-d387e401c3eb" }]
+}

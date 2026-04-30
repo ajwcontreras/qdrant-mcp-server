@@ -2423,3 +2423,34 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-19_5-codebase-doc-generator.mjs` exited 0.
 - Next exact step: commit POC 19.5 locally, attempt push, then implement POC 20 Lumae Fresh End-to-End.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials. The documented `index-codebase.mjs` command is specified but the production script still needs to be assembled in POC 20 from the proven POC parts.
+
+### 2026-04-30T11:25:15-0400
+- Committed POC 19.5 locally as `df2d9d6` (`POC 19.5 PASS: generate codebase MCP docs`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 20 plan before implementation. POC 20 now must prove:
+  - `index-codebase.mjs` accepts incremental diff/resume flags and emits a reindex plan;
+  - persistent `cfcode-lumae-fresh` `/mcp` URL works;
+  - generated docs include install and reindex commands.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-20-lumae-fresh-e2e.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:27:53-0400
+- Completed POC 20: Lumae Fresh end-to-end.
+- Built:
+  - `cloudflare-mcp/scripts/index-codebase.mjs`;
+  - `cloudflare-mcp/poc/20-lumae-fresh-mcp-worker/*`;
+  - `cloudflare-mcp/scripts/poc-20-lumae-fresh-e2e.mjs`.
+- Passing run:
+  - incremental dry-run plan for `/Users/awilliamspcsevents/PROJECTS/lumae-fresh` reported 663 tracked files, 6 changed files, and 2 tracked files to index (`chat_messege.py`, `extensions.py`);
+  - created persistent Vectorize index `cfcode-lumae-fresh-hyde-1536`;
+  - created persistent D1 database `cfcode-lumae-fresh`;
+  - deployed persistent Worker `cfcode-lumae-fresh`;
+  - seeded sample lumae chunks;
+  - verified MCP tools `search`, `collection_info`, `get_chunk`, `suggest_queries`;
+  - verified `search` returned `app.py:10-30`;
+  - verified `collection_info` reported Cloudflare backend, repo `lumae-fresh`, and active embedding run `19e2c2bf4fdc8521e63af051f55d75a8`;
+  - generated `cloudflare-mcp/sessions/poc-20/lumae-fresh-MCP.md`.
+- Live MCP URL left deployed intentionally: `https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/mcp`.
+- Verification: `node cloudflare-mcp/scripts/poc-20-lumae-fresh-e2e.mjs` exited 0.
+- Next exact step: commit POC 20 locally, attempt push. Remote push still requires corrected GitHub credentials.
+- Blockers or verification gaps: the live deployment is a deterministic lumae sample proving the Cloudflare architecture and client contract, not a full 663-file production index. Scaling the indexer from POC artifacts to full production volume is now implementation work around `index-codebase.mjs`.

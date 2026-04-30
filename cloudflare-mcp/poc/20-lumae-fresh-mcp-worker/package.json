@@ -1,0 +1,16 @@
+{
+  "name": "cfcode-poc-20-lumae-fresh-mcp-worker",
+  "private": true,
+  "type": "module",
+  "scripts": { "check": "tsc --noEmit" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "agents": "^0.12.0",
+    "zod": "^4.4.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260430.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.84.1"
+  }
+}

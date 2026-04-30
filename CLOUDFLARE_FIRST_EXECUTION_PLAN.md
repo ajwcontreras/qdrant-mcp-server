@@ -520,7 +520,7 @@ The MCP Worker exposes:
 
 ### POC 19.5: Generated Codebase MCP Docs ✅
 
-**Status:** PASS — 2026-04-30 — generated per-codebase install and incremental reindex documentation.
+**Status:** PASS — local commit `df2d9d6` — 2026-04-30 — generated per-codebase install and incremental reindex documentation.
 
 - [x] Generated `cloudflare-mcp/sessions/poc-19_5/lumae-fresh-MCP.md`.
 - [x] Document includes indexed path `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`.
@@ -548,12 +548,37 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-19_5-codebase-doc-generator.mjs`
 
-### POC 20: Lumae Fresh End-to-End
+### POC 20: Lumae Fresh End-to-End ✅
+
+**Status:** PASS — 2026-04-30 — live authless Cloudflare MCP URL deployed for `lumae-fresh`.
+
+- [x] `index-codebase.mjs --mode incremental --diff-base HEAD --resume --dry-run` wrote an index plan.
+- [x] Incremental plan saw 663 tracked files, 6 changed files, and 2 tracked files to index.
+- [x] Created persistent Vectorize index `cfcode-lumae-fresh-hyde-1536`.
+- [x] Created persistent D1 database `cfcode-lumae-fresh`.
+- [x] Deployed persistent Worker at `https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/mcp`.
+- [x] MCP client listed `search`, `collection_info`, `get_chunk`, and `suggest_queries`.
+- [x] `search` returned `app.py:10-30` with snippet and score.
+- [x] `collection_info` reported Cloudflare backend, repo `lumae-fresh`, and active embedding run `19e2c2bf4fdc8521e63af051f55d75a8`.
+- [x] Generated `cloudflare-mcp/sessions/poc-20/lumae-fresh-MCP.md` with install and incremental reindex commands.
 
 **Proves:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh` has a public authless MCP URL, generated user docs, and equivalent search behavior to the current local MCP.
 
+**Build:**
+- `cloudflare-mcp/scripts/index-codebase.mjs`
+- `cloudflare-mcp/poc/20-lumae-fresh-mcp-worker/`
+- `cloudflare-mcp/scripts/poc-20-lumae-fresh-e2e.mjs`
+- deploys persistent `cfcode-lumae-fresh` Worker with `/mcp`
+- provisions persistent D1 + Vectorize for the POC-backed lumae sample
+- generates `cloudflare-mcp/sessions/poc-20/lumae-fresh-MCP.md`
+
+**Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, POC artifact contracts, and deterministic sample vectors.
+
 **Pass criteria:**
+- incremental dry-run command reports Git diff/reindex plan
 - remote MCP inspector lists tools
 - `search` returns relevant lumae chunks with snippets
 - `collection_info` reports Cloudflare backend and active embedding run
 - generated MCP docs include install and incremental reindex commands
+
+**Run:** `node cloudflare-mcp/scripts/poc-20-lumae-fresh-e2e.mjs`
