@@ -160,7 +160,7 @@ The MCP Worker exposes:
 
 ### POC 07: Snapshot Manifest Builder ✅
 
-**Status:** PASS — 2026-04-30 — deterministic tracked-file manifest generated for `lumae-fresh`.
+**Status:** PASS — local commit `c4a2de4` — 2026-04-30 — deterministic tracked-file manifest generated for `lumae-fresh`.
 
 - [x] Read 663 tracked files from `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`.
 - [x] Manifest recorded file path, byte size, and sha256 for every tracked file.
@@ -183,13 +183,32 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-07-snapshot-manifest.mjs`
 
-### POC 08: Chunk Artifact Builder
+### POC 08: Chunk Artifact Builder ✅
+
+**Status:** PASS — 2026-04-30 — embedding-agnostic chunks generated from the POC 07 snapshot manifest.
+
+- [x] Read snapshot ID `23c63e09629087a9681963d2600c55c2`.
+- [x] Selected 8 bounded source files from the snapshot manifest.
+- [x] Generated 221 chunk artifacts with `chunk_identity`, `content_hash`, line spans, and text.
+- [x] Chunk JSON has `embedding_agnostic: true` and no embedding values.
+- [x] Rerun in the same process produced the same chunk identities.
+- [x] Wrote `cloudflare-mcp/sessions/poc-08/chunk-manifest.json` with chunk identities hash `307c10b56b3b7c6560370312ae5bb6735d4e5f586da9f5bcee0e790a012cfe4a`.
 
 **Proves:** Chunking produces stable, content-addressed artifacts independent of embeddings.
+
+**Build:**
+- `cloudflare-mcp/scripts/poc-08-chunk-artifact-builder.mjs`
+- reads `cloudflare-mcp/sessions/poc-07/snapshot-manifest.json`
+- writes chunk JSON artifacts under `cloudflare-mcp/sessions/poc-08/chunks/`
+- writes `cloudflare-mcp/sessions/poc-08/chunk-manifest.json`
+
+**Input:** POC 07 snapshot manifest plus local file contents for a bounded source-file sample.
 
 **Pass criteria:**
 - chunk JSON includes `chunk_identity`, `content_hash`, line span, text
 - rerun reuses same identities
+
+**Run:** `node cloudflare-mcp/scripts/poc-08-chunk-artifact-builder.mjs`
 
 ### POC 09: HyDE Artifact Builder
 

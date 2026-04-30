@@ -55,6 +55,9 @@ htmlcov/
 qdrant_data/
 qdrant_storage/
 
+# Large reproducible POC session artifacts
+cloudflare-mcp/sessions/poc-08/chunks/
+
 # Package files
 *.tgz
 package-lock.json

@@ -2194,3 +2194,18 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-07-snapshot-manifest.mjs` exited 0 with all pass criteria.
 - Next exact step: commit POC 07 locally, attempt push, then start POC 08 Chunk Artifact Builder using the snapshot manifest as input.
 - Blockers or verification gaps: push still blocked by GitHub auth; POC 07 uses tracked working-tree file contents, so dirty tracked files are intentionally reflected in the content hashes.
+
+### 2026-04-30T10:37:20-0400
+- Committed POC 07 locally as `c4a2de4` (`POC 07 PASS: build deterministic snapshot manifest`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 08 plan before implementation: bounded chunk artifact proof reads the POC 07 snapshot manifest and writes embedding-agnostic chunk artifacts/manifests under `cloudflare-mcp/sessions/poc-08/`.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-08-chunk-artifact-builder.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials; local commits are present.
+
+### 2026-04-30T10:38:13-0400
+- Completed POC 08: embedding-agnostic chunk artifact builder.
+- Built `cloudflare-mcp/scripts/poc-08-chunk-artifact-builder.mjs`; it reads the POC 07 snapshot manifest, chunks a bounded 8-file source sample, writes per-chunk JSON locally, and writes `cloudflare-mcp/sessions/poc-08/chunk-manifest.json`.
+- Verification output: 221 chunks, chunk identities hash `307c10b56b3b7c6560370312ae5bb6735d4e5f586da9f5bcee0e790a012cfe4a`, stable identities on rerun, required fields present, `embedding_agnostic: true`, and no embedding payloads.
+- Added `.gitignore` entry for `cloudflare-mcp/sessions/poc-08/chunks/` because per-chunk text artifacts are reproducible and about 1.1 MB.
+- Next exact step: commit POC 08 locally, attempt push, then implement POC 09 HyDE Artifact Builder keyed by `content_hash + hyde_version + hyde_model`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials; POC 08 chunking is line-window based and intentionally bounded for proof size.
