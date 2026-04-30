@@ -268,7 +268,7 @@ The MCP Worker exposes:
 
 ### POC 11: Vectorize Publication ✅
 
-**Status:** PASS — 2026-04-30 — POC 10 1536d run published to throwaway Vectorize and D1, then cleaned up.
+**Status:** PASS — local commit `24fe38c` — 2026-04-30 — POC 10 1536d run published to throwaway Vectorize and D1, then cleaned up.
 
 - [x] Created throwaway Vectorize index `cfcode-poc-11-vectorize-publication` at 1536 dimensions.
 - [x] Created throwaway D1 database `cfcode-poc-11-vectorize-publication`.
@@ -297,12 +297,33 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-11-vectorize-publication.mjs`
 
-### POC 12: MCP Search Over Vectorize
+### POC 12: MCP Search Over Vectorize ✅
+
+**Status:** PASS — 2026-04-30 — authless MCP `search` tool queried Vectorize and hydrated D1 snippet metadata.
+
+- [x] Created throwaway Vectorize index and D1 database.
+- [x] Deployed authless MCP Worker at `https://cfcode-poc-12-mcp-search-vectorize.frosty-butterfly-d821.workers.dev/mcp`.
+- [x] Seeded deterministic vectors and D1 snippet metadata.
+- [x] MCP client listed `search`.
+- [x] `search` returned `app.py:10-30` with snippet, score `0.9999985`, chunk identity, and match reasons.
+- [x] Deleted Worker, Vectorize index, and D1 database.
 
 **Proves:** Authless MCP `search` can embed a query, search Vectorize, and hydrate snippets from D1/R2.
 
+**Build:**
+- `cloudflare-mcp/poc/12-mcp-search-vectorize-worker/`
+- `cloudflare-mcp/scripts/poc-12-mcp-search-vectorize.mjs`
+- creates throwaway Vectorize index and D1 database
+- deploys authless MCP Worker with a `search` tool plus seed endpoint
+- seeds deterministic vectors and D1 snippet metadata
+- calls the remote MCP `search` tool through the MCP SDK
+
+**Input:** deterministic POC vectors/snippets; no production resources.
+
 **Pass criteria:**
 - `search` returns file, line span, snippet, score, match reasons
+
+**Run:** `node cloudflare-mcp/scripts/poc-12-mcp-search-vectorize.mjs`
 
 ### POC 13: MCP Hybrid Search
 

@@ -2258,3 +2258,21 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-11-vectorize-publication.mjs` exited 0 on rerun.
 - Next exact step: commit POC 11 locally, attempt push, then implement POC 12 MCP Search Over Vectorize.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials; POC 11 used throwaway resources and left no intended Cloudflare resources behind.
+
+### 2026-04-30T10:45:10-0400
+- Committed POC 11 locally as `24fe38c` (`POC 11 PASS: publish embedding run to Vectorize`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 12 plan before implementation: authless remote MCP Worker with `search` tool, throwaway Vectorize/D1 resources, deterministic seeding, and MCP SDK verification that search returns file, line span, snippet, score, and match reasons.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-12-mcp-search-vectorize.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T10:48:07-0400
+- Completed POC 12: authless MCP search over Vectorize with D1 hydration.
+- Built `cloudflare-mcp/poc/12-mcp-search-vectorize-worker/*` and `cloudflare-mcp/scripts/poc-12-mcp-search-vectorize.mjs`.
+- First run failed before deployment because package `agents@^0.0.116` did not resolve. Aligned dependencies with POC 01 (`agents@^0.12.0`, MCP SDK `^1.29.0`, zod `^4.4.1`) and reran.
+- Passing run created throwaway Vectorize/D1 resources, deployed MCP Worker, seeded deterministic vectors/snippets, listed the remote MCP `search` tool, and called `search` for `borrower upload document handler`.
+- Result evidence: MCP URL `https://cfcode-poc-12-mcp-search-vectorize.frosty-butterfly-d821.workers.dev/mcp`; top result `app.py:10-30`; score `0.9999985`; response included snippet and match reasons.
+- Cleanup deleted Worker, Vectorize index, and D1 database.
+- Verification: `node cloudflare-mcp/scripts/poc-12-mcp-search-vectorize.mjs` exited 0 on rerun.
+- Next exact step: commit POC 12 locally, attempt push, then implement POC 13 MCP Hybrid Search with Vectorize + D1 FTS fusion.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials; POC 12 uses deterministic query vector routing instead of live Google query embeddings.

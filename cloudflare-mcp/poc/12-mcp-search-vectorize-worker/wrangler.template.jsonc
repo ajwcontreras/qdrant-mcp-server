@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-12-mcp-search-vectorize",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "cfcode-poc-12-mcp-search-vectorize"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cfcode-poc-12-mcp-search-vectorize",
+      "database_id": "__DATABASE_ID__"
+    }
+  ]
+}
