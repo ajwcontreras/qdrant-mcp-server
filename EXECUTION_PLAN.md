@@ -423,7 +423,9 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26A4: Combined Local Packager To R2 And D1
+## POC 26A4: Combined Local Packager To R2 And D1 ✅
+
+**Status:** PASS — 2026-04-30 — combined R2+D1 packager smoke exited 0 after one TypeScript narrowing fix.
 
 **Proves:** The two proven endpoints compose: this machine packages files once, Worker stores the artifact in R2, and D1 records the job.
 
@@ -435,11 +437,11 @@ POCs 10 and 11 can run in parallel.
 **Input:** Five filtered lumae files on this machine.
 
 **Pass criteria:**
-- [ ] R2 contains source/chunk input artifact for the bounded sample.
-- [ ] D1 job row records repo path, slug, artifact key, and counts.
-- [ ] Local script exits without calling Vertex.
-- [ ] Job status endpoint returns machine-readable progress JSON.
-- [ ] Throwaway resources are cleaned up.
+- [x] R2 contains source/chunk input artifact for the bounded sample — key `jobs/lumae-fresh-poc-26a4/8ecfd6b98112df8e.jsonl`, size `8731` bytes.
+- [x] D1 job row records repo path, slug, artifact key, and counts — job `31e45bf0-ab3d-432b-8148-6ede2accbc22`, `file_count: 5`.
+- [x] Local script exits without calling Vertex — `Vertex calls: 0`.
+- [x] Job status endpoint returns machine-readable progress JSON — `job`, `artifact`, and `progress` objects all validated.
+- [x] Throwaway resources are cleaned up — Worker, R2 bucket, and D1 database cleanup all passed.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26a4-packager-r2-d1-smoke.mjs`
 

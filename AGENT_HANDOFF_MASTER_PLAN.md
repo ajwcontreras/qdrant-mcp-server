@@ -1,8 +1,8 @@
 # Agent Handoff Master Plan: Qdrant MCP Agentic Code Search
 
-Last atomic update: 2026-04-22T04:22:42-04:00
-Previous atomic update: 2026-04-22T04:21:58-04:00
-Status: Starting real DeepSeek batch enrichment test for dynamic-workers using 35 entries/request and up to 7 concurrent requests.
+Last atomic update: 2026-04-30T12:04:04-04:00
+Previous atomic update: 2026-04-22T04:22:42-04:00
+Status: POC 26A4 passed; next exact step is POC 26B Queue fan-out embedding smoke.
 
 ## Non-Negotiable Operating Rule
 
@@ -107,6 +107,15 @@ Council sanity check on 2026-04-22 converged on this corrected design:
 - [x] Verify compile/tests.
 
 ## Progress Log
+
+### 2026-04-30T12:04:04-04:00
+- Completed POC 26A4 combined local packager to R2 and D1.
+- Verification: `node cloudflare-mcp/scripts/poc-26a4-packager-r2-d1-smoke.mjs` exited 0 after one TypeScript narrowing fix.
+- Evidence: Worker `https://cfcode-poc-26a4-packager.frosty-butterfly-d821.workers.dev`, job `31e45bf0-ab3d-432b-8148-6ede2accbc22`, artifact `jobs/lumae-fresh-poc-26a4/8ecfd6b98112df8e.jsonl`, 5 files, 8731 bytes, 0 Vertex calls.
+- Cleanup evidence: throwaway Worker, R2 bucket `cfcode-poc-26a4-artifacts`, and D1 database `cfcode-poc-26a4-jobs` were deleted by the smoke script.
+- Files touched: `EXECUTION_PLAN.md`, `AGENT_HANDOFF_MASTER_PLAN.md`, `cloudflare-mcp/scripts/poc-26a4-packager-r2-d1-smoke.mjs`, `cloudflare-mcp/poc/26a4-packager-r2-d1-worker/*`.
+- Exact next step: implement POC 26B Queue fan-out embedding smoke with bounded sample, R2 job artifact input from the packager pattern, D1 counters, retries/DLQ config, and no local embedding calls.
+- Blockers or verification gaps: POC 26B has not been implemented yet; full Cloudflare fan-out is not proven until Queue consumers process embedding tasks and write result artifacts.
 
 ### 2026-04-21T20:07:15-04:00
 - Created initial handoff/master plan file.

@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-26a4-packager",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-poc-26a4-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-poc-26a4-jobs", "database_id": "__DATABASE_ID__" }]
+}
