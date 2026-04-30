@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-15-active-publication",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "vectorize": [
+    {
+      "binding": "PUB_A",
+      "index_name": "cfcode-poc-15-pub-a"
+    },
+    {
+      "binding": "PUB_B",
+      "index_name": "cfcode-poc-15-pub-b"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cfcode-poc-15-active-publication",
+      "database_id": "__DATABASE_ID__"
+    }
+  ]
+}

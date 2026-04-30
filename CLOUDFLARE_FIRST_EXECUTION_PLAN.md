@@ -353,7 +353,7 @@ The MCP Worker exposes:
 
 ### POC 14: Multi-Channel Search ✅
 
-**Status:** PASS — 2026-04-30 — separate code and HyDE Vectorize indexes queried and merged by chunk identity.
+**Status:** PASS — local commit `698469c` — 2026-04-30 — separate code and HyDE Vectorize indexes queried and merged by chunk identity.
 
 - [x] Created throwaway `cfcode-poc-14-code` Vectorize index.
 - [x] Created throwaway `cfcode-poc-14-hyde` Vectorize index.
@@ -380,12 +380,32 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-14-multi-channel-search.mjs`
 
-### POC 15: Active Publication Cutover
+### POC 15: Active Publication Cutover ✅
+
+**Status:** PASS — 2026-04-30 — D1 active-publication state changed MCP results without Worker redeploy.
+
+- [x] Created two throwaway Vectorize indexes: `cfcode-poc-15-pub-a` and `cfcode-poc-15-pub-b`.
+- [x] Deployed one Worker at `https://cfcode-poc-15-active-publication.frosty-butterfly-d821.workers.dev`.
+- [x] Before cutover, MCP search returned publication `pub-a` and `app.py`.
+- [x] Updated D1 active publication to `pub-b` through `/activate`.
+- [x] After cutover, same Worker returned publication `pub-b` and `update_market_rate_change.py`.
+- [x] Deleted Worker, both Vectorize indexes, and D1 database.
 
 **Proves:** A codebase can switch active embedding publication atomically.
 
+**Build:**
+- `cloudflare-mcp/poc/15-active-publication-cutover-worker/`
+- `cloudflare-mcp/scripts/poc-15-active-publication-cutover.mjs`
+- one Worker with two Vectorize bindings representing two embedding publications
+- D1 `active_publication` row selects which binding MCP search uses
+- script switches active publication through HTTP without redeploying Worker
+
+**Input:** deterministic POC vectors/snippets; no production resources.
+
 **Pass criteria:**
 - D1 active publication update changes MCP results without redeploying Worker
+
+**Run:** `node cloudflare-mcp/scripts/poc-15-active-publication-cutover.mjs`
 
 ### POC 16: Resume Interrupted Index
 

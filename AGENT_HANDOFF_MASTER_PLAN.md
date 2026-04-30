@@ -2310,3 +2310,19 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-14-multi-channel-search.mjs` exited 0.
 - Next exact step: commit POC 14 locally, attempt push, then implement POC 15 Active Publication Cutover.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:10:55-0400
+- Committed POC 14 locally as `698469c` (`POC 14 PASS: merge code and HyDE vector channels`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 15 plan before implementation: one deployed Worker with two Vectorize publication bindings and a D1 active-publication row; HTTP cutover changes MCP search results without redeploy.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-15-active-publication-cutover.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:13:05-0400
+- Completed POC 15: active publication cutover.
+- Built `cloudflare-mcp/poc/15-active-publication-cutover-worker/*` and `cloudflare-mcp/scripts/poc-15-active-publication-cutover.mjs`.
+- Passing run deployed one Worker, seeded two Vectorize publications, searched before cutover (`pub-a`, `app.py`), changed D1 active publication via `/activate`, and searched again through the same Worker (`pub-b`, `update_market_rate_change.py`).
+- Cleanup deleted Worker, both Vectorize indexes, and D1 database.
+- Verification: `node cloudflare-mcp/scripts/poc-15-active-publication-cutover.mjs` exited 0.
+- Next exact step: commit POC 15 locally, attempt push, then implement POC 16 Resume Interrupted Index.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
