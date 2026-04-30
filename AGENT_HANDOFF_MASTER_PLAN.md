@@ -2223,3 +2223,21 @@ Next exact step:
 - Verification output: input chunks `24`, first run written `24`, second run skipped `24`, HyDE keys hash `0b69afaa1e62aa19e58bf5a42c6558332a8e0a977d3f211a65a36eeafa2593a2`, required fields present, `embedding_agnostic: true`, and no embedding fields.
 - Next exact step: commit POC 09 locally, attempt push, then implement POC 10 Embedding Run Builder proving two embedding projections can be regenerated over the same chunk/HyDE artifacts without upstream changes.
 - Blockers or verification gaps: POC 09 uses deterministic template HyDE to prove artifact semantics. Live LLM HyDE quality is not proven here and should remain a separate proof.
+
+### 2026-04-30T10:40:20-0400
+- Committed POC 09 locally as `a70791c` (`POC 09 PASS: build resumable HyDE artifacts`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 10 plan before implementation. POC 10 uses deterministic local vectors to prove embedding-run projection/redo semantics over unchanged chunk and HyDE artifacts; provider quality and live Google calls are already isolated from this proof.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-10-embedding-run-builder.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T10:41:30-0400
+- Completed POC 10: embedding run builder.
+- Built `cloudflare-mcp/scripts/poc-10-embedding-run-builder.mjs`; it reads POC 08/09 artifacts and writes two embedding-run directories under `cloudflare-mcp/sessions/poc-10/runs/`.
+- Verification output:
+  - code run `f46b2d31a0aefd809a5e05892a0ebf2d`, model `poc-hash-embed-768`, dimension `768`, vectors `12`;
+  - HyDE run `85f6cbff932e6f849dbf35c6ab18685b`, model `poc-hash-embed-1536`, dimension `1536`, vectors `12`;
+  - separate manifests, same upstream inputs, required vector metadata, different dimensions, upstream unchanged.
+- Added `.gitignore` entry for `cloudflare-mcp/sessions/poc-10/runs/*/vectors/` because vector value files are reproducible.
+- Next exact step: commit POC 10 locally, attempt push, then implement POC 11 Vectorize Publication over the 1536d run.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials; POC 10 uses deterministic local vectors to prove pipeline semantics, not provider quality.

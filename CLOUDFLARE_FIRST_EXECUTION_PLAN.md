@@ -212,7 +212,7 @@ The MCP Worker exposes:
 
 ### POC 09: HyDE Artifact Builder ✅
 
-**Status:** PASS — 2026-04-30 — resumable HyDE artifacts generated independently from embeddings.
+**Status:** PASS — local commit `a70791c` — 2026-04-30 — resumable HyDE artifacts generated independently from embeddings.
 
 - [x] Read 24 chunk artifacts from POC 08.
 - [x] First run wrote 24 HyDE artifacts under `cloudflare-mcp/sessions/poc-09/hyde/`.
@@ -239,13 +239,32 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-09-hyde-artifact-builder.mjs`
 
-### POC 10: Embedding Run Builder
+### POC 10: Embedding Run Builder ✅
+
+**Status:** PASS — 2026-04-30 — two embedding projections generated over unchanged chunk/HyDE artifacts.
+
+- [x] Read the same POC 08 chunk manifest and POC 09 HyDE manifest for both runs.
+- [x] Wrote 768d code run `f46b2d31a0aefd809a5e05892a0ebf2d`.
+- [x] Wrote 1536d HyDE run `85f6cbff932e6f849dbf35c6ab18685b`.
+- [x] Each vector record includes `embedding_model`, `dimension`, `input_hash`, and `source_artifact`.
+- [x] Upstream chunk identities hash and HyDE keys hash were unchanged after embedding generation.
+- [x] Per-run manifests are separate and identify the active model/dimension/channel.
 
 **Proves:** Embeddings can be regenerated for the same chunks/HyDE using a new model/dimension without changing upstream artifacts.
+
+**Build:**
+- `cloudflare-mcp/scripts/poc-10-embedding-run-builder.mjs`
+- reads POC 08 chunk manifest and POC 09 HyDE manifest
+- writes per-run vector JSON under `cloudflare-mcp/sessions/poc-10/runs/{embeddingRunId}/vectors/`
+- writes embedding run manifests under `cloudflare-mcp/sessions/poc-10/runs/{embeddingRunId}/manifest.json`
+
+**Input:** POC 08 chunk artifacts and POC 09 HyDE artifacts. This POC uses deterministic local vectors so it proves redoable projection semantics without provider variability.
 
 **Pass criteria:**
 - two embedding runs over same chunks produce separate manifests
 - vectors include `embedding_model`, `dimension`, `input_hash`, `source_artifact`
+
+**Run:** `node cloudflare-mcp/scripts/poc-10-embedding-run-builder.mjs`
 
 ### POC 11: Vectorize Publication
 
