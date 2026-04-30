@@ -1,0 +1,13 @@
+{
+  "name": "cfcode-poc-11-vectorize-publication-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260430.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.50.0"
+  }
+}

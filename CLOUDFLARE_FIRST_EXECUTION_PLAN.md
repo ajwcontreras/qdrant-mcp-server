@@ -241,7 +241,7 @@ The MCP Worker exposes:
 
 ### POC 10: Embedding Run Builder ✅
 
-**Status:** PASS — 2026-04-30 — two embedding projections generated over unchanged chunk/HyDE artifacts.
+**Status:** PASS — local commit `7270369` — 2026-04-30 — two embedding projections generated over unchanged chunk/HyDE artifacts.
 
 - [x] Read the same POC 08 chunk manifest and POC 09 HyDE manifest for both runs.
 - [x] Wrote 768d code run `f46b2d31a0aefd809a5e05892a0ebf2d`.
@@ -266,13 +266,36 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-10-embedding-run-builder.mjs`
 
-### POC 11: Vectorize Publication
+### POC 11: Vectorize Publication ✅
+
+**Status:** PASS — 2026-04-30 — POC 10 1536d run published to throwaway Vectorize and D1, then cleaned up.
+
+- [x] Created throwaway Vectorize index `cfcode-poc-11-vectorize-publication` at 1536 dimensions.
+- [x] Created throwaway D1 database `cfcode-poc-11-vectorize-publication`.
+- [x] Deployed Worker with both Vectorize and D1 bindings.
+- [x] Published 12 vectors from embedding run `85f6cbff932e6f849dbf35c6ab18685b`.
+- [x] D1 `vector_records` count matched the published Vectorize IDs.
+- [x] Vectorize query returned the expected vector after bounded visibility polling.
+- [x] Wrote `cloudflare-mcp/sessions/poc-11/publication-manifest.json` with active HyDE index mapping.
+- [x] Deleted Worker, Vectorize index, and D1 database.
 
 **Proves:** An embedding run can publish to Vectorize and record vector IDs in D1.
+
+**Build:**
+- `cloudflare-mcp/poc/11-vectorize-publication-worker/`
+- `cloudflare-mcp/scripts/poc-11-vectorize-publication.mjs`
+- creates throwaway Vectorize index and D1 database
+- deploys Worker with Vectorize + D1 bindings
+- publishes the POC 10 1536d HyDE vector run
+- writes `cloudflare-mcp/sessions/poc-11/publication-manifest.json`
+
+**Input:** POC 10 1536d embedding run `85f6cbff932e6f849dbf35c6ab18685b`.
 
 **Pass criteria:**
 - D1 `vector_records` rows match Vectorize IDs
 - publication manifest identifies active indexes
+
+**Run:** `node cloudflare-mcp/scripts/poc-11-vectorize-publication.mjs`
 
 ### POC 12: MCP Search Over Vectorize
 

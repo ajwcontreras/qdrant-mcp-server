@@ -2241,3 +2241,20 @@ Next exact step:
 - Added `.gitignore` entry for `cloudflare-mcp/sessions/poc-10/runs/*/vectors/` because vector value files are reproducible.
 - Next exact step: commit POC 10 locally, attempt push, then implement POC 11 Vectorize Publication over the 1536d run.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials; POC 10 uses deterministic local vectors to prove pipeline semantics, not provider quality.
+
+### 2026-04-30T10:41:55-0400
+- Committed POC 10 locally as `7270369` (`POC 10 PASS: build redoable embedding runs`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 11 plan before implementation: throwaway Worker binds both Vectorize and D1, publishes POC 10's 1536d run, verifies D1 `vector_records` match Vectorize IDs, then deletes all Cloudflare resources.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-11-vectorize-publication.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T10:44:43-0400
+- Completed POC 11: Vectorize publication integration.
+- Built `cloudflare-mcp/poc/11-vectorize-publication-worker/*` and `cloudflare-mcp/scripts/poc-11-vectorize-publication.mjs`.
+- First run published to D1/Vectorize but failed the immediate Vectorize query criterion; cleanup succeeded. Added bounded query visibility polling and reran.
+- Passing run created throwaway Vectorize index and D1 DB, deployed Worker with both bindings, published 12 vectors from embedding run `85f6cbff932e6f849dbf35c6ab18685b`, verified D1 `vector_records` count matched, verified Vectorize query returned the expected vector, wrote `cloudflare-mcp/sessions/poc-11/publication-manifest.json`, and deleted Worker/index/DB.
+- Publication manifest: publication `pub-85f6cbff932e6f849dbf35c6ab18685b`, active HyDE index `cfcode-poc-11-vectorize-publication`, vector IDs hash `327bcda4b898b0db395686b67aa9d19569a06263b0437cdccccae5570241cd09`.
+- Verification: `node cloudflare-mcp/scripts/poc-11-vectorize-publication.mjs` exited 0 on rerun.
+- Next exact step: commit POC 11 locally, attempt push, then implement POC 12 MCP Search Over Vectorize.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials; POC 11 used throwaway resources and left no intended Cloudflare resources behind.

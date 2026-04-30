@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-11-vectorize-publication",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "cfcode-poc-11-vectorize-publication"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cfcode-poc-11-vectorize-publication",
+      "database_id": "313e06d4-8bb4-46f3-b71f-53bbe76817e8"
+    }
+  ]
+}
