@@ -1,8 +1,8 @@
 # Agent Handoff Master Plan: Qdrant MCP Agentic Code Search
 
-Last atomic update: 2026-04-30T12:07:40-04:00
-Previous atomic update: 2026-04-30T12:04:04-04:00
-Status: POC 26B passed; next exact step is POC 26C Queue publication to Vectorize and D1.
+Last atomic update: 2026-04-30T12:13:56-04:00
+Previous atomic update: 2026-04-30T12:07:40-04:00
+Status: POC 26C stopped after two failed runs and split; next exact step is POC 26C1 Queue consumer cleanup proof.
 
 ## Non-Negotiable Operating Rule
 
@@ -107,6 +107,15 @@ Council sanity check on 2026-04-22 converged on this corrected design:
 - [x] Verify compile/tests.
 
 ## Progress Log
+
+### 2026-04-30T12:13:56-04:00
+- Stopped POC 26C after two failed runs in a row per POC discipline.
+- Failure evidence: first run completed Queue publication, Vectorize upsert, D1 chunks, and active metadata but failed the Vectorize search assertion; second run failed because the Queue name was still bound to the Worker from the previous run.
+- Cleanup evidence: removed the Queue consumer binding with `wrangler queues consumer remove`, deleted Worker `cfcode-poc-26c-publication`, queues `cfcode-poc-26c-publication` and `cfcode-poc-26c-publication-dlq`, deleted remote R2 object `publication/lumae-fresh-poc-26c/29a6f4b5839f546b.jsonl`, deleted R2 bucket `cfcode-poc-26c-artifacts`; Vectorize and D1 were already gone.
+- Reverted only POC 26C's own uncommitted files: `cloudflare-mcp/poc/26c-cloud-publication-worker/` and `cloudflare-mcp/scripts/poc-26c-cloud-publication-smoke.mjs`.
+- Revised `EXECUTION_PLAN.md` to split POC 26C into POCs 26C1-26C4: Queue cleanup, R2 publication artifact, Vectorize visibility, and combined Queue publication.
+- Exact next step: implement and run `node cloudflare-mcp/scripts/poc-26c1-queue-cleanup-smoke.mjs`.
+- Blockers or verification gaps: Cloudflare-side publication remains unproven until the smaller 26C1-26C4 chain passes.
 
 ### 2026-04-30T12:07:40-04:00
 - Completed POC 26B Queue fan-out embedding smoke.
