@@ -435,7 +435,7 @@ The MCP Worker exposes:
 
 ### POC 17: Redo Embeddings Only ✅
 
-**Status:** PASS — 2026-04-30 — embedding/publication manifests regenerated without chunk or HyDE work.
+**Status:** PASS — local commit `966f102` — 2026-04-30 — embedding/publication manifests regenerated without chunk or HyDE work.
 
 - [x] Chunk count stayed `221` and chunk identity hash stayed unchanged.
 - [x] HyDE generation count was `0`; HyDE count stayed `24`.
@@ -460,13 +460,34 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-17-redo-embeddings-only.mjs`
 
-### POC 18: Per-Codebase MCP URL
+### POC 18: Per-Codebase MCP URL ✅
+
+**Status:** PASS — 2026-04-30 — unauthenticated `/mcp` URL served one configured codebase.
+
+- [x] Deployed Worker at `https://cfcode-poc-18-lumae-fresh-mcp.frosty-butterfly-d821.workers.dev/mcp`.
+- [x] MCP client listed `collection_info`.
+- [x] `collection_info` returned repo `lumae-fresh`.
+- [x] `collection_info` returned active publication `pub-19e2c2bf4fdc8521e63af051f55d75a8`.
+- [x] `collection_info` returned active Vectorize index `cfcode-lumae-hyde-1536-redo-b`.
+- [x] `collection_info` returned `auth: none`.
+- [x] Deleted Worker.
 
 **Proves:** Each codebase can have an unauthenticated MCP URL.
+
+**Build:**
+- `cloudflare-mcp/poc/18-per-codebase-mcp-url-worker/`
+- `cloudflare-mcp/scripts/poc-18-per-codebase-mcp-url.mjs`
+- deploys one authless MCP Worker configured for `lumae-fresh`
+- exposes `collection_info`
+- deletes Worker after MCP verification
+
+**Input:** static codebase/publication config from prior POC manifests; no Vectorize/D1 resources.
 
 **Pass criteria:**
 - deployed URL `/mcp` serves one configured repo
 - `collection_info` identifies repo and active publication
+
+**Run:** `node cloudflare-mcp/scripts/poc-18-per-codebase-mcp-url.mjs`
 
 ### POC 19: Throwaway Resource Cleanup
 

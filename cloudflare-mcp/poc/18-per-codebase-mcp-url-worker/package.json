@@ -1,0 +1,19 @@
+{
+  "name": "cfcode-poc-18-per-codebase-mcp-url-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "deploy": "wrangler deploy",
+    "delete": "wrangler delete --name cfcode-poc-18-lumae-fresh-mcp --force"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "agents": "^0.12.0",
+    "zod": "^4.4.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "wrangler": "^4.84.1"
+  }
+}

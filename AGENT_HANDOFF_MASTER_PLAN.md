@@ -2366,3 +2366,20 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-17-redo-embeddings-only.mjs` exited 0.
 - Next exact step: commit POC 17 locally, attempt push, then implement POC 18 Per-Codebase MCP URL.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:17:15-0400
+- Committed POC 17 locally as `966f102` (`POC 17 PASS: redo embeddings without upstream work`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 18 plan before implementation: deploy one authless MCP Worker configured for `lumae-fresh`, expose `collection_info`, verify via MCP SDK, then delete Worker.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-18-per-codebase-mcp-url.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:19:43-0400
+- Completed POC 18: per-codebase unauthenticated MCP URL.
+- Built `cloudflare-mcp/poc/18-per-codebase-mcp-url-worker/*` and `cloudflare-mcp/scripts/poc-18-per-codebase-mcp-url.mjs`.
+- First run failed on TypeScript `ExecutionContext` missing because this copied package does not include Worker runtime types; fixed by typing context as `unknown`.
+- Passing run deployed `https://cfcode-poc-18-lumae-fresh-mcp.frosty-butterfly-d821.workers.dev/mcp`, listed `collection_info`, and verified repo `lumae-fresh`, active publication `pub-19e2c2bf4fdc8521e63af051f55d75a8`, active embedding run `19e2c2bf4fdc8521e63af051f55d75a8`, Vectorize index `cfcode-lumae-hyde-1536-redo-b`, and `auth: none`.
+- Cleanup deleted the Worker.
+- Verification: `node cloudflare-mcp/scripts/poc-18-per-codebase-mcp-url.mjs` exited 0 on rerun.
+- Next exact step: commit POC 18 locally, attempt push, then implement POC 19 Throwaway Resource Cleanup.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.

@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-18-lumae-fresh-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "REPO_SLUG": "lumae-fresh",
+    "ACTIVE_PUBLICATION_ID": "pub-19e2c2bf4fdc8521e63af051f55d75a8",
+    "ACTIVE_EMBEDDING_RUN_ID": "19e2c2bf4fdc8521e63af051f55d75a8",
+    "VECTORIZE_INDEX": "cfcode-lumae-hyde-1536-redo-b"
+  }
+}
