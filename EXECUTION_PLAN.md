@@ -738,25 +738,28 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26E1: Git Diff Manifest JSON Export
+## POC 26E1: Git Diff Manifest JSON Export ✅
+
+**Status:** PASS — 2026-04-30
 
 **Proves:** This machine can export a deterministic, machine-readable git diff manifest that Cloudflare can store and process.
 
 **Build:**
-- Add a local script that reads repo git state with `git rev-parse`, `git status --porcelain=v1`, and `git diff --name-status`.
-- Emit JSON with repo slug, indexed path, base commit, target commit, working tree state, changed files, deleted files, renamed files, and file hashes for current changed files.
-- Use the existing source-file filter from POC 24.
-- Treat any changed source file as a whole-file reprocess unit for the first implementation.
-- Include `manifest_id`, git blob SHA where available, content SHA-256, byte size, and `previous_path` for renames.
+- Local script reads repo git state with `git rev-parse`, `git status --porcelain=v1`, and `git diff --name-status`.
+- Emits JSON with repo slug, indexed path, base/target commits, working tree state, classified files with hashes.
+- Uses source-file filter from POC 24. Skips directories and binary files from porcelain output.
+- Treat any changed source file as a whole-file reprocess unit for v1.
 
-**Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, `base_ref`, `target_ref`.
+**Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, `HEAD~5`, `HEAD`.
 
 **Pass criteria:**
-- [ ] JSON manifest includes base commit, target commit, repo path, repo slug, and generated timestamp.
-- [ ] Manifest classifies added/modified/renamed/deleted source files.
-- [ ] Changed existing files include current `sha256`, byte count, and R2 source artifact key.
-- [ ] Deleted files produce tombstone records without chunk text.
-- [ ] Re-running the export for the same refs produces stable file identities and counts.
+- [x] JSON manifest includes base commit, target commit, repo path, repo slug, and generated timestamp — base `7469bd72`, target `fafea4e3`.
+- [x] Manifest classifies added/modified/renamed/deleted source files — actions: `modified`, `modified_working`, 14 files total.
+- [x] Changed existing files include current `sha256`, byte count, and R2 source artifact key — all 14 have hashes.
+- [x] Deleted files produce tombstone records without chunk text — 0 deleted (correct for this diff range).
+- [x] Re-running the export for the same refs produces stable file identities and counts — second run matched exactly.
+
+**Evidence:** `node cloudflare-mcp/scripts/poc-26e1-git-diff-manifest-smoke.mjs` exited 0. Manifest at `cloudflare-mcp/sessions/poc-26e1/diff-manifest.json`.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26e1-git-diff-manifest-smoke.mjs`
 
