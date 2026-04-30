@@ -58,6 +58,9 @@ qdrant_storage/
 # Large reproducible POC session artifacts
 cloudflare-mcp/sessions/poc-08/chunks/
 cloudflare-mcp/sessions/poc-10/runs/*/vectors/
+cloudflare-mcp/sessions/poc-16/chunks/
+cloudflare-mcp/sessions/poc-16/hyde/
+cloudflare-mcp/sessions/poc-16/embeddings/
 
 # Package files
 *.tgz

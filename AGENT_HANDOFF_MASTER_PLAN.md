@@ -2326,3 +2326,23 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-15-active-publication-cutover.mjs` exited 0.
 - Next exact step: commit POC 15 locally, attempt push, then implement POC 16 Resume Interrupted Index.
 - Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:13:35-0400
+- Committed POC 15 locally as `03d80a3` (`POC 15 PASS: switch active publication via D1`).
+- `git push mine main` still failed with GitHub 403 for `awilliamsevrylo`.
+- Updated POC 16 plan before implementation: local resumability proof simulates interruption after chunk + partial HyDE stages and verifies rerun skips completed artifacts while finishing the pipeline.
+- Next exact step: implement and run `cloudflare-mcp/scripts/poc-16-resume-interrupted-index.mjs`.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.
+
+### 2026-04-30T11:14:09-0400
+- Completed POC 16: resume interrupted index.
+- Built `cloudflare-mcp/scripts/poc-16-resume-interrupted-index.mjs`.
+- Verification output:
+  - first run wrote 10 chunks and 4 HyDE artifacts, then interrupted before embeddings;
+  - second run skipped all 10 chunks, skipped 4 HyDE artifacts, wrote 6 missing HyDE artifacts, and wrote 10 embeddings;
+  - third run skipped 10 chunks, 10 HyDE artifacts, and 10 embeddings;
+  - final counts chunks=10, hyde=10, embeddings=10.
+- Added `.gitignore` entries for generated POC 16 chunk/HyDE/embedding artifacts; `stage-manifest.json` remains committable evidence.
+- Verification: `node cloudflare-mcp/scripts/poc-16-resume-interrupted-index.mjs` exited 0.
+- Next exact step: commit POC 16 locally, attempt push, then implement POC 17 Redo Embeddings Only.
+- Blockers or verification gaps: remote push remains blocked by GitHub credentials.

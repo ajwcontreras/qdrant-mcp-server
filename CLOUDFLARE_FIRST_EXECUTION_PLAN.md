@@ -382,7 +382,7 @@ The MCP Worker exposes:
 
 ### POC 15: Active Publication Cutover ✅
 
-**Status:** PASS — 2026-04-30 — D1 active-publication state changed MCP results without Worker redeploy.
+**Status:** PASS — local commit `03d80a3` — 2026-04-30 — D1 active-publication state changed MCP results without Worker redeploy.
 
 - [x] Created two throwaway Vectorize indexes: `cfcode-poc-15-pub-a` and `cfcode-poc-15-pub-b`.
 - [x] Deployed one Worker at `https://cfcode-poc-15-active-publication.frosty-butterfly-d821.workers.dev`.
@@ -407,13 +407,31 @@ The MCP Worker exposes:
 
 **Run:** `node cloudflare-mcp/scripts/poc-15-active-publication-cutover.mjs`
 
-### POC 16: Resume Interrupted Index
+### POC 16: Resume Interrupted Index ✅
+
+**Status:** PASS — 2026-04-30 — interrupted staged index resumed without recomputing completed artifacts.
+
+- [x] First run wrote 10 chunks and 4 HyDE artifacts, then interrupted before embeddings.
+- [x] Second run skipped 10 existing chunks, skipped 4 existing HyDE artifacts, wrote 6 missing HyDE artifacts, and wrote 10 embeddings.
+- [x] Third run skipped all 10 chunks, all 10 HyDE artifacts, and all 10 embeddings.
+- [x] Final counts were chunks `10`, HyDE `10`, embeddings `10`.
+- [x] Wrote `cloudflare-mcp/sessions/poc-16/stage-manifest.json`.
 
 **Proves:** Indexing resumes after interruption without recomputing completed chunk/HyDE/embedding artifacts.
+
+**Build:**
+- `cloudflare-mcp/scripts/poc-16-resume-interrupted-index.mjs`
+- uses local session state under `cloudflare-mcp/sessions/poc-16/`
+- simulates interruption after chunk + partial HyDE stages
+- reruns the pipeline and skips completed artifacts based on manifests
+
+**Input:** POC 08 chunks and POC 09/10 artifact contracts; no Cloudflare resources.
 
 **Pass criteria:**
 - kill midway
 - rerun reports completed counts and finishes
+
+**Run:** `node cloudflare-mcp/scripts/poc-16-resume-interrupted-index.mjs`
 
 ### POC 17: Redo Embeddings Only
 
