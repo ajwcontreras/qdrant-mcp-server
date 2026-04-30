@@ -594,6 +594,32 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
+## POC 26D0: Full Job Safety Preflight
+
+**Proves:** The full-job Worker has the Cloudflare safety contracts needed before processing the full lumae repo: Vectorize metadata indexes exist before inserts, queue cleanup is explicit, D1 is authoritative for active chunks, and duplicate messages are idempotent.
+
+**Council evidence:** Gemini Pro, ChatGPT, and Claude reviews on 2026-04-30 converged on these requirements: Queue delivery is at-least-once, Vectorize deletes/upserts are eventually visible, D1 must be the source of truth, changed/deleted files need active/tombstone filtering, and generated docs must warn that v1 incremental mode reprocesses whole files. Live Cloudflare docs confirmed Vectorize metadata indexes should be created before inserts and are limited to 10 indexed properties.
+
+**Build:**
+- Create a bounded Worker with R2, D1, Vectorize, and Queue bindings.
+- Create Vectorize metadata indexes for `repo_slug`, `file_path`, and `active_commit` before inserting vectors.
+- D1 schema includes deterministic `chunk_id`, `repo_slug`, `file_path`, `source_sha256`, `active`, `job_id`, and counters.
+- Queue consumer handles duplicate messages by `INSERT OR IGNORE`/`INSERT OR REPLACE` keyed by deterministic chunk ID.
+- Search cross-checks Vectorize matches against D1 `active = 1` rows.
+
+**Input:** Three deterministic file-level records.
+
+**Pass criteria:**
+- [ ] Metadata indexes are created before any vector upsert and listed by Wrangler.
+- [ ] Duplicate Queue messages do not create duplicate D1 chunks or over-count completed work.
+- [ ] Search filters inactive/tombstoned chunks through D1 even if Vectorize returns them.
+- [ ] Worker/Queue/DLQ/R2/D1/Vectorize cleanup uses explicit Queue consumer removal and remote R2 deletion.
+- [ ] No Vertex calls are made in this safety preflight.
+
+**Run:** `node cloudflare-mcp/scripts/poc-26d0-full-job-safety-preflight.mjs`
+
+---
+
 ## POC 26D: Full Cloudflare Job Runs Lumae End-To-End
 
 **Proves:** With this machine as the packager/controller, Cloudflare completes full filtered lumae indexing quickly via fan-out and the final MCP URL works.
@@ -603,6 +629,7 @@ POCs 10 and 11 can run in parallel.
 - Cloudflare Queues fan out embedding and publication.
 - Status endpoint polls D1 counters until complete.
 - Generated docs include indexed local path, MCP URL, full redo command, incremental redo command, and job/status URLs.
+- Use POC 26D0's safety contracts: deterministic IDs, idempotent Queue handling, D1 active filtering, and Vectorize metadata indexes created before inserts.
 
 **Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, live Cloudflare R2/D1/Queues/Vectorize/Worker, Google service-account Worker secret.
 
@@ -610,6 +637,7 @@ POCs 10 and 11 can run in parallel.
 - [ ] Full filtered lumae job completes from Cloudflare status endpoint.
 - [ ] Runtime and throughput are reported.
 - [ ] Resume/retry command skips completed chunks.
+- [ ] Duplicate-safe counters show no over-counting across retries/resume.
 - [ ] Generated docs include local path and unique MCP URL.
 - [ ] Live MCP `search` returns relevant full-codebase results.
 
@@ -626,6 +654,7 @@ POCs 10 and 11 can run in parallel.
 - Emit JSON with repo slug, indexed path, base commit, target commit, working tree state, changed files, deleted files, renamed files, and file hashes for current changed files.
 - Use the existing source-file filter from POC 24.
 - Treat any changed source file as a whole-file reprocess unit for the first implementation.
+- Include `manifest_id`, git blob SHA where available, content SHA-256, byte size, and `previous_path` for renames.
 
 **Input:** `/Users/awilliamspcsevents/PROJECTS/lumae-fresh`, `base_ref`, `target_ref`.
 
@@ -697,6 +726,7 @@ POCs 10 and 11 can run in parallel.
 - Deleted files mark prior chunks inactive or remove D1 rows and Vectorize IDs where supported.
 - Changed files are rechunked at whole-file/file-level granularity for v1, queued for Vertex embedding, published to Vectorize and D1, and counted separately from full jobs.
 - Active git state advances only after all changed-file tasks complete.
+- Vectorize stale vectors are soft-deleted first in D1 (`active = 0`) and optionally cleaned with `deleteByIds`; MCP search treats D1 as the source of truth.
 
 **Input:** POC 26E2 stored git state and POC 26E3 incremental artifact.
 
@@ -706,6 +736,7 @@ POCs 10 and 11 can run in parallel.
 - [ ] Modified files are reprocessed as whole files and replace prior file-level chunks.
 - [ ] D1 counters distinguish manifest files, changed files, deleted files, queued, completed, failed, and published.
 - [ ] Active git commit advances to the manifest target commit after successful completion.
+- [ ] Renames are treated as tombstone old path plus whole-file add for new path.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26e4-cloud-incremental-diff-smoke.mjs`
 

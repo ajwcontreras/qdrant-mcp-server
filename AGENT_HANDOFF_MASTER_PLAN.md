@@ -1,8 +1,8 @@
 # Agent Handoff Master Plan: Qdrant MCP Agentic Code Search
 
-Last atomic update: 2026-04-30T12:27:34-04:00
-Previous atomic update: 2026-04-30T12:23:42-04:00
-Status: Added git-diff incremental Cloudflare POCs; next exact step remains POC 26D full Cloudflare job for lumae.
+Last atomic update: 2026-04-30T12:36:20-04:00
+Previous atomic update: 2026-04-30T12:27:34-04:00
+Status: Council review incorporated; next exact step is POC 26D0 full-job safety preflight.
 
 ## Non-Negotiable Operating Rule
 
@@ -107,6 +107,15 @@ Council sanity check on 2026-04-22 converged on this corrected design:
 - [x] Verify compile/tests.
 
 ## Progress Log
+
+### 2026-04-30T12:36:20-04:00
+- Ran Launcher API council review using uploaded bundle `ephemeral/cloudflare-codebase-mcp-council-bundle.txt` with Gemini Pro, ChatGPT, and Claude.
+- Prompt explicitly required live official Cloudflare documentation verification before claims; local Cloudflare docs MCP also verified Queues, Vectorize, D1, and R2 points.
+- Council findings incorporated into `EXECUTION_PLAN.md`: add POC 26D0 before full 26D, create Vectorize metadata indexes before inserts, use deterministic/idempotent chunk IDs, use D1 active rows as source of truth, soft-delete stale chunks before async Vectorize deletion, guard duplicate Queue delivery, treat renames as delete+add, and document eventual consistency.
+- Removed own uncommitted early 26D Worker files so implementation resumes from the new preflight POC.
+- Files touched: `EXECUTION_PLAN.md`, `AGENT_HANDOFF_MASTER_PLAN.md`, `ephemeral/cloudflare-codebase-mcp-council-bundle.txt`.
+- Exact next step: implement and run `node cloudflare-mcp/scripts/poc-26d0-full-job-safety-preflight.mjs`.
+- Blockers or verification gaps: POC 26D0 has not yet proven idempotent Queue/D1/Vectorize safety contracts.
 
 ### 2026-04-30T12:27:34-04:00
 - Updated `EXECUTION_PLAN.md` in response to user request for diff-driven incremental Cloudflare indexing.
