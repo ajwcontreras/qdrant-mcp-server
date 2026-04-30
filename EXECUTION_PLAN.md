@@ -547,7 +547,9 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26C3: Vectorize Visibility After Upsert
+## POC 26C3: Vectorize Visibility After Upsert ✅
+
+**Status:** PASS — 2026-04-30 — Vectorize visibility smoke exited 0.
 
 **Proves:** Vectorize upserts become query-visible for deterministic 1536-dimensional vectors with bounded polling.
 
@@ -559,10 +561,10 @@ POCs 10 and 11 can run in parallel.
 **Input:** Three deterministic embedding vectors.
 
 **Pass criteria:**
-- [ ] Vectorize index is created at 1536 dimensions.
-- [ ] Worker upserts all vectors.
-- [ ] Search returns the expected vector ID within the bounded polling window.
-- [ ] Worker and Vectorize index are cleaned up.
+- [x] Vectorize index is created at 1536 dimensions — `cfcode-poc-26c3-vectorize`.
+- [x] Worker upserts all vectors — `Published vectors: 3`.
+- [x] Search returns the expected vector ID within the bounded polling window — matches included `vec-e22bc966d9352957`.
+- [x] Worker and Vectorize index are cleaned up.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26c3-vectorize-visibility-smoke.mjs`
 
