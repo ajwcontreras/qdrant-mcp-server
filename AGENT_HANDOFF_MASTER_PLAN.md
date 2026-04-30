@@ -2454,3 +2454,11 @@ Next exact step:
 - Verification: `node cloudflare-mcp/scripts/poc-20-lumae-fresh-e2e.mjs` exited 0.
 - Next exact step: commit POC 20 locally, attempt push. Remote push still requires corrected GitHub credentials.
 - Blockers or verification gaps: the live deployment is a deterministic lumae sample proving the Cloudflare architecture and client contract, not a full 663-file production index. Scaling the indexer from POC artifacts to full production volume is now implementation work around `index-codebase.mjs`.
+
+### 2026-04-30T11:31:02-0400
+- Committed POC 20 locally as `cb1665d` (`POC 20 PASS: deploy lumae-fresh Cloudflare MCP`).
+- Attempted `git push mine main`; GitHub rejected it with 403: permission to `ajwcontreras/qdrant-mcp-server.git` denied to `awilliamsevrylo`.
+- Live MCP URL remains deployed intentionally: `https://cfcode-lumae-fresh.frosty-butterfly-d821.workers.dev/mcp`.
+- Generated user docs remain at `cloudflare-mcp/sessions/poc-20/lumae-fresh-MCP.md`.
+- Next exact step: replace the POC20 deterministic sample seeding with the full production `index-codebase.mjs` execution path that chunks, reuses/generates HyDE, embeds with Google 1536d embeddings, publishes all changed chunks, and regenerates docs.
+- Blockers or verification gaps: remote push requires corrected GitHub credentials. The deployed MCP is a Cloudflare-first live proof and client endpoint, but not yet a full 663-file lumae production index.
