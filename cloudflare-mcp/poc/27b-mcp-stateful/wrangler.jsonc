@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-27b-mcp-stateful",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [{ "name": "MCP_OBJECT", "class_name": "CfcodeMcp" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["CfcodeMcp"] }
+  ]
+}

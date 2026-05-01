@@ -903,21 +903,20 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 27B: Stateful MCP server via McpAgent
+## POC 27B: Stateful MCP server via McpAgent ✅
 
-**Proves:** An `McpAgent`-backed Worker on a Durable Object persists session state across MCP tool calls, no dispatch yet.
+**Status:** PASS — 2026-04-30
 
-**Build:**
-- `cloudflare-mcp/poc/27b-mcp-stateful/` — throwaway dir
-- Worker exposes one McpAgent class with `select_value(s)` and `current_value()` tools backed by DO sql state
-- Smoke: connect via MCP `streamable-http` transport, call select_value("foo"), call current_value, assert "foo"
+**Proves:** An `McpAgent`-backed Worker on a Durable Object persists session state across MCP tool calls.
 
 **Pass criteria:**
-- [ ] MCP `initialize` returns advertised tools list
-- [ ] `select_value("foo")` returns ok
-- [ ] `current_value` returns "foo" on the same session
-- [ ] State survives across two requests with same session ID
-- [ ] Cleanup removes Worker
+- [x] MCP `initialize` returns server info + Mcp-Session-Id header (session=8229...581d)
+- [x] `tools/list` returns advertised tools (`["set_value","get_value"]`)
+- [x] `set_value("foo")` succeeds and persists state
+- [x] `get_value` returns `"foo"` on the same session ID
+- [x] Cleanup removes Worker
+
+**Evidence:** `node cloudflare-mcp/scripts/poc-27b-mcp-stateful-smoke.mjs` exited 0. Required DO binding name `MCP_OBJECT` (Agents SDK convention — `MyMCP.serve("/mcp")` defaults to that binding name).
 
 **Run:** `node cloudflare-mcp/scripts/poc-27b-mcp-stateful-smoke.mjs`
 
