@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "__WORKER_NAME__",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "__VECTORIZE_INDEX__" }],
+  "durable_objects": {
+    "bindings": [
+      { "name": "VEC_SHARD_DO", "class_name": "VecShardDO" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["VecShardDO"] }
+  ]
+}
