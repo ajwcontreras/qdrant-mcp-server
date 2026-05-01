@@ -1208,3 +1208,186 @@ search('handler function') →
 
 **Run:** repeated `cfcode index <repo>` calls
 
+---
+
+# Phase 29 — Indexing Throughput (speed-first)
+
+**Goal:** maximize chunks/sec for `cfcode index` (code-only path, no HyDE).
+HyDE remains a separate `cfcode hyde-enrich` step (Phase 28). Phase 29 makes
+the FAST path as fast as the Cloudflare-native stack allows.
+
+**Eval discipline:** every POC produces a `bench-NN.json` file with:
+`{ chunks, vertex_calls, oauth_refreshes, wall_ms, chunks_per_sec, errors }`.
+Each POC's pass criteria includes a numerical lift over the prior POC's number.
+No POC ships without measured improvement.
+
+Bottleneck analysis (2026-05-01):
+1. Vertex AI quota — hard ceiling, mitigated by round-robin across SAs (29D)
+2. Vertex per-chunk call count — mitigated by batching (29E)
+3. OAuth JWT churn per cold isolate — mitigated by KV cache (29B)
+4. CF Queues `max_concurrency` — soft cap, raised in 29F
+5. D1 write contention on job-progress UPDATE — observed in 29F, fixed if needed
+
+## POC 29A: Baseline — code-only re-index speed
+
+**Proves:** current production pipeline's chunks/sec on real lumae, no HyDE.
+Establishes the number every later POC must beat.
+
+**Build:**
+- `cloudflare-mcp/scripts/poc-29a-baseline-bench.mjs`
+- Re-index `cfcode-codebase-lumae-fresh` from scratch (drop + recreate Vectorize+D1, code-only)
+- Instrument worker to count: vertex_calls, oauth_refreshes (via log lines), wall time
+- Aggregate from D1 + worker logs into `bench-29a.json`
+
+**Input:** lumae-fresh repo at current commit.
+
+**Pass criteria:**
+- [ ] 608 chunks indexed, all `active=1`
+- [ ] Search round-trips via gateway return real results
+- [ ] `bench-29a.json` written with all fields populated
+- [ ] chunks_per_sec recorded (this IS the baseline — no threshold)
+
+**Run:** `node cloudflare-mcp/scripts/poc-29a-baseline-bench.mjs`
+
+---
+
+## POC 29B: KV oauth token cache
+
+**Proves:** caching Vertex access tokens in KV eliminates per-isolate JWT churn,
+measurable wall-time win on cold-start-heavy workloads.
+
+**Build:**
+- Add KV namespace binding `VERTEX_TOKEN_CACHE` to `workers/codebase/wrangler.namespace.template.jsonc`
+- New helper `cloudflare-mcp/lib/oauth-kv.mjs` (worker-side .ts equivalent in `workers/codebase/src/oauth.ts`):
+  - `getCachedToken(env, sa_id)` reads KV, returns if `expires_at > now + 60s`
+  - On miss: JWT-sign, exchange at oauth2.googleapis.com/token, write back to KV with TTL ~3300s
+  - Race-benign: overlapping writes both produce valid tokens
+- Re-deploy lumae namespace worker, re-bench
+
+**Input:** baseline from 29A.
+
+**Pass criteria:**
+- [ ] `bench-29b.json` shows oauth_refreshes ≤ 2 (one per SA, vs N in 29A)
+- [ ] chunks_per_sec ≥ 1.10 × 29A (≥10% wall-time reduction)
+- [ ] No KV errors in worker logs
+
+**Run:** `node cloudflare-mcp/scripts/poc-29b-kv-oauth-bench.mjs`
+
+---
+
+## POC 29C: Second SA Vertex access verified
+
+**Proves:** `underwriter-agent-479920` SA can call Vertex `gemini-embedding-001`.
+Required prerequisite for round-robin (29D). Cheap one-shot — no point building
+29D if Vertex isn't enabled on that project.
+
+**Build:**
+- `cloudflare-mcp/scripts/poc-29c-verify-second-sa.mjs`
+- Local Node script: load `/Users/awilliamspcsevents/Downloads/underwriter-agent-479920-af2b45745dac.json`
+- JWT-sign, exchange for token, single `:predict` call with 1 instance
+- Print response shape, embedding length, project/region
+
+**Input:** SA JSON file.
+
+**Pass criteria:**
+- [ ] HTTP 200 from `:predict`
+- [ ] Response contains `predictions[0].embeddings.values` of length 1536
+- [ ] Embedding values are finite floats (no NaN)
+
+**Run:** `node cloudflare-mcp/scripts/poc-29c-verify-second-sa.mjs`
+
+**Failure mode:** if 403/billing/API-not-enabled — STOP, ask user to enable Vertex on that project or supply a different second SA. Do not proceed to 29D.
+
+---
+
+## POC 29D: Round-robin SA in worker
+
+**Proves:** worker picks SA per-chunk by deterministic hash, distributes load
+across two GCP projects, doubling Vertex quota headroom.
+
+**Build:**
+- Add second SA secret `GEMINI_SERVICE_ACCOUNT_B64_2` via `cloudflare-mcp/lib/wfp-secret.mjs`
+- Worker `src/oauth.ts`: `pickSA(chunk_id) → 'evrylo' | 'underwriter-agent-479920'`
+  via `parseInt(chunk_id.slice(0,8), 16) % 2`
+- Worker `src/vertex.ts`: `embed(texts, sa_id)` selects credentials by sa_id
+- Re-bench with both SAs in rotation
+
+**Input:** 29C confirmed Vertex works on second SA.
+
+**Pass criteria:**
+- [ ] `bench-29d.json` shows ~50/50 split of vertex_calls per SA (logged per call)
+- [ ] chunks_per_sec ≥ 29B (no regression — round-robin alone won't speed up at current concurrency, but unblocks 29F)
+- [ ] No 403/quota errors on either SA
+
+**Run:** `node cloudflare-mcp/scripts/poc-29d-roundrobin-bench.mjs`
+
+---
+
+## POC 29E: Vertex batch embeddings (queue batching)
+
+**Proves:** queue consumer batches N chunks into single Vertex `:predict` call,
+collapsing N round-trips to 1. Biggest single throughput lever.
+
+**Build:**
+- `workers/codebase/wrangler.namespace.template.jsonc`: queue consumer `max_batch_size: 50, max_batch_timeout: 2`
+- Worker queue handler refactor: receive batch, group by SA (after round-robin pick), one Vertex call per group with `instances[]`, then per-chunk Vectorize upsert + D1 insert
+- Handle partial-batch failures (CF Queues at-least-once: `message.retry()` for failed subset, `message.ack()` for succeeded)
+
+**Input:** 29D round-robin in place.
+
+**Pass criteria:**
+- [ ] `bench-29e.json` shows vertex_calls ≤ ⌈chunks/40⌉ (≥40× reduction from per-chunk)
+- [ ] chunks_per_sec ≥ 5 × 29D (5× wall-time improvement target)
+- [ ] All 608 chunks present in D1 with `active=1`, search still returns correct top-k
+
+**Run:** `node cloudflare-mcp/scripts/poc-29e-batch-embed-bench.mjs`
+
+---
+
+## POC 29F: Crank `max_concurrency` to 250
+
+**Proves:** with batching + round-robin in place, queue concurrency can scale to
+CF Queues max without hitting Vertex 429s or D1 contention.
+
+**Build:**
+- Bump `max_concurrency: 25 → 250` in queue consumer config
+- Re-bench. Watch for: Vertex 429s (would trigger backoff), D1 write timeouts, queue DLQ entries
+- If D1 contention observed: replace `UPDATE jobs SET completed = (SELECT COUNT(*) FROM chunks WHERE job_id=? AND active=1)` with sharded counter (separate `job_progress_shards` table, periodic aggregator) — note as 29F.5 if needed
+
+**Input:** 29E batching in place.
+
+**Pass criteria:**
+- [ ] `bench-29f.json` shows zero Vertex 429s (round-robin holds the load)
+- [ ] Zero DLQ entries
+- [ ] chunks_per_sec ≥ 2 × 29E (concurrency scales near-linearly)
+- [ ] D1 write p99 latency < 500ms (logged from worker)
+
+**Run:** `node cloudflare-mcp/scripts/poc-29f-concurrency-bench.mjs`
+
+**Backtrack trigger:** if 29F shows D1 contention or 429 storms, do NOT push concurrency further. Insert 29F.5 to fix the observed bottleneck before 29G.
+
+---
+
+## POC 29G: Full real-world codebase index
+
+**Proves:** end-to-end target met on a codebase that actually matters (not lumae).
+This is the production goal.
+
+**Build:**
+- User picks one real target codebase (employer codebase subset, or one of his bigger personal repos)
+- `cfcode index <path>` from cold (no prior resources)
+- Capture full bench: provision time, ingest time, queue drain time, total wall time
+- `bench-29g.json` includes file count, chunk count, total size
+
+**Input:** all prior 29-series POCs PASS.
+
+**Pass criteria:**
+- [ ] Codebase fully indexed, `cfcode status` reports correct chunk count
+- [ ] Search via gateway returns relevant matches
+- [ ] chunks_per_sec ≥ 10 × 29A baseline (full-stack lift target)
+- [ ] Wall time scales linearly with chunks (no super-linear blowup at larger N)
+
+**Run:** `cfcode index <path>` + post-bench script
+
+---
+
