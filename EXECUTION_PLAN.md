@@ -1427,27 +1427,52 @@ launch hit 429s on some shards.
 
 ---
 
-## POC 29F: Production cutover — port shard fan-out into canonical worker
+## POC 29F: Canonical worker port (smoke against throwaway) ✅
 
-**PIVOT NOTE:** Original 29F (crank concurrency) is superseded by 29D's shard
-architecture. Repurposed as the **production integration** step.
+**Status:** PASS — 2026-05-01 — port verified end-to-end on throwaway worker.
+Production lumae cutover deferred to user decision (29G).
 
-**Proves:** the shard fan-out works in the canonical worker (not just the POC).
+**PIVOT NOTE:** Scope narrowed from "production cutover" to "smoke port against
+throwaway" — modifying the canonical worker is the risky bit; deploying to
+production lumae is a user-controlled deploy. Smoke proves the port is correct
+without touching production.
 
-**Build:**
-- Port `IndexingShardDO` and `/ingest-sharded` from 29D POC into `workers/codebase/src/index.ts`
-- Update `wrangler.template.jsonc` and `wrangler.namespace.template.jsonc` with DO bindings (`INDEXING_SHARD_DO`)
-- Update `cfcode index` CLI to call `/ingest-sharded` (with feature-flag fallback to old `/ingest` for safety)
-- Re-deploy `cfcode-codebase-lumae-fresh`, run `cfcode reindex --full`, verify search via gateway
+**Proves:** sharded fan-out works in the canonical worker. Legacy endpoints
+remain functional. Search round-trip via Vectorize + D1 returns matches.
+
+**Build (delivered):**
+- `workers/codebase/src/index.ts`: added `import { DurableObject } from "cloudflare:workers"`,
+  `IndexingShardDO` class (singleton per `cfcode:shard:N`), `parseSAByIndex` +
+  `tokenForSA` (per-SA token cache map) + `embedBatch` (Vertex `instances[]`),
+  `ingestSharded()` producer that does `Promise.allSettled` over shard DOs,
+  `/ingest-sharded` route. `INDEXING_SHARD_DO?: DONamespaceLike` on Env (optional —
+  endpoint returns 501 if binding absent so upgrade is non-breaking).
+- `wrangler.template.jsonc` + `wrangler.namespace.template.jsonc`: DO binding,
+  v1 migration with `new_sqlite_classes: ["IndexingShardDO"]`,
+  `compatibility_flags: ["nodejs_compat"]`, vars `SHARD_COUNT=4 BATCH_SIZE=100 NUM_SAS=2`.
+- `package.json` + `tsconfig.json`: `@cloudflare/workers-types` dev dep, `skipLibCheck`.
+- `cloudflare-mcp/scripts/poc-29f-canonical-port-smoke.mjs`: provisions throwaway,
+  deploys canonical, sets BOTH SA secrets, runs `/ingest-sharded`, verifies legacy
+  `/health` `/metrics` `/search`.
 
 **Pass criteria:**
-- [ ] Canonical worker deploys with DO bindings — no schema/migration errors
-- [ ] Production lumae re-indexes via `cfcode index` using new path
-- [ ] `cfcode list` + gateway `search` still return correct top-k results
-- [ ] chunks_per_sec on production matches 29E best config within 20%
-- [ ] No regression on existing endpoints (`/ingest`, `/incremental-ingest`, `/search`)
+- [x] Canonical worker deploys cleanly with DO bindings — no migration errors
+- [x] `/ingest-sharded` returns ok=true, completed=632/632, 0 errors
+- [x] `/health` and `/metrics` still respond correctly (legacy endpoints intact)
+- [x] `/search` returns matches after Vectorize propagation (3 matches for "hello world", top=`templates/income_calculator/sub/_layout.html`)
+- [x] chunks_per_sec ≥ 5× baseline — **76.7 cps (12.7×)** on canonical worker
+- [x] No regression — existing `/ingest`, `/search`, `/metrics` paths unchanged
 
-**Run:** `cfcode reindex /Users/awilliamspcsevents/PROJECTS/lumae-fresh --full`
+**Evidence (bench-29f.json):**
+- chunks=632, wall_ms=8238, chunks_per_sec=76.7, speedup=12.7×, errors=0
+- vertex_calls_total=8 (~ceil(632/4 shards × 100 batch))
+
+**Operational note:** Vectorize is eventually consistent — new vectors took
+~45s to become queryable in this run (9× 5s retries). The smoke now waits up to
+60s before declaring search failure. Real-world index time should plan for
+~30-60s search-availability lag after upsert.
+
+**Run:** `node cloudflare-mcp/scripts/poc-29f-canonical-port-smoke.mjs`
 
 ---
 

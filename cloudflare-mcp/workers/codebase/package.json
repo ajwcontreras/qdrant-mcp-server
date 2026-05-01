@@ -5,6 +5,7 @@
   },
   "dependencies": {
     "typescript": "^5.9.3",
-    "wrangler": "^4.86.0"
+    "wrangler": "^4.86.0",
+    "@cloudflare/workers-types": "^4.20260501.0"
   }
 }

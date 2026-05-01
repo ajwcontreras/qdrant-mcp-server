@@ -1,0 +1,15 @@
+{
+  "poc": "29f",
+  "note": "canonical worker (workers/codebase) port smoke — DO binding + /ingest-sharded + legacy /search",
+  "baseline_chunks_per_sec": 6.041,
+  "chunks": 632,
+  "completed": 632,
+  "failed": 0,
+  "vertex_calls_total": 8,
+  "wall_ms": 8238,
+  "chunks_per_sec": 76.718,
+  "speedup_vs_baseline": 12.7,
+  "search_top_match": "templates/income_calculator/sub/_layout.html",
+  "started_at": "2026-05-01T08:09:56.417Z",
+  "finished_at": "2026-05-01T08:11:25.325Z"
+}
