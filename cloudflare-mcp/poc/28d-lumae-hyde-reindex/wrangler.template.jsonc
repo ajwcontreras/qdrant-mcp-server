@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-codebase-lumae-hyde-test",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-lumae-hyde-test-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-lumae-hyde-test", "database_id": "__D1_ID__" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-lumae-hyde-test" }],
+  "queues": {
+    "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-lumae-hyde-test-work" }]
+  }
+}

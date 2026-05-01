@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "scripts": { "check": "tsc --noEmit" },
+  "dependencies": { "typescript": "^5.9.3", "wrangler": "^4.86.0" }
+}
