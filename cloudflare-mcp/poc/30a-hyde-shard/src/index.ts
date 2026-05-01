@@ -46,7 +46,7 @@ type IngestShardedHydeReq = {
 };
 type ShardBatchReq = {
   job_id: string; repo_slug: string; shard_index: number; sa_index: number;
-  batch_size: number; hyde: boolean; records: SourceRecord[];
+  batch_size: number; hyde: boolean; hyde_only?: boolean; records: SourceRecord[];
 };
 type ShardResult = {
   shard_index: number; sa_index: number;
@@ -183,7 +183,7 @@ async function deepseekHyde(env: Env, chunkText: string, n: number): Promise<str
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${env.DEEPSEEK_API_KEY}` },
       body: JSON.stringify({
-        model: env.HYDE_MODEL || "deepseek-chat",
+        model: env.HYDE_MODEL || "deepseek-v4-flash",
         messages: [
           { role: "system", content: HYDE_SYSTEM },
           { role: "user", content: chunkText },
@@ -226,11 +226,11 @@ export class IndexingShardDO extends DurableObject<Env> {
     const model = this.env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
     const dims = intEnv(this.env.GOOGLE_EMBEDDING_DIMENSIONS, 1536);
     const hydeVersion = this.env.HYDE_VERSION || "v1";
-    const hydeModel = this.env.HYDE_MODEL || "deepseek-chat";
+    const hydeModel = this.env.HYDE_MODEL || "deepseek-v4-flash";
     const numHyde = intEnv(this.env.HYDE_QUESTIONS, 12);
 
-    // Run HyDE path and code path in parallel
-    const codePromise = this.processCode(req, sa, model, dims, result);
+    // Run HyDE path and code path in parallel (skip code if hyde_only)
+    const codePromise = req.hyde_only ? Promise.resolve() : this.processCode(req, sa, model, dims, result);
     const hydePromise = req.hyde ? this.processHyde(req, sa, model, dims, hydeVersion, hydeModel, numHyde, result) : Promise.resolve();
     await Promise.allSettled([codePromise, hydePromise]);
     return result;
@@ -472,12 +472,121 @@ async function counts(env: Env): Promise<Response> {
   return json({ ok: true, code: Number(code?.n ?? 0), hyde: Number(hyde?.n ?? 0) });
 }
 
+// ── /hyde-enrich: find code chunks lacking HyDE, generate only those ──
+type HydeEnrichReq = { repo_slug: string; target_hyde_version?: string; shard_count?: number; batch_size?: number; scan_limit?: number };
+
+async function hydeEnrich(env: Env, input: HydeEnrichReq): Promise<Response> {
+  await schema(env.DB);
+  if (!env.INDEXING_SHARD_DO) return json({ ok: false, error: "INDEXING_SHARD_DO binding missing" }, 501);
+  if (!input.repo_slug) return json({ ok: false, error: "repo_slug required" }, 400);
+
+  const SHARD_COUNT = Math.max(1, input.shard_count ?? intEnv(env.SHARD_COUNT, 16));
+  const BATCH_SIZE = Math.max(1, input.batch_size ?? intEnv(env.BATCH_SIZE, 100));
+  const NUM_SAS = Math.max(1, intEnv(env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1));
+  const targetVersion = input.target_hyde_version ?? env.HYDE_VERSION ?? "v1";
+  const scanLimit = input.scan_limit ?? 100000;
+
+  // Pull artifact for the latest published job — gives us full chunk text.
+  const latestJob = await env.DB.prepare(
+    `SELECT job_id, artifact_key FROM jobs WHERE repo_slug = ? AND status IN ('published','partial') ORDER BY created_at DESC LIMIT 1`
+  ).bind(input.repo_slug).first();
+  if (!latestJob) return json({ ok: false, error: "no published job for repo_slug" }, 404);
+  const artifact = await env.ARTIFACTS.get(latestJob.artifact_key as string);
+  if (!artifact) return json({ ok: false, error: "artifact not found in R2" }, 404);
+  const records = parseRecords(await artifact.text());
+  const recordById = new Map<string, SourceRecord>();
+  for (const r of records) recordById.set(r.chunk_id, r);
+
+  // Find code chunks lacking HyDE at the target version.
+  const missingRows = await env.DB.prepare(
+    `SELECT c.chunk_id FROM chunks c
+     WHERE c.active = 1 AND c.kind = 'code' AND c.repo_slug = ?
+     AND NOT EXISTS (
+       SELECT 1 FROM chunks h
+       WHERE h.parent_chunk_id = c.chunk_id AND h.kind = 'hyde' AND h.active = 1
+       AND (h.hyde_version = ? OR ? = '')
+     )
+     LIMIT ?`
+  ).bind(input.repo_slug, targetVersion, "", scanLimit).all();
+  const missingIds = (missingRows.results || []).map(r => r.chunk_id as string);
+  const missingRecords = missingIds.map(id => recordById.get(id)).filter((r): r is SourceRecord => !!r);
+
+  if (missingRecords.length === 0) {
+    return json({
+      ok: true, repo_slug: input.repo_slug, target_hyde_version: targetVersion,
+      code_scanned: records.length, missing_hyde: 0, processed: 0, hyde_added: 0,
+      wall_ms: 0, vectors_per_sec: 0,
+      shards: [], note: "all code chunks already have HyDE at target version",
+    });
+  }
+
+  const enrichJobId = `hyde-enrich-${Date.now()}`;
+  // Distribute missing records across shards
+  const shards: SourceRecord[][] = Array.from({ length: SHARD_COUNT }, () => []);
+  for (let i = 0; i < missingRecords.length; i++) shards[i % SHARD_COUNT].push(missingRecords[i]);
+
+  const tStart = Date.now();
+  const responses = await Promise.allSettled(shards.map(async (recs, idx) => {
+    if (!recs.length) return { shard_index: idx, sa_index: idx % NUM_SAS, chunks_done: 0, hyde_done: 0, vertex_calls: 0, deepseek_calls: 0, vertex_ms: 0, deepseek_ms: 0, vectorize_ms: 0, d1_ms: 0, errors: 0 } as ShardResult;
+    const stub = env.INDEXING_SHARD_DO!.get(env.INDEXING_SHARD_DO!.idFromName(`cfcode:hyde-enrich-shard:${idx}`));
+    const r = await stub.fetch("https://shard.internal/process-batch", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        job_id: enrichJobId, repo_slug: input.repo_slug,
+        shard_index: idx, sa_index: idx % NUM_SAS, batch_size: BATCH_SIZE,
+        hyde: true,
+        // hyde_only: skip code path. Force by sending records but flag in DO.
+        hyde_only: true,
+        records: recs,
+      } satisfies ShardBatchReq & { hyde_only?: boolean }),
+    });
+    if (!r.ok) throw new Error(`shard ${idx}: ${r.status} ${(await r.text()).slice(0, 200)}`);
+    return await r.json() as ShardResult;
+  }));
+  const wallMs = Date.now() - tStart;
+
+  const shardResults: ShardResult[] = [];
+  let hydeDone = 0; let errs = 0; let vCalls = 0; let dsCalls = 0;
+  for (const r of responses) {
+    if (r.status === "fulfilled") {
+      shardResults.push(r.value);
+      hydeDone += r.value.hyde_done;
+      errs += r.value.errors;
+      vCalls += r.value.vertex_calls;
+      dsCalls += r.value.deepseek_calls;
+    } else {
+      console.error("hyde-enrich shard rejected:", r.reason);
+      errs += 1;
+    }
+  }
+
+  return json({
+    ok: errs === 0,
+    repo_slug: input.repo_slug,
+    target_hyde_version: targetVersion,
+    code_scanned: records.length,
+    missing_hyde: missingRecords.length,
+    processed: missingRecords.length,
+    hyde_added: hydeDone,
+    failed: errs,
+    deepseek_calls_total: dsCalls,
+    vertex_calls_total: vCalls,
+    wall_ms: wallMs,
+    vectors_per_sec: +(hydeDone / (wallMs / 1000)).toFixed(3),
+    shard_count: SHARD_COUNT, batch_size: BATCH_SIZE,
+    shards: shardResults,
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/health") return json({ ok: true, service: "cfcode-poc-30a-hyde-shard" });
     if (url.pathname === "/ingest-sharded-hyde" && request.method === "POST") {
       return ingestShardedHyde(env, await request.json().catch(() => ({})) as IngestShardedHydeReq);
+    }
+    if (url.pathname === "/hyde-enrich" && request.method === "POST") {
+      return hydeEnrich(env, await request.json().catch(() => ({})) as HydeEnrichReq);
     }
     const sm = url.pathname.match(/^\/jobs\/([^/]+)\/status$/);
     if (sm) return jobStatus(env, sm[1]);

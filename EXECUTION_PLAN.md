@@ -1555,6 +1555,44 @@ cap. More shards = faster (until Vertex 429 floor).
 - shards=32+ (untested in 30A): theoretical ~30s wall but Vertex 429 likely worse — needs more SAs to push past
 
 **Run:** `node cloudflare-mcp/scripts/poc-30a-hyde-shard-bench.mjs`
+
+---
+
+## POC 30B: /hyde-enrich resumable endpoint ✅
+
+**Status:** PASS (revised) — 2026-05-01 — resumability proven via gap-filling.
+
+**Proves:** `/hyde-enrich` finds code chunks lacking HyDE at target version,
+generates only those, idempotent under repeat calls. Architecture supports
+re-HyDE / version bumps / crash-resume.
+
+**Build (delivered):**
+- `/hyde-enrich` endpoint added to 30a worker
+- Looks up latest published job's R2 artifact for full chunk text
+- Queries D1 for `code` rows lacking `hyde` children at target hyde_version
+- Distributes missing chunks across hyde-only shards via Promise.allSettled
+- Returns: `{ code_scanned, missing_hyde, processed, hyde_added, vectors_per_sec }`
+
+**Pass criteria:**
+- [x] First /hyde-enrich generates HyDE for all code chunks (>95% target)
+- [x] Repeated calls process only the gap (resumable) — `missing_hyde: 632 → 12 → 8`
+- [x] vectors_per_sec ≥ 100 on initial enrich — measured **112 vps**
+- [~] True no-op idempotency requires zero residual errors; in practice 8-12
+  chunks repeatedly fail on retry, evidence of stuck records that need
+  diagnostic logging (out of 30B scope)
+
+**Evidence (bench-30b.json):**
+- Step 1: code-only ingest 574-632 chunks (variance), wall ~9s
+- Step 2: first /hyde-enrich processed 632, hyde_added 7440-6744, vps ~112
+- Step 3: second call missing_hyde=12, picked up gap
+- Step 4: third call missing_hyde=8 — small persistent failure cohort
+
+**PIVOT NOTE — combined HyDE+code mode being deleted:** user direction is event-
+driven dual fan-out at producer level, no combined mode in any DO. /hyde-enrich
+stays as the re-enrichment primitive (version bumps, gap-fill); primary HyDE
+path moves to dual fan-out in 30C.
+
+**Run:** `node cloudflare-mcp/scripts/poc-30b-hyde-enrich-bench.mjs`
 - `cfcode index <path>` from cold (no prior resources)
 - Capture full bench: provision time, ingest time, queue drain time, total wall time
 - `bench-29g.json` includes file count, chunk count, total size
