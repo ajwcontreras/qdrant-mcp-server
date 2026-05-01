@@ -1095,18 +1095,16 @@ search('handler function') →
 
 ---
 
-## POC 28B: Worker batches 12 HyDE embeddings via Vertex in one call
+## POC 28B: Worker batches 12 HyDE embeddings via Vertex in one call ✅
 
-**Proves:** A Worker can take 12 HyDE questions and embed them in a single Vertex `:predict` call with `instances` array of 12, getting back 12×1536d vectors, in under 3 seconds.
+**Status:** PASS — 2026-04-30
 
-**Build:**
-- Extend `28a` Worker with `POST /embed-questions {questions[]}`
-- Single Vertex call with all 12 questions as `instances`, `task_type: RETRIEVAL_DOCUMENT`
+**Proves:** A Worker can embed 12 questions in a single Vertex `:predict` call (instances array), returning 12×1536d vectors in under 3 seconds.
 
 **Pass criteria:**
-- [ ] Returns 12 vectors, each length 1536
-- [ ] Wall time < 3s
-- [ ] `predictions[]` length matches `instances[]` length
+- [x] Returns 12 vectors, each length 1536
+- [x] Wall time < 3s
+- [x] `predictions[]` length matches `instances[]` length
 
 **Run:** `node cloudflare-mcp/scripts/poc-28b-batch-embed-questions-smoke.mjs`
 
