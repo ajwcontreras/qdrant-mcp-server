@@ -1,339 +1,250 @@
-# Qdrant MCP Server
+# cfcode — Cloudflare-native per-codebase MCP code search
 
-A Model Context Protocol (MCP) server that provides semantic code search capabilities using Qdrant vector database and OpenAI embeddings.
-
-## Features
-
-- 🔍 **Semantic Code Search** - Find code by meaning, not just keywords
-- 🚀 **Fast Indexing** - Efficient incremental indexing of large codebases
-- 🤖 **MCP Integration** - Works seamlessly with Claude and other MCP clients
-- 📊 **Background Monitoring** - Automatic reindexing of changed files
-- 🎯 **Smart Filtering** - Respects .gitignore and custom patterns
-- 💾 **Persistent Storage** - Embeddings stored in Qdrant for fast retrieval
-
-## Installation
-
-### Prerequisites
-
-- Node.js 18+ 
-- Python 3.8+
-- Docker (for Qdrant) or Qdrant Cloud account
-- OpenAI API key
-
-### Quick Start
+This repo ships **`cfcode`**: a global CLI plus a stateful Cloudflare MCP gateway that turns any local git repository into a semantically-searchable MCP endpoint.
 
 ```bash
-# Install the package
-npm install -g @kindash/qdrant-mcp-server
-
-# Or with pip
-pip install qdrant-mcp-server
-
-# Set up environment variables
-export OPENAI_API_KEY="your-api-key"
-export QDRANT_URL="http://localhost:6333"  # or your Qdrant Cloud URL
-export QDRANT_API_KEY="your-qdrant-api-key"  # if using Qdrant Cloud
-
-# Start Qdrant (if using Docker)
-docker run -p 6333:6333 qdrant/qdrant
-
-# Index your codebase
-qdrant-indexer /path/to/your/code
-
-# Start the MCP server
-qdrant-mcp
+$ cfcode index ~/PROJECTS/myrepo                          # one command per repo
+$ cfcode mcp-url
+https://cfcode-gateway.frosty-butterfly-d821.workers.dev/mcp
+                                                          # one URL forever
 ```
 
-## Configuration
+Drop that URL into your agent's MCP settings once, never edit again. The gateway routes `select_codebase` + `search` to whichever per-codebase Worker corresponds to the slug you picked.
 
-### Environment Variables
+The repo also still contains a **legacy local Qdrant Python MCP server** (under `src/`) that predates `cfcode`. It works but is no longer the active development direction. See "Legacy Qdrant MCP" near the bottom.
 
-Create a `.env` file in your project root:
+## Why this exists
 
-```env
-# Required
-OPENAI_API_KEY=sk-...
+Existing code search tools either run locally (heavy on a laptop, hard to share) or require running your own vector DB. We wanted:
 
-# Qdrant Configuration
-QDRANT_URL=http://localhost:6333
-QDRANT_API_KEY=  # Optional, for Qdrant Cloud
-QDRANT_COLLECTION_NAME=codebase  # Default: codebase
+- **One MCP URL** for any number of codebases — drop into agent settings once
+- **Pure Cloudflare** — no local processes after `cfcode index`
+- **Per-codebase isolation** — each repo gets its own R2/D1/Vectorize/Queue
+- **Dynamic dispatch** — adding a codebase = `wrangler deploy`, no gateway redeploy
+- **Resumable, idempotent** — Queues are at-least-once, D1 is the source of truth
+- **Eval-driven retrieval quality** — measured against 240 lumae golden queries
 
-# Indexing Configuration
-MAX_FILE_SIZE=1048576  # Maximum file size to index (default: 1MB)
-BATCH_SIZE=10  # Number of files to process in parallel
-EMBEDDING_MODEL=text-embedding-3-small  # OpenAI embedding model
+## Architecture (one picture)
 
-# File Patterns
-INCLUDE_PATTERNS=**/*.{js,ts,jsx,tsx,py,java,go,rs,cpp,c,h}
-EXCLUDE_PATTERNS=**/node_modules/**,**/.git/**,**/dist/**
+```
+LOCAL                                      CLOUDFLARE
+┌──────────────┐                           ┌──────────────────────────┐
+│ ~/bin/cfcode │  HTTPS                    │ cfcode-gateway           │
+│              │ ────────────────────────► │ (Worker + McpAgent DO)   │
+│ chunks files │  /admin/register          │ D1: cfcode-gateway-      │
+│ uploads      │  /admin/codebases/:slug/* │     registry             │
+└──────────────┘                           │                          │
+                                           │  env.DISPATCHER          │
+   Claude / Cursor / etc                   │       │                  │
+   ──────────────────► /mcp                │       ▼                  │
+                                           │ ┌────────────────────┐   │
+                                           │ │ cfcode-codebases   │   │
+                                           │ │ (dispatch ns, WfP) │   │
+                                           │ ├─ cfcode-codebase-  │   │
+                                           │ │    lumae-fresh     │   │
+                                           │ ├─ cfcode-codebase-  │   │
+                                           │ │    <other repos>   │   │
+                                           │ └──────┬─────────────┘   │
+                                           │        │                 │
+                                           │        ▼                 │
+                                           │ R2 + D1 + Vectorize +    │
+                                           │ Queue (per codebase)     │
+                                           │ Vertex gemini-embed-001  │
+                                           │ DeepSeek v4-flash (HyDE) │
+                                           └──────────────────────────┘
 ```
 
-### MCP Configuration
-
-Add to your Claude Desktop config (`~/.claude/config.json`):
-
-```json
-{
-  "mcpServers": {
-    "qdrant-search": {
-      "command": "qdrant-mcp",
-      "args": ["--collection", "my-codebase"],
-      "env": {
-        "OPENAI_API_KEY": "sk-...",
-        "QDRANT_URL": "http://localhost:6333"
-      }
-    }
-  }
-}
-```
-
-## Usage
-
-### Command Line Interface
+## CLI
 
 ```bash
-# Index entire codebase
-qdrant-indexer /path/to/code
-
-# Index with custom patterns
-qdrant-indexer /path/to/code --include "*.py" --exclude "tests/*"
-
-# Index specific files
-qdrant-indexer file1.js file2.py file3.ts
-
-# Start background indexer
-qdrant-control start
-
-# Check indexer status
-qdrant-control status
-
-# Stop background indexer
-qdrant-control stop
+cfcode index <repo-path>            # full-index a codebase
+cfcode reindex <repo-path>          # diff reindex (base = stored active_commit)
+   [--base <ref>] [--target <ref>]
+cfcode status [<repo-path>]         # collection_info + git_state
+cfcode list                         # gateway D1 registry
+cfcode uninstall <repo-path>        # tear down resources + unregister
+cfcode mcp-url                      # print the single MCP URL
+cfcode --help
 ```
 
-### In Claude
-
-Once configured, you can use natural language queries:
-
-- "Find all authentication code"
-- "Show me files that handle user permissions"
-- "What code is similar to the PaymentService class?"
-- "Find all API endpoints related to users"
-- "Show me error handling patterns in the codebase"
-
-### Programmatic Usage
-
-```python
-from qdrant_mcp_server import QdrantIndexer, QdrantSearcher
-
-# Initialize indexer
-indexer = QdrantIndexer(
-    openai_api_key="sk-...",
-    qdrant_url="http://localhost:6333",
-    collection_name="my-codebase"
-)
-
-# Index files
-indexer.index_directory("/path/to/code")
-
-# Search
-searcher = QdrantSearcher(
-    qdrant_url="http://localhost:6333",
-    collection_name="my-codebase"
-)
-
-results = searcher.search("authentication logic", limit=10)
-for result in results:
-    print(f"{result.file_path}: {result.score}")
-```
-
-## Architecture
-
-```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Claude/MCP    │────▶│  MCP Server      │────▶│     Qdrant      │
-│     Client      │     │  (Python)        │     │   Vector DB     │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-                               │                           ▲
-                               ▼                           │
-                        ┌──────────────────┐              │
-                        │  OpenAI API      │              │
-                        │  (Embeddings)    │──────────────┘
-                        └──────────────────┘
-```
-
-## Advanced Configuration
-
-### Custom File Processors
-
-```python
-from qdrant_mcp_server import FileProcessor
-
-class MyCustomProcessor(FileProcessor):
-    def process(self, file_path: str, content: str) -> dict:
-        # Custom processing logic
-        return {
-            "content": processed_content,
-            "metadata": custom_metadata
-        }
-
-# Register processor
-indexer.register_processor(".myext", MyCustomProcessor())
-```
-
-### Embedding Models
-
-Support for multiple embedding providers:
-
-```python
-# OpenAI (default)
-indexer = QdrantIndexer(embedding_provider="openai")
-
-# Cohere
-indexer = QdrantIndexer(
-    embedding_provider="cohere",
-    cohere_api_key="..."
-)
-
-# Local models (upcoming)
-indexer = QdrantIndexer(
-    embedding_provider="local",
-    model_path="/path/to/model"
-)
-```
-
-## Performance Optimization
-
-### Batch Processing
+Future (Phase 28, planned):
 
 ```bash
-# Process files in larger batches (reduces API calls)
-qdrant-indexer /path/to/code --batch-size 50
-
-# Limit concurrent requests
-qdrant-indexer /path/to/code --max-concurrent 5
+cfcode hyde-enrich <repo>           # add HyDE questions to existing chunks
+cfcode hyde-enrich <repo> --bump    # force regenerate (bumps hyde_version)
+cfcode rerank <repo>                # enable bge-reranker on this codebase
 ```
 
-### Incremental Indexing
+## Install
+
+### One-time on this machine
 
 ```bash
-# Only index changed files since last run
-qdrant-indexer /path/to/code --incremental
+git clone https://github.com/ajwcontreras/qdrant-mcp-server.git
+cd qdrant-mcp-server
 
-# Force reindex of all files
-qdrant-indexer /path/to/code --force
+# Symlink CLI globally
+ln -sf "$PWD/cloudflare-mcp/cli/cfcode.mjs" ~/bin/cfcode
+chmod +x cloudflare-mcp/cli/cfcode.mjs
 ```
 
-### Cost Estimation
+### Credentials (`.cfapikeys` at repo root, gitignored)
+
+```
+CF_GLOBAL_API_KEY=cfk_...
+CF_EMAIL=you@example.com
+CF_ACCOUNT_ID=...
+CF_ORIGIN_CA_KEY=v1.0-...   # optional
+DEEPSEEK_API_KEY=sk-...      # for Phase 28 HyDE
+```
+
+Vertex AI service account JSON expected at `/Users/awilliamspcsevents/Downloads/team (1).json`. Update path in `cloudflare-mcp/cli/cfcode.mjs` if yours differs.
+
+### Install the MCP gateway in Claude Code
 
 ```bash
-# Estimate indexing costs before running
-qdrant-indexer /path/to/code --dry-run
-
-# Output:
-# Files to index: 1,234
-# Estimated tokens: 2,456,789
-# Estimated cost: $0.43
+node -e '
+const fs = require("fs"), p = process.env.HOME + "/.claude.json";
+const c = JSON.parse(fs.readFileSync(p, "utf8"));
+c.mcpServers = c.mcpServers || {};
+c.mcpServers.cfcode = { type: "http", url: "https://cfcode-gateway.frosty-butterfly-d821.workers.dev/mcp" };
+fs.writeFileSync(p, JSON.stringify(c, null, 2));
+'
 ```
 
-## Monitoring
+Then **fully quit + relaunch** Claude Code (NOT `/reset`). The MCP server connects at process startup.
 
-### Web UI (Coming Soon)
+**Gotcha:** `~/.claude.json` ≠ `~/.claude/settings.json`. Both files exist, only the former is read for MCP servers.
+
+## Usage in Claude Code
+
+Once the MCP gateway is registered, in any Claude Code session you have these tools:
+
+```
+mcp__cfcode__list_codebases
+mcp__cfcode__select_codebase({ slug: "lumae-fresh" })
+mcp__cfcode__current_codebase
+mcp__cfcode__search({ query: "password reset email flow", topK: 5 })
+```
+
+Ask: "use cfcode list_codebases", then "select lumae-fresh and search for X".
+
+## What's deployed right now
+
+- **Gateway:** `https://cfcode-gateway.frosty-butterfly-d821.workers.dev/mcp`
+- **One codebase indexed:** `lumae-fresh` (608 chunks, full-text searchable)
+- **D1 registry:** 1 entry — `lumae-fresh`
+- **Dispatch namespace:** `cfcode-codebases` with 1 user worker
+
+## Phase status
+
+| Phase | Status | What it shipped |
+|---|---|---|
+| 26A1-26E5 (23 POCs) | ✅ ALL PASS | Cloudflare-native indexing + diff incremental |
+| 27A-27G (7 POCs) | ✅ ALL PASS | Stateful MCP gateway via Workers for Platforms |
+| 28A-28D (4 POCs) | ✅ PASS | HyDE per-chunk pipeline + scaling proof |
+| 28E-28F | 🚧 NEXT | Dual-channel search + RRF, golden eval gate |
+| 28G | 🔒 GATED | Scale to 9 more codebases (only if 28F passes) |
+
+POC ledger with commit hashes: `EXECUTION_PLAN.md`. Per-event progress log: `AGENT_HANDOFF_MASTER_PLAN.md`.
+
+## Repo layout
+
+```
+qdrant-mcp-server/
+├── EXECUTION_PLAN.md                  # POC ledger
+├── AGENT_HANDOFF_MASTER_PLAN.md       # Per-timestamp progress log
+├── CLAUDE.md / AGENTS.md              # Agent guidance
+├── .cfapikeys                         # gitignored secrets
+├── cloudflare-mcp/                    # ACTIVE — cfcode v2
+│   ├── cli/cfcode.mjs                 # global CLI entry
+│   ├── lib/                           # env, exec, http, files, cf, gateway, wfp-secret
+│   ├── workers/
+│   │   ├── codebase/                  # per-codebase user worker
+│   │   └── mcp-gateway/               # the ONE MCP gateway
+│   ├── poc/                           # 26+27+28 series throwaway proofs
+│   ├── scripts/                       # POC smoke runners
+│   └── sessions/                      # generated artifacts (mostly gitignored)
+├── src/                               # LEGACY: local Qdrant Python MCP
+├── openai-batch-worker/               # LEGACY: older HyDE/embedding worker
+├── benchmarks/                        # lumae golden eval results
+└── ephemeral/                         # handoff prompts, scratch
+```
+
+## Costs
+
+This is the actual minimum spend to run cfcode for one codebase:
+
+- **Workers Paid plan:** $5/mo (required base)
+- **Workers for Platforms:** $25/mo flat (includes 20M requests, 60M CPU-ms, 1000 scripts)
+- **Vectorize, R2, D1:** Within free / paid plan inclusions for typical usage
+- **Vertex AI (Gemini embeddings):** Pay-per-use, ~free for ~1M chunks
+- **DeepSeek (HyDE, Phase 28):** ~$0.50-1 per codebase HyDE pass at v4-flash with prompt cache
+
+For just-Andrew personal use that's $30/mo flat plus pennies of usage. If you stop indexing new codebases the steady-state cost is read-only and tiny.
+
+## Safety contracts
+
+These are non-negotiable for any worker that touches indexing or search:
+
+1. **Vectorize metadata indexes** for `repo_slug`, `file_path`, `active_commit` MUST be created before any vector insert.
+2. **D1 `active = 1` is source of truth** for search filtering. Vectorize is eventually consistent.
+3. **Queues are at-least-once.** Consumers MUST be idempotent. `INSERT OR REPLACE`. `COUNT(*)` for counters.
+4. **Soft-delete first** (D1 `active = 0`), then optional async Vectorize `deleteByIds`.
+5. **Deterministic IDs** — `chunk_id = sha256(file_path:chunk_index).slice(0, 16)`.
+6. **Cleanup removes Queue consumer bindings** before deleting Workers/Queues.
+
+## Phase 28 (HyDE) decision rule
+
+HyDE adds ~12 generated questions per chunk, each embedded as its own Vectorize entry, so search hits paraphrases not just exact code. Cost: ~$0.50-1 per codebase.
+
+POC 28F is the **decision gate**. If lumae golden eval shows MRR delta ≥ +0.05 vs dense-only, ship HyDE. Otherwise pivot to bge-reranker (had +0.227 MRR in earlier 240-query eval, may be a better lift for less complexity).
+
+## Legacy: local Qdrant MCP (still functional)
+
+The original deliverable was a Python MCP server backed by a local Qdrant instance, with HyDE, AST chunking, BM25F, and reranker proven across POC 1-12.
 
 ```bash
-# Start monitoring dashboard
-qdrant-mcp --web-ui --port 8080
+# Index
+python3 src/qdrant-openai-indexer.py /path/to/code
+
+# MCP server (stdio, used by Claude Desktop)
+python3 src/mcp-qdrant-openai-wrapper.py
+
+# Background indexer
+npm run start    # chokidar file watcher → triggers reindex
+npm run status
+npm run stop
 ```
 
-### Logs
+Required env vars (legacy):
 
-```bash
-# View indexer logs
-tail -f ~/.qdrant-mcp/logs/indexer.log
-
-# View search queries
-tail -f ~/.qdrant-mcp/logs/queries.log
+```
+OPENAI_API_KEY              QDRANT_URL                   COLLECTION_NAME
+OPENAI_EMBEDDING_MODEL      OPENAI_HYDE_MODEL            HYDE_QUESTION_COUNT
+CLOUDFLARE_AI_GATEWAY_URL   HYDE_WORKER_URL              EMBEDDING_WORKER_URL
+HYDE_PRECOMPUTED_JSONL      DIGEST_SIDECAR_JSONL
 ```
 
-### Metrics
+Collections:
+- `my-codebase` — single unnamed dense vector (legacy default)
+- `my-codebase-v2` — named vectors: `hyde_dense`, `code_dense`, `summary_dense`, sparse `lexical_sparse`
 
-- Files indexed
-- Tokens processed
-- Search queries per minute
-- Average response time
-- Cache hit rate
+Lumae golden eval results (POC 9b/10c):
 
-## Troubleshooting
+| Variant | Recall@5 | Recall@10 | MRR | nDCG@10 |
+|---|---|---|---|---|
+| Vec+D1 dense | 0.804 | 0.921 | 0.476 | 0.534 |
+| + bge-reranker | 0.833 | 0.871 | **0.703** | **0.717** |
+| + HyDE prepend | 0.863 | 0.900 | 0.725 | 0.737 |
+| + AST + BM25F | 0.875 | 0.921 | **0.776** | **0.776** |
 
-### Common Issues
-
-**"Connection refused" error**
-- Ensure Qdrant is running: `docker ps`
-- Check QDRANT_URL is correct
-- Verify firewall settings
-
-**"Rate limit exceeded" error**
-- Reduce batch size: `--batch-size 5`
-- Add delay between requests: `--delay 1000`
-- Use a different OpenAI tier
-
-**"Out of memory" error**
-- Process fewer files at once
-- Increase Node.js memory: `NODE_OPTIONS="--max-old-space-size=4096"`
-- Use streaming mode for large files
-
-### Debug Mode
-
-```bash
-# Enable verbose logging
-qdrant-mcp --debug
-
-# Test connectivity
-qdrant-mcp --test-connection
-
-# Validate configuration
-qdrant-mcp --validate-config
-```
+The **cfcode v2** pipeline currently ships only the dense variant (no reranker, no HyDE yet, no AST, no BM25F). Phase 28 closes the gap.
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Development Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/kindash/qdrant-mcp-server
-cd qdrant-mcp-server
-
-# Install dependencies
-npm install
-pip install -e .
-
-# Run tests
-npm test
-pytest
-
-# Run linting
-npm run lint
-flake8 src/
-```
+This is a personal-use repo. PRs not expected. Issues / questions: open a GitHub issue.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- Built for the [Model Context Protocol](https://github.com/anthropics/model-context-protocol)
-- Powered by [Qdrant](https://qdrant.tech/) vector database
-- Embeddings by [OpenAI](https://openai.com/)
-- Originally developed for [KinDash](https://github.com/steiner385/KinDash)
-
-## Support
-
-- 📧 Email: support@kindash.app
-- 💬 Discord: [Join our community](https://discord.gg/kindash)
-- 🐛 Issues: [GitHub Issues](https://github.com/kindash/qdrant-mcp-server/issues)
-- 📖 Docs: [Full Documentation](https://docs.kindash.app/qdrant-mcp)
+MIT.
