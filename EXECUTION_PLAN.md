@@ -985,21 +985,42 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 27F: cfcode CLI deploys per-codebase workers into namespace
+## POC 27F: production gateway deployed end-to-end ✅
 
-**Proves:** `cfcode index <repo>` deploys the codebase Worker into the dispatch namespace (instead of as a standalone Worker) and registers it in the gateway's D1.
+**Status:** PASS — 2026-04-30
 
-**Build:**
-- Update `cloudflare-mcp/lib/cf.mjs` deploy fn to accept `--dispatch-namespace`
-- Update `cli/cfcode.mjs index` to: provision codebase resources → deploy into namespace → call gateway `/admin/register` to insert registry row
-- Local state: drop per-codebase worker_url; track gateway URL + slug only
+**Pivot from original scope:** original 27F was about CLI changes. Reframed as: build the **persistent production gateway** itself first; CLI integration moved to 27G. The gateway is the unique architectural surface; once it works, the CLI is thin glue.
+
+**Proves:** Persistent gateway worker at `https://cfcode-gateway.frosty-butterfly-d821.workers.dev/mcp` with D1 registry, dispatch namespace `cfcode-codebases`, MCP tools (list/select/search) and admin HTTP endpoints (register/unregister/list).
 
 **Pass criteria:**
-- [ ] `cfcode index` succeeds with namespace deploy (no standalone worker)
-- [ ] `cfcode list` shows the codebase by querying gateway registry, not local file
-- [ ] `cfcode uninstall` removes user worker from namespace + registry row
+- [x] Persistent dispatch namespace `cfcode-codebases` ready
+- [x] D1 `cfcode-gateway-registry` provisioned
+- [x] Gateway worker deployed at `cfcode-gateway`
+- [x] Health endpoint returns ok
+- [x] `POST /admin/register` inserts registry row
+- [x] `GET /admin/codebases` lists registered slugs
+- [x] MCP `initialize` succeeds, returns session ID
+- [x] `list_codebases` MCP tool returns registered codebases
+- [x] `select_codebase` rejects unregistered slugs with clear error
+- [x] `select_codebase` of registered slug binds session
+- [x] `search` proxies to user worker via dispatch and returns matches with score+file_path+snippet
+- [x] `DELETE /admin/register/:slug` removes row
 
-**Run:** `node cloudflare-mcp/scripts/poc-27f-cli-namespace-smoke.mjs`
+**Evidence:** Live tool output:
+```
+list_codebases → "1 codebase(s):\n- test27f :: /Users/test/test27f"
+search('handler function') →
+  2 match(es) in test27f for "handler function":
+    1. [0.910] test27f/file_a.py
+       def handler(): pass
+    2. [0.830] test27f/file_b.py
+       class Foo: ...
+```
+
+**Persistent resources NOT cleaned up by smoke:** `cfcode-gateway` Worker, `cfcode-gateway-registry` D1, `cfcode-codebases` dispatch namespace. These are the production surface.
+
+**Run:** `node cloudflare-mcp/scripts/poc-27f-gateway-deploy-smoke.mjs`
 
 ---
 
