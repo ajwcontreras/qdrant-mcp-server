@@ -873,3 +873,149 @@ POCs 10 and 11 can run in parallel.
 **Evidence:** `node cloudflare-mcp/scripts/poc-26e5-diff-doc-generator-smoke.mjs` exited 0. Doc at `cloudflare-mcp/sessions/index-codebase/lumae-fresh/lumae-fresh-MCP.md` (4362 chars). All 11 verification checks PASS.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26e5-diff-doc-generator-smoke.mjs`
+
+---
+
+# Phase 27: Stateful MCP Gateway via Workers for Platforms
+
+**Goal:** Replace the per-codebase MCP URL pattern with a single stateful gateway. Agent puts ONE URL in `~/.claude/settings.json`, attaches, picks a codebase via tool call (or auto-binds via cwd hint), then `search` is implicitly scoped. Per-codebase workers stay isolated; gateway routes to them dynamically via dispatch namespace — no gateway redeploy when adding codebases.
+
+**Decision (2026-04-30):** Workers for Platforms paid plan ($25/mo) chosen over static service bindings to avoid gateway redeploys on every codebase add.
+
+---
+
+## POC 27A: Plain Workers for Platforms dispatch
+
+**Proves:** A dispatch namespace + dispatcher Worker can route requests to a user Worker by name at runtime, with no static service binding.
+
+**Build:**
+- `cloudflare-mcp/poc/27a-wfp-dispatch/` — throwaway POC dir
+- Create dispatch namespace `cfcode-poc-27a-codebases`
+- Deploy stub user worker `hello` into the namespace (returns `{ok:true, slug:"hello"}`)
+- Deploy dispatcher worker that calls `env.DISPATCHER.get(slug).fetch(req)`
+- Smoke: hit dispatcher with slug=hello, get hello's response. With unknown slug, get 404.
+
+**Pass criteria:**
+- [ ] Dispatch namespace creates successfully via wrangler
+- [ ] User worker `hello` is uploaded to the namespace
+- [ ] Dispatcher hit at `/<slug>` returns user worker's body
+- [ ] Unknown slug returns 404 cleanly
+- [ ] Cleanup deletes user workers and namespace
+
+**Run:** `node cloudflare-mcp/scripts/poc-27a-wfp-dispatch-smoke.mjs`
+
+---
+
+## POC 27B: Stateful MCP server via McpAgent
+
+**Proves:** An `McpAgent`-backed Worker on a Durable Object persists session state across MCP tool calls, no dispatch yet.
+
+**Build:**
+- `cloudflare-mcp/poc/27b-mcp-stateful/` — throwaway dir
+- Worker exposes one McpAgent class with `select_value(s)` and `current_value()` tools backed by DO sql state
+- Smoke: connect via MCP `streamable-http` transport, call select_value("foo"), call current_value, assert "foo"
+
+**Pass criteria:**
+- [ ] MCP `initialize` returns advertised tools list
+- [ ] `select_value("foo")` returns ok
+- [ ] `current_value` returns "foo" on the same session
+- [ ] State survives across two requests with same session ID
+- [ ] Cleanup removes Worker
+
+**Run:** `node cloudflare-mcp/scripts/poc-27b-mcp-stateful-smoke.mjs`
+
+---
+
+## POC 27C: McpAgent gateway proxies into dispatch namespace
+
+**Proves:** McpAgent gateway can call `env.DISPATCHER.get(slug).fetch(...)` from inside a tool implementation and return the user worker's response to the MCP client.
+
+**Build:**
+- `cloudflare-mcp/poc/27c-mcp-dispatch/` — throwaway dir
+- Reuse 27A's dispatch namespace + 1-2 stub user workers
+- Gateway exposes `select_codebase(slug)`, `proxy_call(method, path)` tools
+- `proxy_call` reads selected slug from session state, dispatches via namespace
+- Smoke: select_codebase("hello"), proxy_call("GET", "/test"), assert hello's response
+
+**Pass criteria:**
+- [ ] Gateway can call user worker via dispatcher
+- [ ] Selected codebase persists across calls
+- [ ] Calling proxy_call without first selecting returns clear error
+- [ ] Cleanup removes Worker and namespace
+
+**Run:** `node cloudflare-mcp/scripts/poc-27c-mcp-dispatch-smoke.mjs`
+
+---
+
+## POC 27D: list_codebases reads D1 registry
+
+**Proves:** Gateway maintains a D1 registry of indexed codebases (slug, indexed_path, registered_at) that `list_codebases` exposes as an MCP tool.
+
+**Build:**
+- Add D1 binding to gateway template
+- Schema: `codebase_registry(slug PRIMARY KEY, indexed_path, registered_at)`
+- Gateway tools: `register_codebase(slug, indexed_path)`, `list_codebases()`, `unregister_codebase(slug)`
+- Smoke: register two slugs, list returns both, unregister one, list returns one
+
+**Pass criteria:**
+- [ ] register_codebase inserts row idempotently
+- [ ] list_codebases returns all rows
+- [ ] unregister_codebase removes the row
+- [ ] D1 schema migrations run on cold start
+
+**Run:** `node cloudflare-mcp/scripts/poc-27d-registry-smoke.mjs`
+
+---
+
+## POC 27E: search tool round-trips through dispatch
+
+**Proves:** Gateway's `search(query)` tool routes to the selected codebase's per-codebase worker (via dispatch) and returns matches in the MCP response shape.
+
+**Build:**
+- Gateway `search` tool: read selected slug → `env.DISPATCHER.get(slug).fetch("/search", body)` → return `matches`
+- Smoke: register a small fixture user worker that returns canned `/search` results, select it, search, assert matches in MCP response
+
+**Pass criteria:**
+- [ ] search forwards body correctly
+- [ ] Returned matches preserve chunk metadata (file_path, score)
+- [ ] No selected codebase → tool returns clear MCP error
+
+**Run:** `node cloudflare-mcp/scripts/poc-27e-search-roundtrip-smoke.mjs`
+
+---
+
+## POC 27F: cfcode CLI deploys per-codebase workers into namespace
+
+**Proves:** `cfcode index <repo>` deploys the codebase Worker into the dispatch namespace (instead of as a standalone Worker) and registers it in the gateway's D1.
+
+**Build:**
+- Update `cloudflare-mcp/lib/cf.mjs` deploy fn to accept `--dispatch-namespace`
+- Update `cli/cfcode.mjs index` to: provision codebase resources → deploy into namespace → call gateway `/admin/register` to insert registry row
+- Local state: drop per-codebase worker_url; track gateway URL + slug only
+
+**Pass criteria:**
+- [ ] `cfcode index` succeeds with namespace deploy (no standalone worker)
+- [ ] `cfcode list` shows the codebase by querying gateway registry, not local file
+- [ ] `cfcode uninstall` removes user worker from namespace + registry row
+
+**Run:** `node cloudflare-mcp/scripts/poc-27f-cli-namespace-smoke.mjs`
+
+---
+
+## POC 27G: End-to-end — Claude Code attaches once, searches lumae
+
+**Proves:** Real Claude Code (or curl simulating MCP streamable-http) attaches to the gateway URL, lists codebases, selects lumae, calls search, gets results back.
+
+**Build:**
+- Migrate `cfcode-lumae-fresh` from standalone to dispatch namespace deploy
+- Register lumae in gateway D1
+- Smoke: streamable-http MCP client → initialize → list_codebases → select_codebase("lumae-fresh") → search("flask routes chat") → assert at least one match with file_path
+
+**Pass criteria:**
+- [ ] Lumae user worker reachable via dispatcher
+- [ ] Existing 608 chunks still searchable through gateway
+- [ ] Single MCP URL works for any registered codebase
+- [ ] Switching codebase mid-session works (select_codebase("foo"), then search returns foo results)
+
+**Run:** `node cloudflare-mcp/scripts/poc-27g-end-to-end-smoke.mjs`
+
