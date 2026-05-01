@@ -1,8 +1,8 @@
 # Agent Handoff Master Plan: Qdrant MCP Agentic Code Search
 
-Last atomic update: 2026-04-30T18:10:00-04:00
-Previous atomic update: 2026-04-30T17:55:00-04:00
-Status: POC 26E3 PASS. Local incremental diff packager produces JSONL artifact (14 records, 60014 bytes). Next step is POC 26E4: Cloudflare incremental job processes diff manifest.
+Last atomic update: 2026-04-30T18:30:00-04:00
+Previous atomic update: 2026-04-30T18:10:00-04:00
+Status: POC 26E4 PASS. Worker `/incremental-ingest` deactivates stale chunks, queues whole-file re-embedding, and advances git state on completion. All 6 functional criteria + cleanup verified. Next step is POC 26E5: generated docs include diff reindex commands.
 
 ## Non-Negotiable Operating Rule
 
@@ -107,6 +107,14 @@ Council sanity check on 2026-04-22 converged on this corrected design:
 - [x] Verify compile/tests.
 
 ## Progress Log
+
+### 2026-04-30T18:30:00-04:00
+- Completed POC 26E4 Cloudflare Incremental Job Processes Diff Manifest.
+- Verification: `node cloudflare-mcp/scripts/poc-26e4-cloud-incremental-diff-smoke.mjs` exited 0.
+- Evidence: Throwaway Worker `cfcode-poc-26e4-incremental` deployed; seeded 5 files with deterministic fake embeddings; applied incremental artifact (1 modified + 1 renamed + 1 deleted); all checks PASS — queuesOnlyChanged (queued=2), countersDistinct (3/2/1), deletedTombstoned (0 active for src/delete.py), modifiedReplaced (new chunk_id), renameTombstonePlusAdd (old=0, new=1), gitAdvanced (active_commit advanced + last_manifest_id stored), cleanedUp.
+- Files touched: `EXECUTION_PLAN.md`, `AGENT_HANDOFF_MASTER_PLAN.md`, `cloudflare-mcp/poc/26e4-incremental-worker/*` (new), `cloudflare-mcp/scripts/poc-26e4-cloud-incremental-diff-smoke.mjs` (new).
+- Exact next step: POC 26E5 — extend generated docs to include full redo, incremental diff, resume/retry commands, status URL, active commit, last manifest ID. Build on `cloudflare-mcp/sessions/index-codebase/lumae-fresh/lumae-fresh-MCP.md` template.
+- Blockers or verification gaps: None. POC 26E4 used a synthetic seed (deterministic fake embeddings) rather than the persistent lumae Worker; this is correct for an isolated proof. Wiring `/incremental-ingest` into the persistent `cfcode-lumae-fresh` Worker is a productionization step beyond the POC scope.
 
 ### 2026-04-30T18:10:00-04:00
 - Completed POC 26E3 Incremental Diff Packager Uses Whole-File Reprocessing.
