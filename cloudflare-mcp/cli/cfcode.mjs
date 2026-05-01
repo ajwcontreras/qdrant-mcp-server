@@ -1,14 +1,20 @@
 #!/usr/bin/env node
 /**
- * cfcode — global CLI for per-codebase Cloudflare MCP indexing.
+ * cfcode — global CLI for Cloudflare per-codebase MCP indexing.
+ *
+ * v2 architecture: per-codebase Workers live in the `cfcode-codebases`
+ * dispatch namespace. A single stateful gateway (`cfcode-gateway`) routes
+ * by slug. Agent puts ONE URL in settings:
+ *   https://cfcode-gateway.frosty-butterfly-d821.workers.dev/mcp
  *
  * Commands:
- *   cfcode index <repo-path>           Full-index a codebase (provisions + deploys)
- *   cfcode reindex <repo-path> [--base <ref>] [--target <ref>]
- *                                      Incremental diff reindex (default base = git_state.active_commit)
- *   cfcode status [<repo-path>]        Show indexed state for a repo (or all)
- *   cfcode list                        List all indexed codebases
- *   cfcode uninstall <repo-path>       Tear down all CF resources + clear local state
+ *   cfcode index <repo-path>           Full-index a codebase
+ *   cfcode reindex <repo-path>          Diff reindex (base = stored active_commit)
+ *     [--base <ref>] [--target <ref>]
+ *   cfcode status [<repo-path>]         Show indexed state
+ *   cfcode list                          List registered codebases (from gateway)
+ *   cfcode uninstall <repo-path>         Remove from namespace + registry + delete resources
+ *   cfcode mcp-url                       Print the single MCP URL
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -20,19 +26,26 @@ const SA_PATH = "/Users/awilliamspcsevents/Downloads/team (1).json";
 
 const {
   loadCfEnv, repoSlugFromPath,
-  workerNameForSlug, r2BucketForSlug, d1NameForSlug, vectorizeIndexForSlug, queueNameForSlug, dlqNameForSlug,
+  r2BucketForSlug, d1NameForSlug, vectorizeIndexForSlug, queueNameForSlug, dlqNameForSlug,
 } = await import(`${LIB}/env.mjs`);
-const { fetchJson, fetchJsonOptional, waitHealth, pollPublished } = await import(`${LIB}/http.mjs`);
+const { fetchJson, fetchJsonOptional, pollPublished } = await import(`${LIB}/http.mjs`);
 const {
   buildFullChunks, buildDiffManifest, buildIncrementalArtifact,
   fullChunksToJsonl, artifactToJsonl, resolveCommit,
 } = await import(`${LIB}/files.mjs`);
-const { provisionResources, writeWranglerConfig, deployWorker, setVertexSecret, teardownResources } = await import(`${LIB}/cf.mjs`);
-const { readState, writeState, deleteState, listIndexedRepos } = await import(`${LIB}/state.mjs`);
+const {
+  provisionResources, writeNamespaceWranglerConfig, deployToNamespace,
+  setNamespaceVertexSecret, teardownResources,
+} = await import(`${LIB}/cf.mjs`);
+const {
+  GATEWAY_URL, NAMESPACE_NAME, userWorkerNameFor,
+  listCodebases: gatewayList, registerCodebase, unregisterCodebase, proxyToCodebase,
+} = await import(`${LIB}/gateway.mjs`);
 
 function namesForSlug(slug) {
   return {
-    workerName: workerNameForSlug(slug),
+    workerName: userWorkerNameFor(slug),
+    namespaceName: NAMESPACE_NAME,
     r2Bucket: r2BucketForSlug(slug),
     d1Name: d1NameForSlug(slug),
     vectorizeIndex: vectorizeIndexForSlug(slug),
@@ -42,7 +55,7 @@ function namesForSlug(slug) {
 }
 
 function configPathFor(slug) {
-  return path.resolve(__dirname, `../worker/wrangler.${slug}.jsonc`);
+  return path.resolve(__dirname, `../workers/codebase/wrangler.${slug}.namespace.jsonc`);
 }
 
 function log(msg) { console.log(msg); }
@@ -72,25 +85,24 @@ async function cmdIndex(repoPath) {
   const names = namesForSlug(slug);
   log(`\n📦 cfcode index ${abs}`);
   log(`   slug:   ${slug}`);
-  log(`   worker: ${names.workerName}\n`);
+  log(`   worker: ${names.workerName} (in ${NAMESPACE_NAME})\n`);
 
   log("→ Provisioning Cloudflare resources (idempotent)...");
   const { d1Id } = provisionResources(names, { log: m => log(`  ${m}`) });
 
   log("→ Writing wrangler config...");
   const configPath = configPathFor(slug);
-  writeWranglerConfig(configPath, { ...names, d1Id });
+  writeNamespaceWranglerConfig(configPath, { ...names, d1Id });
 
-  log("→ Deploying Worker...");
-  const workerUrl = deployWorker(configPath);
-  log(`   ${workerUrl}`);
+  log("→ Deploying user worker into dispatch namespace...");
+  deployToNamespace(configPath, NAMESPACE_NAME);
 
-  log("→ Setting Vertex SA secret...");
+  log("→ Setting Vertex SA secret (multipart API)...");
   const saB64 = Buffer.from(fs.readFileSync(SA_PATH, "utf8")).toString("base64");
-  setVertexSecret(configPath, saB64);
+  await setNamespaceVertexSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, saB64 });
 
-  log("→ Waiting for Worker health...");
-  await waitHealth(workerUrl);
+  log("→ Registering with gateway...");
+  await registerCodebase(slug, abs);
 
   log("→ Building chunks from repo...");
   const chunks = buildFullChunks(abs, slug);
@@ -102,8 +114,8 @@ async function cmdIndex(repoPath) {
   const artifactKey = `full/${jobId}.jsonl`;
   const artifactText = fullChunksToJsonl(chunks);
 
-  log("→ POST /ingest...");
-  const ingestRes = await fetchJson(`${workerUrl}/ingest`, {
+  log("→ POST /ingest via gateway proxy...");
+  const ingestRes = await proxyToCodebase(slug, "/ingest", {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({
       job_id: jobId, repo_slug: slug, indexed_path: abs,
@@ -114,34 +126,44 @@ async function cmdIndex(repoPath) {
   log(`   queued: ${ingestRes.queued}`);
 
   log("→ Polling job until published...");
-  const final = await pollPublished(workerUrl, jobId, {
-    onProgress: j => process.stdout.write(`\r   ${j.completed}/${j.total} (failed=${j.failed})    `),
-  });
+  // Note: pollPublished hits the worker URL directly; we proxy via gateway.
+  // Inline a slimmer poll loop here.
+  const deadline = Date.now() + 600_000;
+  let lastJob;
+  while (Date.now() < deadline) {
+    const statusRes = await proxyToCodebase(slug, `/jobs/${jobId}/status`).catch(() => null);
+    if (statusRes?.ok) {
+      lastJob = statusRes.job;
+      process.stdout.write(`\r   ${lastJob.completed}/${lastJob.total} (failed=${lastJob.failed})    `);
+      if (lastJob.status === "published") break;
+      if (lastJob.failed > 0 && lastJob.completed + lastJob.failed >= lastJob.total) {
+        process.stdout.write("\n");
+        throw new Error(`job has ${lastJob.failed} failures: ${JSON.stringify(lastJob)}`);
+      }
+    }
+    await new Promise(r => setTimeout(r, 3000));
+  }
   process.stdout.write("\n");
-  log(`   status=${final.job.status}, completed=${final.job.completed}/${final.job.total}`);
+  if (lastJob?.status !== "published") throw new Error(`job did not publish: ${JSON.stringify(lastJob)}`);
+  log(`   status=${lastJob.status}, completed=${lastJob.completed}/${lastJob.total}`);
 
-  writeState(slug, {
-    indexed_path: abs,
-    worker_url: workerUrl,
-    mcp_url: `${workerUrl}/mcp`,
-    last_full_job_id: jobId,
-    last_full_at: new Date().toISOString(),
-    active_commit: activeCommit,
-    last_manifest_id: null,
-  });
   log(`\n✅ Indexed ${slug}`);
-  log(`   MCP URL: ${workerUrl}/mcp`);
-  log(`   Status:  cfcode status ${abs}`);
+  log(`   MCP URL: ${GATEWAY_URL}/mcp`);
+  log(`   In Claude Code, call select_codebase("${slug}"), then search.`);
 }
 
 async function cmdReindex(repoPath, flags) {
   const abs = path.resolve(repoPath);
   const slug = repoSlugFromPath(abs);
-  const state = readState(slug);
-  if (!state) throw new Error(`No indexed state for ${slug}. Run 'cfcode index ${abs}' first.`);
 
-  const workerUrl = state.worker_url;
-  const baseRef = flags.base || state.active_commit || "HEAD~1";
+  // Check the codebase is registered
+  const all = await gatewayList();
+  const reg = all.find(c => c.slug === slug);
+  if (!reg) throw new Error(`${slug} not registered with gateway. Run 'cfcode index ${abs}' first.`);
+
+  // Find the active_commit from gateway git_state (proxied)
+  const gs = await proxyToCodebase(slug, `/git-state/${slug}`).catch(() => null);
+  const baseRef = flags.base || gs?.state?.active_commit || "HEAD~1";
   const targetRef = flags.target || "HEAD";
   log(`\n🔁 cfcode reindex ${abs}`);
   log(`   base:   ${baseRef}`);
@@ -163,8 +185,8 @@ async function cmdReindex(repoPath, flags) {
   log(`   records: ${records.length}, tombstones: ${tombstones.length}`);
 
   const jobId = `inc-${slug}-${Date.now().toString(36)}`;
-  log("→ POST /incremental-ingest...");
-  const res = await fetchJson(`${workerUrl}/incremental-ingest`, {
+  log("→ POST /incremental-ingest via gateway proxy...");
+  const res = await proxyToCodebase(slug, "/incremental-ingest", {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({
       job_id: jobId, repo_slug: slug, manifest_id: manifest.manifest_id,
@@ -177,83 +199,90 @@ async function cmdReindex(repoPath, flags) {
 
   if (records.length > 0) {
     log("→ Polling job until published...");
-    const final = await pollPublished(workerUrl, jobId, {
-      onProgress: j => process.stdout.write(`\r   ${j.completed}/${j.total} (failed=${j.failed})    `),
-    });
+    const deadline = Date.now() + 600_000;
+    let lastJob;
+    while (Date.now() < deadline) {
+      const sr = await proxyToCodebase(slug, `/jobs/${jobId}/status`).catch(() => null);
+      if (sr?.ok) {
+        lastJob = sr.job;
+        process.stdout.write(`\r   ${lastJob.completed}/${lastJob.total} (failed=${lastJob.failed})    `);
+        if (lastJob.status === "published") break;
+      }
+      await new Promise(r => setTimeout(r, 3000));
+    }
     process.stdout.write("\n");
-    log(`   status=${final.job.status}, completed=${final.job.completed}/${final.job.total}`);
+    log(`   status=${lastJob?.status}`);
   }
 
-  writeState(slug, {
-    ...state,
-    active_commit: manifest.target_commit,
-    last_manifest_id: manifest.manifest_id,
-    last_reindex_at: new Date().toISOString(),
-  });
   log(`\n✅ Reindex complete`);
 }
 
 async function cmdStatus(repoPath) {
   const slug = repoSlugFromPath(repoPath || process.cwd());
-  const state = readState(slug);
-  if (!state) {
-    log(`Not indexed: ${slug}`);
+  const all = await gatewayList();
+  const reg = all.find(c => c.slug === slug);
+  if (!reg) {
+    log(`Not registered: ${slug}`);
     return;
   }
   log(`\n📊 ${slug}`);
-  log(`   indexed path:    ${state.indexed_path}`);
-  log(`   MCP URL:         ${state.mcp_url}`);
-  log(`   active commit:   ${state.active_commit}`);
-  log(`   last manifest:   ${state.last_manifest_id || "(none)"}`);
-  log(`   last full at:    ${state.last_full_at}`);
-  log(`   last reindex at: ${state.last_reindex_at || "(never)"}`);
+  log(`   indexed path:   ${reg.indexed_path}`);
+  log(`   registered at:  ${reg.registered_at}`);
+  log(`   MCP URL:        ${GATEWAY_URL}/mcp`);
 
-  log("\n→ Live worker state:");
-  const live = await fetchJsonOptional(`${state.worker_url}/collection_info`);
-  log(`   collection_info: ${live ? JSON.stringify(live.active) : "(unreachable)"}`);
-  const gs = await fetchJsonOptional(`${state.worker_url}/git-state/${slug}`);
+  log("\n→ Live worker state (via gateway proxy):");
+  const ci = await proxyToCodebase(slug, "/collection_info").catch(() => null);
+  log(`   collection_info: ${ci ? JSON.stringify(ci.active) : "(unreachable)"}`);
+  const gs = await proxyToCodebase(slug, `/git-state/${slug}`).catch(() => null);
   log(`   git_state:       ${gs?.state ? `active=${gs.state.active_commit?.slice(0, 8)}, manifest=${gs.state.last_manifest_id}` : "(none)"}`);
 }
 
 async function cmdList() {
-  const repos = listIndexedRepos();
+  const repos = await gatewayList();
   if (!repos.length) {
-    log("No indexed codebases.");
+    log("No codebases registered with the gateway.");
+    log(`Run: cfcode index <repo-path>`);
     return;
   }
   for (const r of repos) {
-    log(`${r.slug}\t${r.indexed_path}\t${r.mcp_url}`);
+    log(`${r.slug}\t${r.indexed_path}`);
   }
 }
 
 async function cmdUninstall(repoPath) {
   const abs = path.resolve(repoPath);
   const slug = repoSlugFromPath(abs);
-  const state = readState(slug);
-  if (!state) {
-    err(`No state for ${slug}. Resources may already be gone.`);
-  }
   log(`\n🗑  cfcode uninstall ${slug}`);
   const names = namesForSlug(slug);
+  log("→ Unregistering from gateway...");
+  await unregisterCodebase(slug).catch(() => log("  (already not registered)"));
+  log("→ Tearing down resources...");
   teardownResources(names, { log: m => log(`  ${m}`) });
-  deleteState(slug);
-  // Also remove the per-slug wrangler config
+  // Remove the per-slug wrangler config
   const configPath = configPathFor(slug);
   if (fs.existsSync(configPath)) fs.unlinkSync(configPath);
   log(`✅ Uninstalled ${slug}`);
 }
 
-const HELP = `cfcode — Cloudflare per-codebase MCP indexer
+function cmdMcpUrl() { console.log(`${GATEWAY_URL}/mcp`); }
+
+const HELP = `cfcode — Cloudflare per-codebase MCP code search
+
+ONE MCP URL: ${GATEWAY_URL}/mcp
+(drop into ~/.claude/settings.json once, never edit again)
 
 Usage:
   cfcode index <repo-path>                          Full-index a codebase
   cfcode reindex <repo-path> [--base R] [--target R]  Diff reindex
   cfcode status [<repo-path>]                       Show indexed state
-  cfcode list                                       List all indexed codebases
-  cfcode uninstall <repo-path>                      Tear down resources
+  cfcode list                                       List registered codebases
+  cfcode uninstall <repo-path>                      Remove + delete resources
+  cfcode mcp-url                                    Print the single MCP URL
 
-State cache: ~/.config/cfcode/<slug>.json
-Repo:        ${path.resolve(__dirname, "../..")}`;
+In Claude Code:
+  list_codebases                — discover available codebases
+  select_codebase("slug")       — bind this session to one
+  search("query", topK?)        — semantic code search`;
 
 async function main() {
   const argv = process.argv.slice(2);
@@ -261,7 +290,6 @@ async function main() {
   const cmd = argv[0];
   const { positional, flags } = parseArgs(argv.slice(1));
 
-  // Ensure CF env vars are set for child wrangler calls.
   Object.assign(process.env, loadCfEnv());
 
   switch (cmd) {
@@ -270,6 +298,7 @@ async function main() {
     case "status":    return cmdStatus(positional[0]);
     case "list":      return cmdList();
     case "uninstall": if (!positional[0]) throw new Error("repo-path required"); return cmdUninstall(positional[0]);
+    case "mcp-url":   return cmdMcpUrl();
     case "help": case "-h": case "--help": console.log(HELP); return;
     default: throw new Error(`Unknown command: ${cmd}\n\n${HELP}`);
   }

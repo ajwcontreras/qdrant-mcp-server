@@ -181,6 +181,23 @@ export default {
       return json({ ok: true, slug: m[1], removed: changes });
     }
 
+    // Admin: proxy any HTTP method/path to a registered codebase's user worker.
+    // Used by `cfcode index` to send /ingest, by `cfcode reindex` for /incremental-ingest, etc.
+    //   /admin/codebases/<slug>/<rest of path>
+    const proxyMatch = url.pathname.match(/^\/admin\/codebases\/([^/]+)(\/.*)?$/);
+    if (proxyMatch) {
+      const [, slug, rest = "/"] = proxyMatch;
+      const userWorker = env.DISPATCHER.get(`${USER_WORKER_PREFIX}${slug}`);
+      const downstreamUrl = new URL(rest + url.search, "https://internal");
+      try {
+        const downstream = new Request(downstreamUrl, request);
+        return await userWorker.fetch(downstream);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return json({ ok: false, error: `dispatch to ${slug} failed: ${msg}` }, 502);
+      }
+    }
+
     return json({ ok: false, error: "not found" }, 404);
   },
 };

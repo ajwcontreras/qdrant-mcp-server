@@ -5,9 +5,15 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { run } from "./exec.mjs";
 import { loadCfEnv } from "./env.mjs";
+import { setNamespaceWorkerSecret } from "./wfp-secret.mjs";
 
 const REPO_ROOT = path.resolve(new URL(".", import.meta.url).pathname, "../..");
 const WORKER_DIR = path.join(REPO_ROOT, "cloudflare-mcp/workers/codebase");
+
+// Per-codebase queue concurrency. v1: producer-only (no consumer in namespace deploys
+// because a queue can only have one consumer worker — left to the standalone path
+// for the indexing pipeline if/when needed).
+export { WORKER_DIR };
 
 // Ensure all CF resources exist for a given repo slug. Idempotent.
 // Returns the d1_id for the database (needed for wrangler config).
@@ -48,8 +54,9 @@ function ensureD1(d1Name) {
   return found.uuid;
 }
 
-export function writeWranglerConfig(configPath, { workerName, r2Bucket, d1Name, d1Id, vectorizeIndex, queueName, dlqName }) {
-  const tplPath = path.join(WORKER_DIR, "wrangler.template.jsonc");
+// Write a wrangler config for a namespace user worker (no queue consumer).
+export function writeNamespaceWranglerConfig(configPath, { workerName, r2Bucket, d1Name, d1Id, vectorizeIndex, queueName }) {
+  const tplPath = path.join(WORKER_DIR, "wrangler.namespace.template.jsonc");
   const tpl = fs.readFileSync(tplPath, "utf8");
   const filled = tpl
     .replace("__WORKER_NAME__", workerName)
@@ -57,34 +64,30 @@ export function writeWranglerConfig(configPath, { workerName, r2Bucket, d1Name, 
     .replace("__D1_NAME__", d1Name)
     .replace("__D1_ID__", d1Id)
     .replace("__VECTORIZE_INDEX__", vectorizeIndex)
-    .replaceAll("__QUEUE_NAME__", queueName)
-    .replace("__DLQ_NAME__", dlqName);
+    .replace("__QUEUE_NAME__", queueName);
   fs.writeFileSync(configPath, filled, "utf8");
 }
 
-export function deployWorker(configPath) {
-  const r = run("npx", ["wrangler", "deploy", "--config", configPath], { cwd: WORKER_DIR, capture: true });
-  const out = `${r.stdout || ""}\n${r.stderr || ""}`;
-  const urls = [...out.matchAll(/https:\/\/[^\s]+\.workers\.dev/g)].map(m => m[0].replace(/\/$/, ""));
-  if (!urls.length) throw new Error(`no Worker URL in deploy output:\n${out}`);
-  return urls[0];
+// Deploy a worker into a dispatch namespace. Returns nothing — namespace workers
+// have no public URL.
+export function deployToNamespace(configPath, namespaceName) {
+  run("npx", ["wrangler", "deploy", "--config", configPath, "--dispatch-namespace", namespaceName], { cwd: WORKER_DIR, capture: true });
 }
 
-// Set the Vertex SA secret on the deployed worker. Idempotent (overwrites).
-export function setVertexSecret(configPath, saB64) {
-  const result = spawnSync("npx", ["wrangler", "secret", "put", "GEMINI_SERVICE_ACCOUNT_B64", "--config", configPath], {
-    cwd: WORKER_DIR, env: loadCfEnv(), input: saB64, encoding: "utf8",
+// Set the Vertex SA secret on a namespace user worker via the multipart upload
+// API (wrangler `secret put` does not support `--dispatch-namespace`).
+export async function setNamespaceVertexSecret({ namespaceName, scriptName, saB64 }) {
+  return setNamespaceWorkerSecret({
+    namespaceName, scriptName,
+    secretName: "GEMINI_SERVICE_ACCOUNT_B64", secretValue: saB64,
   });
-  if (result.status !== 0) throw new Error(`secret put failed:\n${result.stdout}\n${result.stderr}`);
 }
 
-// Tear down all resources for a slug. Best-effort.
-export function teardownResources({ workerName, r2Bucket, d1Name, vectorizeIndex, queueName, dlqName }, opts = {}) {
+// Tear down all resources for a slug, including the namespace user worker. Best-effort.
+export function teardownResources({ workerName, r2Bucket, d1Name, vectorizeIndex, queueName, dlqName, namespaceName }, opts = {}) {
   const log = opts.log || (() => {});
-  log("Removing queue consumer...");
-  run("npx", ["wrangler", "queues", "consumer", "remove", queueName, workerName], { cwd: WORKER_DIR, capture: true, allowFailure: true });
-  log("Deleting worker...");
-  run("npx", ["wrangler", "delete", "--name", workerName, "--force"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
+  log("Deleting namespace user worker...");
+  run("npx", ["wrangler", "delete", "--name", workerName, "--dispatch-namespace", namespaceName, "--force"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
   log("Deleting queue + DLQ...");
   run("npx", ["wrangler", "queues", "delete", queueName, "--force"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
   run("npx", ["wrangler", "queues", "delete", dlqName, "--force"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
