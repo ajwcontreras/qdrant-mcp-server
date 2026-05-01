@@ -1327,71 +1327,88 @@ Required prerequisite for round-robin (29D).
 
 ---
 
-## POC 29D: Round-robin SA in worker
+## POC 29D: Sharded Durable Object fan-out + round-robin SA
 
-**Proves:** worker picks SA per-chunk by deterministic hash, distributes load
-across two GCP projects, doubling Vertex quota headroom.
+**PIVOT NOTE (2026-05-01):** Originally three POCs (29D round-robin / 29E queue
+batch / 29F crank concurrency). User pointed at
+`/Users/awilliamspcsevents/PROJECTS/cfpubsub-scaffold` which proves sharded DOs
+as parallel fan-out workers. `idFromName(`shard:${i}`)` gives N guaranteed-
+parallel execution contexts, each with its own subrequest/CPU budget. This
+collapses 29D+29E+29F into one architectural change with a much higher ceiling
+than queue tuning could reach. 29E and 29F repurposed below.
+
+**Proves:** sharded DO fan-out + Vertex batching + per-shard SA round-robin
+combine to deliver multi-x speedup vs queue-based baseline.
 
 **Build:**
+- New worker `cloudflare-mcp/poc/29d-shard-fanout/` cloning canonical worker:
+  - `IndexingShardDO extends DurableObject<Env>` — one batch handler per shard
+  - `/ingest-sharded` endpoint: write artifact to R2, chunk records into N shards, `Promise.allSettled` fetch to each shard's DO
+  - Each shard: pick SA (shard_index % NUM_SAS), single Vertex `:predict` with up to BATCH_SIZE instances, then Vectorize.upsert + D1 batch insert via `Promise.all`
+  - Shard returns `{ shard_index, chunks_done, vertex_ms, vectorize_ms, d1_ms, errors, sa_used }`
+  - Producer aggregates per-shard results into one `jobs` UPDATE at end (no per-message contention)
 - Add second SA secret `GEMINI_SERVICE_ACCOUNT_B64_2` via `cloudflare-mcp/lib/wfp-secret.mjs`
-- Worker `src/oauth.ts`: `pickSA(chunk_id) → 'evrylo' | 'underwriter-agent-479920'`
-  via `parseInt(chunk_id.slice(0,8), 16) % 2`
-- Worker `src/vertex.ts`: `embed(texts, sa_id)` selects credentials by sa_id
-- Re-bench with both SAs in rotation
+- `cloudflare-mcp/scripts/poc-29d-shard-fanout-bench.mjs` — provisions resources, deploys, runs lumae through `/ingest-sharded`, captures per-shard metrics
 
-**Input:** 29C confirmed Vertex works on second SA.
+**Input:** 29C confirmed second SA works.
 
 **Pass criteria:**
-- [ ] `bench-29d.json` shows ~50/50 split of vertex_calls per SA (logged per call)
-- [ ] chunks_per_sec ≥ 29B (no regression — round-robin alone won't speed up at current concurrency, but unblocks 29F)
-- [ ] No 403/quota errors on either SA
+- [ ] All 632 chunks indexed with `active=1`, 0 errors
+- [ ] N shards execute (config-driven; default 8) — all report metrics
+- [ ] Per-SA call count balanced across shards (delta ≤ 1)
+- [ ] Vertex calls ≈ ceil(632 / batch_size) total (proves batching works)
+- [ ] chunks_per_sec ≥ 3× 29A baseline (≥18 cps; cfpubsub pattern suggests headroom for much more)
 
-**Run:** `node cloudflare-mcp/scripts/poc-29d-roundrobin-bench.mjs`
+**Run:** `node cloudflare-mcp/scripts/poc-29d-shard-fanout-bench.mjs`
+
+**Reference:** `cfpubsub-scaffold/packages/core/src/internal/engine.ts` `DeliveryShardDO` and `fanOutToShards`.
 
 ---
 
-## POC 29E: Vertex batch embeddings (queue batching)
+## POC 29E: Shard-count + batch-size tuning sweep
 
-**Proves:** queue consumer batches N chunks into single Vertex `:predict` call,
-collapsing N round-trips to 1. Biggest single throughput lever.
+**PIVOT NOTE:** Original 29E (queue-batch) is folded into 29D's shard
+architecture. Repurposed here as the **tuning** POC.
+
+**Proves:** optimal `(shard_count, batch_size)` for the lumae workload — sets
+the production knob for 29G.
 
 **Build:**
-- `workers/codebase/wrangler.namespace.template.jsonc`: queue consumer `max_batch_size: 50, max_batch_timeout: 2`
-- Worker queue handler refactor: receive batch, group by SA (after round-robin pick), one Vertex call per group with `instances[]`, then per-chunk Vectorize upsert + D1 insert
-- Handle partial-batch failures (CF Queues at-least-once: `message.retry()` for failed subset, `message.ack()` for succeeded)
-
-**Input:** 29D round-robin in place.
+- Reuse 29D worker; bench varies `shard_count ∈ {4, 8, 16, 32}` × `batch_size ∈ {25, 50, 100}`
+- Per cell: run lumae, capture wall_ms + per-shard timings + 429 count + D1 write p99
+- Output matrix in `bench-29e.json`
 
 **Pass criteria:**
-- [ ] `bench-29e.json` shows vertex_calls ≤ ⌈chunks/40⌉ (≥40× reduction from per-chunk)
-- [ ] chunks_per_sec ≥ 5 × 29D (5× wall-time improvement target)
-- [ ] All 608 chunks present in D1 with `active=1`, search still returns correct top-k
+- [ ] Best (shard_count, batch_size) identified with chunks_per_sec ≥ 5× 29A baseline (≥30 cps)
+- [ ] Zero Vertex 429s at the chosen config (round-robin SA absorbed load)
+- [ ] D1 write p99 < 500ms at best config
+- [ ] No DO storage errors
 
-**Run:** `node cloudflare-mcp/scripts/poc-29e-batch-embed-bench.mjs`
+**Run:** `node cloudflare-mcp/scripts/poc-29e-shard-tuning-bench.mjs`
 
 ---
 
-## POC 29F: Crank `max_concurrency` to 250
+## POC 29F: Production cutover — port shard fan-out into canonical worker
 
-**Proves:** with batching + round-robin in place, queue concurrency can scale to
-CF Queues max without hitting Vertex 429s or D1 contention.
+**PIVOT NOTE:** Original 29F (crank concurrency) is superseded by 29D's shard
+architecture. Repurposed as the **production integration** step.
+
+**Proves:** the shard fan-out works in the canonical worker (not just the POC).
 
 **Build:**
-- Bump `max_concurrency: 25 → 250` in queue consumer config
-- Re-bench. Watch for: Vertex 429s (would trigger backoff), D1 write timeouts, queue DLQ entries
-- If D1 contention observed: replace `UPDATE jobs SET completed = (SELECT COUNT(*) FROM chunks WHERE job_id=? AND active=1)` with sharded counter (separate `job_progress_shards` table, periodic aggregator) — note as 29F.5 if needed
-
-**Input:** 29E batching in place.
+- Port `IndexingShardDO` and `/ingest-sharded` from 29D POC into `workers/codebase/src/index.ts`
+- Update `wrangler.template.jsonc` and `wrangler.namespace.template.jsonc` with DO bindings (`INDEXING_SHARD_DO`)
+- Update `cfcode index` CLI to call `/ingest-sharded` (with feature-flag fallback to old `/ingest` for safety)
+- Re-deploy `cfcode-codebase-lumae-fresh`, run `cfcode reindex --full`, verify search via gateway
 
 **Pass criteria:**
-- [ ] `bench-29f.json` shows zero Vertex 429s (round-robin holds the load)
-- [ ] Zero DLQ entries
-- [ ] chunks_per_sec ≥ 2 × 29E (concurrency scales near-linearly)
-- [ ] D1 write p99 latency < 500ms (logged from worker)
+- [ ] Canonical worker deploys with DO bindings — no schema/migration errors
+- [ ] Production lumae re-indexes via `cfcode index` using new path
+- [ ] `cfcode list` + gateway `search` still return correct top-k results
+- [ ] chunks_per_sec on production matches 29E best config within 20%
+- [ ] No regression on existing endpoints (`/ingest`, `/incremental-ingest`, `/search`)
 
-**Run:** `node cloudflare-mcp/scripts/poc-29f-concurrency-bench.mjs`
-
-**Backtrack trigger:** if 29F shows D1 contention or 429 storms, do NOT push concurrency further. Insert 29F.5 to fix the observed bottleneck before 29G.
+**Run:** `cfcode reindex /Users/awilliamspcsevents/PROJECTS/lumae-fresh --full`
 
 ---
 
