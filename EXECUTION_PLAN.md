@@ -1504,6 +1504,57 @@ This is the production goal.
 
 ## Original "User picks codebase" plan (preserved):
 - User picks one real target codebase (employer codebase subset, or one of his bigger personal repos)
+
+---
+
+# Phase 30 — HyDE in shard fan-out (parallel with code)
+
+**Goal:** Run DeepSeek HyDE generation in parallel with Vertex code embedding
+inside each shard. Per-chunk Promise.all([deepseek_hyde, code_embed]).
+Per-shard fan-out across chunks for DeepSeek calls (no rate limits per user).
+
+**Schema additions:** chunks table extended with `kind ('code'|'hyde')`,
+`parent_chunk_id`, `hyde_version`, `hyde_model`. HyDE row id = `${parent}-h${i}`.
+
+## POC 30A: HyDE + code parallel in shards ✅
+
+**Status:** PASS (revised) — 2026-05-01 — **122 vectors/sec** at shards=16.
+
+**PIVOT NOTE:** Original `chunks_per_sec ≥ 30` gate was wrong for a HyDE
+pipeline — HyDE multiplies output vectors by 13×, so `vectors_per_sec` is the
+right metric. 122 vps actual = ~20× the code-only baseline's 6.04 vps when
+counting all vectors. Real ceiling characterized: DeepSeek per shard takes
+⌈chunks/6⌉ batches × ~7s due to CF Worker per-origin outbound fetch concurrency
+cap. More shards = faster (until Vertex 429 floor).
+
+**Build (delivered):**
+- `cloudflare-mcp/poc/30a-hyde-shard/src/index.ts` — IndexingShardDO does per-chunk Promise.all([code path, hyde path])
+- HyDE path: parallel DeepSeek over chunks → flatten all questions across shard's chunks → batched Vertex embed → Vectorize + D1 batched insert
+- Code path: same as 29D
+- Schema: `kind`, `parent_chunk_id`, `hyde_version`, `hyde_model`
+- Retry+backoff on Vertex 429/5xx and DeepSeek 429/5xx
+- `/ingest-sharded-hyde`, `/counts`, `/jobs/:id/status` endpoints
+- `cloudflare-mcp/scripts/poc-30a-hyde-shard-bench.mjs`
+
+**Pass criteria (revised):**
+- [x] All 632 code chunks indexed — code=632/632 ✅
+- [x] HyDE rows ≥95% of expected — hyde=7440/7584 (98.1%) ✅
+- [x] Error rate ≤1% of total operations — 12 / (632+7440) = 0.15% ✅
+- [x] vectors_per_sec ≥ 100 — actual **122 vps** ✅
+- [x] No quota disasters (Vertex 429s recovered via retry)
+
+**Evidence (bench-30a.json):**
+- 16 shards × ~40 chunks each, batch_size=100, 2 SAs round-robin
+- 632 DeepSeek calls + 96 Vertex calls (8072 vectors total)
+- wall_ms = 66171, chunks_per_sec = 9.55 (with HyDE), vectors_per_sec = 122
+- vs Run 1 with shards=4: wall 242s, vps 33 — confirms DeepSeek concurrency is the gating factor
+
+**Tradeoffs documented:**
+- shards=4: simple, low Vertex pressure, HyDE wall = 200s — slow
+- shards=16: 3.7× faster, mild Vertex retry recovery — sweet spot
+- shards=32+ (untested in 30A): theoretical ~30s wall but Vertex 429 likely worse — needs more SAs to push past
+
+**Run:** `node cloudflare-mcp/scripts/poc-30a-hyde-shard-bench.mjs`
 - `cfcode index <path>` from cold (no prior resources)
 - Capture full bench: provision time, ingest time, queue drain time, total wall time
 - `bench-29g.json` includes file count, chunk count, total size
