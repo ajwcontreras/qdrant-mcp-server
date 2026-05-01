@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-codebase-lumae-fresh",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-lumae-fresh-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-lumae-fresh-v2", "database_id": "e6a49f2e-b7cd-48a8-a940-6133ff6035f5" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-lumae-fresh-v2" }],
+  "queues": {
+    "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-lumae-fresh-work" }]
+  }
+}
