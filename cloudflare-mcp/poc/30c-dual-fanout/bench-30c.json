@@ -1,0 +1,263 @@
+{
+  "poc": "30c",
+  "note": "dual fan-out: code shards + hyde shards as two independent Promise.allSettled populations",
+  "baseline_chunks_per_sec": 6.041,
+  "chunks": 632,
+  "started_at": "2026-05-01T08:54:58.936Z",
+  "code": {
+    "shard_count": 4,
+    "batch_size": 100,
+    "completed": 632,
+    "wall_ms": 8290,
+    "errors": 0,
+    "shards": [
+      {
+        "shard_index": 0,
+        "sa_index": 0,
+        "chunks_done": 158,
+        "vertex_calls": 2,
+        "vertex_ms": 4789,
+        "vectorize_ms": 2537,
+        "d1_ms": 159,
+        "errors": 0
+      },
+      {
+        "shard_index": 1,
+        "sa_index": 1,
+        "chunks_done": 158,
+        "vertex_calls": 2,
+        "vertex_ms": 5135,
+        "vectorize_ms": 2104,
+        "d1_ms": 168,
+        "errors": 0
+      },
+      {
+        "shard_index": 2,
+        "sa_index": 0,
+        "chunks_done": 158,
+        "vertex_calls": 2,
+        "vertex_ms": 5124,
+        "vectorize_ms": 2278,
+        "d1_ms": 241,
+        "errors": 0
+      },
+      {
+        "shard_index": 3,
+        "sa_index": 1,
+        "chunks_done": 158,
+        "vertex_calls": 2,
+        "vertex_ms": 5014,
+        "vectorize_ms": 2628,
+        "d1_ms": 276,
+        "errors": 0
+      }
+    ],
+    "chunks_per_sec": 76.236
+  },
+  "hyde": {
+    "shard_count": 16,
+    "batch_size": 100,
+    "hyde_completed": 7428,
+    "wall_ms": 72269,
+    "errors": 13,
+    "shards": [
+      {
+        "shard_index": 0,
+        "sa_index": 0,
+        "hyde_done": 468,
+        "vertex_calls": 5,
+        "deepseek_calls": 40,
+        "deepseek_ms": 57309,
+        "vertex_ms": 2145,
+        "vectorize_ms": 3151,
+        "d1_ms": 443,
+        "errors": 1
+      },
+      {
+        "shard_index": 1,
+        "sa_index": 1,
+        "hyde_done": 480,
+        "vertex_calls": 5,
+        "deepseek_calls": 40,
+        "deepseek_ms": 54631,
+        "vertex_ms": 2295,
+        "vectorize_ms": 4001,
+        "d1_ms": 215,
+        "errors": 0
+      },
+      {
+        "shard_index": 2,
+        "sa_index": 0,
+        "hyde_done": 456,
+        "vertex_calls": 5,
+        "deepseek_calls": 40,
+        "deepseek_ms": 58673,
+        "vertex_ms": 2085,
+        "vectorize_ms": 3198,
+        "d1_ms": 206,
+        "errors": 2
+      },
+      {
+        "shard_index": 3,
+        "sa_index": 1,
+        "hyde_done": 456,
+        "vertex_calls": 5,
+        "deepseek_calls": 40,
+        "deepseek_ms": 64166,
+        "vertex_ms": 2223,
+        "vectorize_ms": 3158,
+        "d1_ms": 322,
+        "errors": 2
+      },
+      {
+        "shard_index": 4,
+        "sa_index": 0,
+        "hyde_done": 480,
+        "vertex_calls": 5,
+        "deepseek_calls": 40,
+        "deepseek_ms": 56585,
+        "vertex_ms": 2457,
+        "vectorize_ms": 3402,
+        "d1_ms": 236,
+        "errors": 0
+      },
+      {
+        "shard_index": 5,
+        "sa_index": 1,
+        "hyde_done": 468,
+        "vertex_calls": 5,
+        "deepseek_calls": 40,
+        "deepseek_ms": 66038,
+        "vertex_ms": 2212,
+        "vectorize_ms": 3319,
+        "d1_ms": 221,
+        "errors": 1
+      },
+      {
+        "shard_index": 6,
+        "sa_index": 0,
+        "hyde_done": 480,
+        "vertex_calls": 5,
+        "deepseek_calls": 40,
+        "deepseek_ms": 56615,
+        "vertex_ms": 2354,
+        "vectorize_ms": 3695,
+        "d1_ms": 261,
+        "errors": 0
+      },
+      {
+        "shard_index": 7,
+        "sa_index": 1,
+        "hyde_done": 480,
+        "vertex_calls": 5,
+        "deepseek_calls": 40,
+        "deepseek_ms": 54799,
+        "vertex_ms": 2557,
+        "vectorize_ms": 3899,
+        "d1_ms": 261,
+        "errors": 0
+      },
+      {
+        "shard_index": 8,
+        "sa_index": 0,
+        "hyde_done": 456,
+        "vertex_calls": 5,
+        "deepseek_calls": 39,
+        "deepseek_ms": 56219,
+        "vertex_ms": 2302,
+        "vectorize_ms": 3014,
+        "d1_ms": 236,
+        "errors": 1
+      },
+      {
+        "shard_index": 9,
+        "sa_index": 1,
+        "hyde_done": 456,
+        "vertex_calls": 5,
+        "deepseek_calls": 39,
+        "deepseek_ms": 53064,
+        "vertex_ms": 2258,
+        "vectorize_ms": 3694,
+        "d1_ms": 424,
+        "errors": 1
+      },
+      {
+        "shard_index": 10,
+        "sa_index": 0,
+        "hyde_done": 468,
+        "vertex_calls": 5,
+        "deepseek_calls": 39,
+        "deepseek_ms": 48937,
+        "vertex_ms": 2252,
+        "vectorize_ms": 3470,
+        "d1_ms": 236,
+        "errors": 0
+      },
+      {
+        "shard_index": 11,
+        "sa_index": 1,
+        "hyde_done": 456,
+        "vertex_calls": 5,
+        "deepseek_calls": 39,
+        "deepseek_ms": 57435,
+        "vertex_ms": 2327,
+        "vectorize_ms": 4157,
+        "d1_ms": 228,
+        "errors": 1
+      },
+      {
+        "shard_index": 12,
+        "sa_index": 0,
+        "hyde_done": 444,
+        "vertex_calls": 5,
+        "deepseek_calls": 39,
+        "deepseek_ms": 57541,
+        "vertex_ms": 2275,
+        "vectorize_ms": 3004,
+        "d1_ms": 358,
+        "errors": 2
+      },
+      {
+        "shard_index": 13,
+        "sa_index": 1,
+        "hyde_done": 456,
+        "vertex_calls": 5,
+        "deepseek_calls": 39,
+        "deepseek_ms": 52860,
+        "vertex_ms": 2469,
+        "vectorize_ms": 3825,
+        "d1_ms": 251,
+        "errors": 1
+      },
+      {
+        "shard_index": 14,
+        "sa_index": 0,
+        "hyde_done": 468,
+        "vertex_calls": 5,
+        "deepseek_calls": 39,
+        "deepseek_ms": 60836,
+        "vertex_ms": 2133,
+        "vectorize_ms": 3826,
+        "d1_ms": 193,
+        "errors": 0
+      },
+      {
+        "shard_index": 15,
+        "sa_index": 1,
+        "hyde_done": 456,
+        "vertex_calls": 5,
+        "deepseek_calls": 39,
+        "deepseek_ms": 51971,
+        "vertex_ms": 2360,
+        "vectorize_ms": 3572,
+        "d1_ms": 228,
+        "errors": 1
+      }
+    ],
+    "vectors_per_sec": 102.783
+  },
+  "total_wall_ms": 72359,
+  "client_e2e_wall_ms": 73252,
+  "status": "partial",
+  "finished_at": "2026-05-01T08:56:33.864Z"
+}
