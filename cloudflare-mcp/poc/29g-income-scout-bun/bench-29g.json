@@ -1,0 +1,59 @@
+{
+  "poc": "29g",
+  "target_repo": "/Users/awilliamspcsevents/PROJECTS/income-scout-bun",
+  "note": "real-world codebase end-to-end via canonical worker /ingest-sharded",
+  "baseline_chunks_per_sec": 6.041,
+  "target_chunks_per_sec": 60.410000000000004,
+  "chunks": 713,
+  "completed": 713,
+  "failed": 0,
+  "vertex_calls_total": 8,
+  "wall_ms": 9083,
+  "chunks_per_sec": 78.498,
+  "speedup_vs_baseline": 12.994,
+  "search_top_match": "src/report/synthesis/pipeline/income.ts",
+  "started_at": "2026-05-01T08:19:47.308Z",
+  "shard_breakdown": [
+    {
+      "shard_index": 0,
+      "sa_index": 0,
+      "chunks_done": 179,
+      "vertex_calls": 2,
+      "vertex_ms": 5310,
+      "vectorize_ms": 2845,
+      "d1_ms": 102,
+      "errors": 0
+    },
+    {
+      "shard_index": 1,
+      "sa_index": 1,
+      "chunks_done": 178,
+      "vertex_calls": 2,
+      "vertex_ms": 5330,
+      "vectorize_ms": 3158,
+      "d1_ms": 221,
+      "errors": 0
+    },
+    {
+      "shard_index": 2,
+      "sa_index": 0,
+      "chunks_done": 178,
+      "vertex_calls": 2,
+      "vertex_ms": 4911,
+      "vectorize_ms": 3154,
+      "d1_ms": 101,
+      "errors": 0
+    },
+    {
+      "shard_index": 3,
+      "sa_index": 1,
+      "chunks_done": 178,
+      "vertex_calls": 2,
+      "vertex_ms": 5156,
+      "vectorize_ms": 3282,
+      "d1_ms": 147,
+      "errors": 0
+    }
+  ],
+  "finished_at": "2026-05-01T08:20:50.203Z"
+}

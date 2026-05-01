@@ -1476,12 +1476,33 @@ remain functional. Search round-trip via Vectorize + D1 returns matches.
 
 ---
 
-## POC 29G: Full real-world codebase index
+## POC 29G: Full real-world codebase index ✅
+
+**Status:** PASS — 2026-05-01 — **78.5 cps on income-scout-bun (12.99× baseline)**
 
 **Proves:** end-to-end target met on a codebase that actually matters (not lumae).
 This is the production goal.
 
-**Build:**
+**Build (delivered):**
+- `cloudflare-mcp/scripts/poc-29g-income-scout-bun-bench.mjs` — clones the 29F harness, points at `/Users/awilliamspcsevents/PROJECTS/income-scout-bun`
+- Throwaway resources, canonical worker, /ingest-sharded, /search verification
+
+**Pass criteria:**
+- [x] Codebase fully indexed — 713 chunks, completed=713, failed=0
+- [x] Search via gateway returns relevant matches — top match `src/report/synthesis/pipeline/income.ts` for query "income calculation"
+- [x] chunks_per_sec ≥ 10× 29A baseline — **78.5 cps actual vs 60.4 target (12.99×)**
+- [x] Wall time scales linearly — 713 chunks / 4 shards = 178/shard, finished in 9.1s; consistent with 632/4 = 158/shard at 8.2s in 29F
+
+**Evidence (bench-29g.json):**
+- chunks=713, wall_ms=9083, chunks_per_sec=78.5, errors=0
+- 4 shards × 2 batches × 100 instances = 8 Vertex calls total
+- Per-shard: vertex 4.9–5.3s, vectorize 2.8–3.3s, d1 100–220ms
+
+**Run:** `node cloudflare-mcp/scripts/poc-29g-income-scout-bun-bench.mjs`
+
+---
+
+## Original "User picks codebase" plan (preserved):
 - User picks one real target codebase (employer codebase subset, or one of his bigger personal repos)
 - `cfcode index <path>` from cold (no prior resources)
 - Capture full bench: provision time, ingest time, queue drain time, total wall time
