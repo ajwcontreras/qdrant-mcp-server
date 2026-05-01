@@ -850,22 +850,26 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 26E5: Generated Docs Include Diff Reindex Commands
+## POC 26E5: Generated Docs Include Diff Reindex Commands ✅
 
-**Proves:** Every generated codebase MCP doc tells future agents exactly how to run full redo and git-diff incremental reindexing through the Cloudflare job path.
+**Status:** PASS — 2026-04-30
+
+**Proves:** Generated codebase MCP doc includes full redo, incremental diff, resume/retry, status commands, active commit, last manifest ID, and a clear statement that v1 incremental reprocesses whole changed files.
 
 **Build:**
-- Extend generated docs to include the indexed path, MCP URL, active commit, last manifest ID, full redo command, incremental diff command, resume/retry command, and status polling URL.
-- Include an example command for `--diff-base <commit-or-ref>` and `--diff-target HEAD`.
-- Include a short statement that v1 incremental mode reprocesses whole changed files and tombstones deleted files.
+- `cloudflare-mcp/scripts/poc-26e5-diff-doc-generator-smoke.mjs` fetches live state from the persistent lumae Worker (`/collection_info` for active_commit, `/git-state/:slug` for last_manifest_id).
+- Generates extended doc with: indexed path, MCP URL, active commit, last manifest ID, install snippets (Claude Code/Desktop/Cursor), curl verify, full redo command, incremental diff workflow with `--diff-base`/`--diff-target HEAD`, resume/retry note, status polling URLs, agent-facing notes about whole-file reprocessing and Vectorize eventual consistency.
+- Writes to `cloudflare-mcp/sessions/index-codebase/<repo-slug>/<repo-slug>-MCP.md`.
 
-**Input:** A completed full job and at least one stored diff manifest.
+**Input:** Persistent lumae Worker live state.
 
 **Pass criteria:**
-- [ ] Generated docs include exact MCP URL and indexed local path.
-- [ ] Docs include full redo, incremental diff, resume/retry, and status commands.
-- [ ] Docs include active commit and last manifest ID.
-- [ ] Docs clearly state that changed files are reprocessed whole-file in v1.
-- [ ] Docs are written under `cloudflare-mcp/sessions/index-codebase/<repo-slug>/`.
+- [x] Generated docs include exact MCP URL and indexed local path.
+- [x] Docs include full redo, incremental diff (with `--diff-base`/`--diff-target`), resume/retry, and status commands.
+- [x] Docs include active commit and last manifest ID.
+- [x] Docs clearly state v1 incremental reprocesses whole changed files.
+- [x] Docs are written under `cloudflare-mcp/sessions/index-codebase/<repo-slug>/`.
+
+**Evidence:** `node cloudflare-mcp/scripts/poc-26e5-diff-doc-generator-smoke.mjs` exited 0. Doc at `cloudflare-mcp/sessions/index-codebase/lumae-fresh/lumae-fresh-MCP.md` (4362 chars). All 11 verification checks PASS.
 
 **Run:** `node cloudflare-mcp/scripts/poc-26e5-diff-doc-generator-smoke.mjs`
