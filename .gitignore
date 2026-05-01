@@ -1,3 +1,10 @@
+# Secrets — NEVER commit
+.cfapikeys
+.deepseekkey
+.env.local
+*.pem
+*.key
+
 # Dependencies
 node_modules/
 *.pyc
