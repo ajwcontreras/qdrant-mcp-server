@@ -212,7 +212,7 @@ Discovered in 30A: each Worker isolate caps concurrent outbound fetches per orig
 
 User directive (2026-05-01): no DO does both code AND HyDE in `Promise.all`. Code DO and HyDE DO are SEPARATE classes with separate `idFromName(...)` namespaces, fired as TWO `Promise.allSettled` populations from the producer. Each path becomes available on its own timeline (code in ~8s, HyDE in ~70s).
 
-## Phase Status (as of 2026-05-01)
+## Phase Status (as of 2026-05-01 after Phase 31 freeze)
 
 | Phase | Status | What it shipped |
 |---|---|---|
@@ -220,20 +220,22 @@ User directive (2026-05-01): no DO does both code AND HyDE in `Promise.all`. Cod
 | 27A-27G | ✅ ALL PASS | Stateful MCP gateway via Workers for Platforms |
 | 28A-28D | ✅ PASS | HyDE per-chunk pipeline POCs (superseded by Phase 30) |
 | 28E-28G | ⚪ SUPERSEDED by Phase 30 architecture |
-| 29A-29G | ✅ ALL PASS | Sharded DO fan-out for code path. Lumae **6 → 90 cps (15×)**. Income-scout-bun **78.5 cps (12.99×)**. Canonical worker now has DO + `/ingest-sharded`. |
-| 30A | ✅ PASS | HyDE+code parallel inside one shard (122 vps, but combined mode banned) |
-| 30B | ✅ PASS | `/hyde-enrich` resumable endpoint — gap-fill works (`missing_hyde: 632 → 12 → 8`) |
-| 30C | ✅ PASS | **Dual fan-out**: code shards + hyde shards as TWO independent `Promise.allSettled` populations. Lumae 632 chunks: code 8.3s, hyde 72.3s, e2e 73.3s. |
-| 30D | ✅ PASS | 4 real codebases benched: cfpubsub-scaffold 28.7s, reviewer-s-workbench 69.1s, node-orchestrator 28.4s, launcher (process killed mid-run) |
-| 30E | ✅ PASS (with finding) | 2 vs 3 vs 4 SAs on lumae. Wall time drops monotonically (74s → 54s → 47s) BUT hyde completion DROPS (97.9% → 69.3% → 56.7%). More SAs alone don't break past Vertex quota — they trade integrity for wall time. |
+| 29A-29G | ✅ ALL PASS | Sharded DO fan-out for code path. 6 → 90 cps (15×). |
+| 30A-30G | ✅ ALL PASS | Dual fan-out, /hyde-enrich, multi-SA, Vectorize not bottleneck |
+| 31D-31K | ✅ ALL PASS | Fire-and-forget, R2-pull, 64 hyde shards, council-reviewed |
+
+**Production architecture (31K):** 2-population dual fan-out. Fire-and-forget producer via DO alarm, 4 code shards + 64 hyde shards, R2-pull per shard, /hyde-enrich gap fill. 97% hyde completion on lumae. Council-reviewed by chatgpt+gemini+deepseek.
+
+Full documentation: SETUP.md, LESSONS_LEARNED.md, CLOUDFLARE_EXPERIMENTAL_FINDINGS.md
 
 **Current production decision rule:** Default to `NUM_SAS=2, hyde_shard_count=16` for the dual fan-out (Run A in 30E) — best completion rate at acceptable wall time. `/hyde-enrich` cleans up the small (~2%) gap. Higher concurrency only helps if combined with longer Vertex retry windows or actual quota increase.
 
 ### Production cutover status
 
-- **Canonical worker source (`workers/codebase/src/index.ts`)** has `IndexingShardDO`, `/ingest-sharded`, KV oauth cache (29F port). Backwards-compatible: legacy `/ingest` still works.
-- **Production lumae user worker** (`cfcode-codebase-lumae-fresh`) is still running the PRE-29 worker — search works fine, but reindexes use slow queue path. Cutover requires redeploy + DO migration (additive).
-- **`cfcode index` CLI** still calls `/ingest`, not `/ingest-sharded`. To benefit from the new path in production, CLI needs a one-line update + flag for sharded mode.
+- **Canonical worker source (`workers/codebase/src/index.ts`)** has `IndexingShardDO` + `/ingest-sharded` from 29F. Does NOT yet have 31K patterns (fire-and-forget, hyde, R2-pull).
+- **31K production-ready worker** at `cloudflare-mcp/poc/31k-2pop-fixed/src/index.ts` — needs port to canonical.
+- **Production lumae user worker** (`cfcode-codebase-lumae-fresh`) is still running the PRE-29 worker — search works fine, but reindexes use slow queue path.
+- **`cfcode index` CLI** still calls `/ingest`, not `/ingest-sharded`. To benefit from the new path, CLI needs update.
 
 ## Handoff Discipline
 

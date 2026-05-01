@@ -143,8 +143,15 @@ Ask: "use cfcode list_codebases", then "select lumae-fresh and search for X".
 | 26A1-26E5 (23 POCs) | ✅ ALL PASS | Cloudflare-native indexing + diff incremental |
 | 27A-27G (7 POCs) | ✅ ALL PASS | Stateful MCP gateway via Workers for Platforms |
 | 28A-28D (4 POCs) | ✅ PASS | HyDE per-chunk pipeline + scaling proof |
-| 28E-28F | 🚧 NEXT | Dual-channel search + RRF, golden eval gate |
-| 28G | 🔒 GATED | Scale to 9 more codebases (only if 28F passes) |
+| 29A-29G (7 POCs) | ✅ ALL PASS | Sharded DO fan-out: 6→90 cps (15× speedup) |
+| 30A-30G (7 POCs) | ✅ ALL PASS | Dual fan-out code+HyDE, 97% completion |
+| 31D-31K (10 POCs) | ✅ ALL PASS | Fire-and-forget, R2-pull, 64 hyde shards, council-reviewed |
+
+**Current architecture (31K):** Fire-and-forget producer via DO alarm, 4 code shards + 64 hyde shards, R2-pull per shard, `/hyde-enrich` gap fill. Code searchable in ~10s, full pipeline ~30s for 600-chunk codebases.
+
+Full setup guide: **[SETUP.md](SETUP.md)** — zero to indexed codebase in 14 steps.
+Lessons learned: **[LESSONS_LEARNED.md](LESSONS_LEARNED.md)**
+CF platform findings: **[CLOUDFLARE_EXPERIMENTAL_FINDINGS.md](CLOUDFLARE_EXPERIMENTAL_FINDINGS.md)** |
 
 POC ledger with commit hashes: `EXECUTION_PLAN.md`. Per-event progress log: `AGENT_HANDOFF_MASTER_PLAN.md`.
 
