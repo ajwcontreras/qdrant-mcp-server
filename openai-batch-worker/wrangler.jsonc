@@ -41,8 +41,12 @@
     // to an authenticated/unified gateway unless provider keys and
     // cf-aig-authorization are configured and both OpenAI + Vertex smokes pass.
     "OPENAI_BASE_URL": "https://gateway.ai.cloudflare.com/v1/776ba01baf2a9a9806fa0edb1b5ddc96/default/openai",
-    "EMBEDDING_MODEL": "text-embedding-3-large",
+    "EMBEDDING_PROVIDER": "gemini_vertex",
+    "EMBEDDING_MODEL": "gemini-embedding-001",
+    "EMBEDDING_OUTPUT_DIMENSIONALITY": "3072",
+    "EMBEDDING_TASK_TYPE": "RETRIEVAL_DOCUMENT",
     "EMBEDDING_MAX_BATCH_SIZE": "32",
+    "GEMINI_EMBEDDING_LOCATION": "us-central1",
     "HYDE_PROVIDER": "gemini_vertex",
     "GEMINI_BASE_URL": "https://gateway.ai.cloudflare.com/v1/776ba01baf2a9a9806fa0edb1b5ddc96/gemini-harness-v2/google-vertex-ai",
     "GEMINI_PROJECT": "evrylo",

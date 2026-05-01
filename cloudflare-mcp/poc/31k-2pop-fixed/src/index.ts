@@ -16,6 +16,7 @@ type Env = {
   ARTIFACTS: R2Like; DB: D1Like; VECTORIZE: VecLike;
   CODE_DO: DONs; HYDE_DO: DONs; ORCH_DO: DONs;
   GEMINI_SERVICE_ACCOUNT_B64?: string; GEMINI_SERVICE_ACCOUNT_B64_2?: string;
+  GEMINI_SERVICE_ACCOUNT_B64_3?: string; GEMINI_SERVICE_ACCOUNT_B64_4?: string;
   DEEPSEEK_API_KEY?: string;
   CODE_SHARD_COUNT?: string; HYDE_SHARD_COUNT?: string;
   CODE_BATCH_SIZE?: string; HYDE_BATCH_SIZE?: string;
@@ -33,7 +34,10 @@ function json(v: unknown, s = 200) { return Response.json(v, { status: s, header
 function intEnv(v: string | undefined, d: number) { const n = parseInt(v || "", 10); return isFinite(n) ? n : d; }
 
 async function doFetch(s: DOStub, url: string, init: RequestInit, ms = 120_000): Promise<Response> {
-  return Promise.race([s.fetch(url, init), new Promise<Response>((_, reject) => setTimeout(() => reject(new Error("shard timeout")), ms))]);
+  return new Promise<Response>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("shard timeout")), ms);
+    s.fetch(url, init).then(r => { clearTimeout(timer); resolve(r); }, e => { clearTimeout(timer); reject(e); });
+  });
 }
 
 async function schema(db: D1Like) {
@@ -47,8 +51,8 @@ function parseRecords(text: string): SourceRecord[] { return text.split(/\r?\n/)
 const tokenCache = new Map<string, { token: string; exp: number }>();
 
 function parseSA(idx: number, env: Env): GoogleSA {
-  let b64: string | undefined;
-  if (idx === 0) b64 = env.GEMINI_SERVICE_ACCOUNT_B64; else if (idx === 1) b64 = env.GEMINI_SERVICE_ACCOUNT_B64_2;
+  const keys = [env.GEMINI_SERVICE_ACCOUNT_B64, env.GEMINI_SERVICE_ACCOUNT_B64_2, env.GEMINI_SERVICE_ACCOUNT_B64_3, env.GEMINI_SERVICE_ACCOUNT_B64_4];
+  const b64 = keys[idx];
   if (!b64) throw new Error(`SA ${idx} missing`);
   const a = JSON.parse(atob(b64)) as Partial<GoogleSA>;
   if (!a.client_email || !a.private_key) throw new Error("invalid SA");
@@ -221,7 +225,8 @@ export class OrchestratorDO extends DurableObject<Env> {
     const he = hydeR.reduce((s: number, o: any) => s + (o.status === "fulfilled" ? o.value.errors : 1), 0);
     await this.env.DB.prepare(`UPDATE jobs SET hyde_status=?,hyde_completed=? WHERE job_id=?`).bind(he === 0 ? "live" : "partial", hd, cfg.job_id).run();
 
-    await this.env.DB.prepare(`UPDATE jobs SET status=? WHERE job_id=?`).bind("published", cfg.job_id).run();
+    const allOk = ce === 0 && he === 0;
+    await this.env.DB.prepare(`UPDATE jobs SET status=? WHERE job_id=?`).bind(allOk ? "published" : "partial", cfg.job_id).run();
     await this.ctx.storage.delete("config");
   }
 }

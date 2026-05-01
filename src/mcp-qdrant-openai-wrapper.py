@@ -14,7 +14,9 @@ import logging
 import uuid
 import re
 import hashlib
+import httpx
 from collections import Counter
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 log_level = os.environ.get('MCP_LOG_LEVEL', 'INFO')
@@ -66,17 +68,37 @@ MODEL_DIMS = {
     "text-embedding-3-small": 1536,
     "text-embedding-3-large": 3072,
     "text-embedding-ada-002": 1536,
+    "gemini-embedding-001": 3072,
+    "text-embedding-005": 768,
+    "text-multilingual-embedding-002": 768,
 }
 
 class MCPServer:
     def __init__(self):
+        self.embedding_worker_url = os.environ.get("EMBEDDING_WORKER_URL", "").strip().rstrip("/")
+        self.embedding_worker_token = os.environ.get("EMBEDDING_WORKER_TOKEN", "").strip()
         self.openai_api_key = os.environ.get("OPENAI_API_KEY")
-        if not self.openai_api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is required")
+        if not self.openai_api_key and not self.embedding_worker_url:
+            raise ValueError("OPENAI_API_KEY or EMBEDDING_WORKER_URL environment variable is required")
             
         self.qdrant_url = os.environ.get("QDRANT_URL", "http://localhost:6333")
-        self.collection_name = os.environ.get("COLLECTION_NAME", DEFAULT_COLLECTION_NAME)
-        self.embedding_model = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
+        configured_collection = os.environ.get("COLLECTION_NAME")
+        self.project_config = self._detect_project_config()
+        if self.project_config and self._should_use_project_collection(configured_collection):
+            self.collection_name = str(self.project_config.get("collection") or DEFAULT_COLLECTION_NAME)
+            self.qdrant_url = os.environ.get("QDRANT_URL") or str(self.project_config.get("qdrant_url") or self.qdrant_url)
+            logger.info(
+                "Using project collection %s for repo %s.",
+                self.collection_name,
+                self.project_config.get("repo_path"),
+            )
+        else:
+            self.collection_name = configured_collection or DEFAULT_COLLECTION_NAME
+        self.embedding_model = (
+            os.environ.get("GOOGLE_EMBEDDING_MODEL")
+            or os.environ.get("OPENAI_EMBEDDING_MODEL")
+            or "text-embedding-3-large"
+        )
         self.openai_base_url = (os.environ.get("CLOUDFLARE_AI_GATEWAY_URL") or os.environ.get("OPENAI_BASE_URL") or "").strip() or None
         self.vector_size = MODEL_DIMS.get(self.embedding_model, 3072)
         self.use_v2_vectors = (
@@ -84,12 +106,46 @@ class MCPServer:
             or self.collection_name != LEGACY_COLLECTION_NAME
         )
         
-        client_kwargs = {"api_key": self.openai_api_key}
-        if self.openai_base_url:
-            client_kwargs["base_url"] = self.openai_base_url
-        self.openai_client = AsyncOpenAI(**client_kwargs)
-        logger.info("OpenAI async client initialized (%s).", f"gateway={self.openai_base_url}" if self.openai_base_url else "direct OpenAI")
+        self.openai_client = None
+        if self.openai_api_key:
+            client_kwargs = {"api_key": self.openai_api_key}
+            if self.openai_base_url:
+                client_kwargs["base_url"] = self.openai_base_url
+            self.openai_client = AsyncOpenAI(**client_kwargs)
+            logger.info("OpenAI async client initialized (%s).", f"gateway={self.openai_base_url}" if self.openai_base_url else "direct OpenAI")
+        if self.embedding_worker_url:
+            logger.info("Embedding requests will use Worker %s.", self.embedding_worker_url)
         self.qdrant_client = AsyncQdrantClient(url=self.qdrant_url)
+
+    def _should_use_project_collection(self, configured_collection: Optional[str]) -> bool:
+        auto = os.environ.get("QDRANT_AUTO_PROJECT_COLLECTION", "true").strip().lower()
+        if auto in {"0", "false", "no", "off"}:
+            return False
+        return not configured_collection or configured_collection in {DEFAULT_COLLECTION_NAME, LEGACY_COLLECTION_NAME}
+
+    def _detect_project_config(self) -> Optional[Dict[str, Any]]:
+        home = Path(os.environ.get("QDRANT_CODE_SEARCH_HOME", "~/.qdrant-code-search")).expanduser()
+        projects_root = home / "projects"
+        if not projects_root.exists():
+            return None
+        cwd = Path.cwd().resolve()
+        best: Optional[Dict[str, Any]] = None
+        best_len = -1
+        for config_path in projects_root.glob("*/project.json"):
+            try:
+                project = json.loads(config_path.read_text(encoding="utf-8"))
+                repo_path = Path(str(project.get("repo_path") or "")).expanduser().resolve()
+            except Exception:
+                continue
+            try:
+                cwd.relative_to(repo_path)
+            except ValueError:
+                continue
+            path_len = len(str(repo_path))
+            if path_len > best_len:
+                best = project
+                best_len = path_len
+        return best
         
     async def initialize(self):
         await self._ensure_collection()
@@ -129,6 +185,31 @@ class MCPServer:
     
     async def get_embeddings(self, texts: List[str]) -> List[List[float]]:
         try:
+            if self.embedding_worker_url:
+                if not self.embedding_worker_token:
+                    raise ValueError("EMBEDDING_WORKER_TOKEN is required when EMBEDDING_WORKER_URL is set")
+                async with httpx.AsyncClient(timeout=180) as client:
+                    response = await client.post(
+                        f"{self.embedding_worker_url}/embed-batch",
+                        headers={
+                            "content-type": "application/json",
+                            "user-agent": "qdrant-mcp-embedding/1.0",
+                            "x-batch-token": self.embedding_worker_token,
+                        },
+                        json={
+                            "model": self.embedding_model,
+                            "texts": texts,
+                        },
+                    )
+                if response.status_code >= 400:
+                    raise RuntimeError(f"Embedding Worker returned {response.status_code}: {response.text[:500]}")
+                data = response.json()
+                embeddings = data.get("embeddings")
+                if not data.get("ok") or not isinstance(embeddings, list) or len(embeddings) != len(texts):
+                    raise RuntimeError(f"Embedding Worker returned invalid payload: {str(data)[:500]}")
+                return embeddings
+            if self.openai_client is None:
+                raise ValueError("OpenAI client is not configured")
             response = await self.openai_client.embeddings.create(
                 model=self.embedding_model,
                 input=texts

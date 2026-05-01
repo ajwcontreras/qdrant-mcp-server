@@ -8,13 +8,25 @@ type WorkerEnv = Env & {
   EMBEDDING_MODEL?: string;
   EMBEDDING_MAX_BATCH_SIZE?: string;
   HYDE_PROVIDER?: string;
+  DEEPSEEK_API_KEY?: string;
+  DEEPSEEK_BASE_URL?: string;
+  DEEPSEEK_MODEL?: string;
+  DEEPSEEK_MAX_OUTPUT_TOKENS?: string;
+  DEEPSEEK_PROVIDER_BATCH_SIZE?: string;
+  DEEPSEEK_PROVIDER_CONCURRENCY?: string;
   GEMINI_BASE_URL?: string;
   GEMINI_MODEL?: string;
   HYDE_ALLOWED_MODELS?: string;
   GEMINI_PROJECT?: string;
   GEMINI_LOCATION?: string;
+  GEMINI_EMBEDDING_LOCATION?: string;
+  GOOGLE_CLOUD_LOCATION?: string;
   GEMINI_MAX_OUTPUT_TOKENS?: string;
   GEMINI_SERVICE_ACCOUNT_B64?: string;
+  EMBEDDING_PROVIDER?: string;
+  EMBEDDING_CONCURRENCY?: string;
+  EMBEDDING_TASK_TYPE?: string;
+  EMBEDDING_OUTPUT_DIMENSIONALITY?: string;
   BATCH_AUTH_TOKEN: string;
   OPENAI_STATE: KVNamespace;
   JOBS_BUCKET: R2Bucket;
@@ -30,6 +42,9 @@ interface HyDEBatchItem {
 interface HyDEBatchRequest {
   items: HyDEBatchItem[];
   model?: string;
+  question_count?: number;
+  provider_batch_size?: number;
+  provider_concurrency?: number;
 }
 
 interface EmbeddingBatchRequest {
@@ -79,10 +94,30 @@ interface HyDEBatchResult {
 
 type OpenAIKeyName = "primary" | "fallback";
 type HyDEProviderName = "openai" | "gemini_vertex";
+type EmbeddingProviderName = "openai" | "gemini_vertex";
+type DeepSeekBatchRecord = {
+  id: string;
+  rel_path: string;
+  ok: boolean;
+  model: string;
+  provider: "deepseek";
+  hyde_questions: string[];
+  hyde_text: string;
+  elapsed_ms?: number;
+  error?: string;
+};
 
 interface OpenAIKeyState {
   activeKey: OpenAIKeyName;
 }
+
+interface GoogleServiceAccount {
+  client_email: string;
+  private_key: string;
+  token_uri?: string;
+}
+
+let googleAccessTokenCache: { token: string; expiresAt: number } | undefined;
 
 interface OpenAIResult {
   ok: boolean;
@@ -256,6 +291,16 @@ async function routeRequest(request: Request, env: WorkerEnv, ctx: ExecutionCont
     return handleEmbeddingBatch(request, env, ctx);
   }
 
+  if (url.pathname === "/deepseek-hyde-batch") {
+    if (request.method !== "POST") {
+      return jsonResponse({ error: "method_not_allowed" }, 405);
+    }
+    if (!isAuthorized(request, env)) {
+      return jsonResponse({ error: "unauthorized" }, 401);
+    }
+    return handleDeepSeekHyDEBatch(request, env);
+  }
+
   if (url.pathname !== "/hyde-batch") {
     return jsonResponse({ error: "not_found" }, 404);
   }
@@ -281,6 +326,44 @@ async function routeRequest(request: Request, env: WorkerEnv, ctx: ExecutionCont
     count: results.length,
     failures,
     elapsed_ms: Date.now() - startedAt,
+    results
+  }, failures ? 207 : 200);
+}
+
+async function handleDeepSeekHyDEBatch(request: Request, env: WorkerEnv): Promise<Response> {
+  const payload = await readJson(request) as HyDEBatchRequest;
+  const items = validateBatch(payload, Math.max(1, intEnv(env.MAX_BATCH_SIZE, 25) * 4));
+  const questionCount = clampInt(payload.question_count, 1, 20, intEnv(env.HYDE_QUESTION_COUNT, 12));
+  const providerBatchSize = clampInt(
+    payload.provider_batch_size,
+    1,
+    50,
+    intEnv(env.DEEPSEEK_PROVIDER_BATCH_SIZE, 10)
+  );
+  const providerConcurrency = clampInt(
+    payload.provider_concurrency,
+    1,
+    6,
+    intEnv(env.DEEPSEEK_PROVIDER_CONCURRENCY, 6)
+  );
+  const model = payload.model || env.DEEPSEEK_MODEL || "deepseek-v4-flash";
+  const startedAt = Date.now();
+  const batches = splitItems(items, providerBatchSize);
+  const nested = await mapLimit(
+    batches,
+    providerConcurrency,
+    (batch) => requestDeepSeekHyDEQuestions(batch, env, model, questionCount)
+  );
+  const results = nested.flat();
+  const failures = results.filter((item) => !item.ok).length;
+  return jsonResponse({
+    ok: failures === 0,
+    count: results.length,
+    failures,
+    elapsed_ms: Date.now() - startedAt,
+    model,
+    provider_batch_size: providerBatchSize,
+    provider_concurrency: providerConcurrency,
     results
   }, failures ? 207 : 200);
 }
@@ -664,8 +747,22 @@ function validateBatch(payload: unknown, maxBatchSize: number): HyDEBatchItem[] 
 async function handleEmbeddingBatch(request: Request, env: WorkerEnv, ctx: WaitUntilContext): Promise<Response> {
   const payload = await readJson(request) as EmbeddingBatchRequest;
   const texts = validateEmbeddingBatch(payload, intEnv(env.EMBEDDING_MAX_BATCH_SIZE, 64));
-  const model = payload.model || env.EMBEDDING_MODEL || "text-embedding-3-large";
+  const provider = embeddingProvider(env);
+  const model = payload.model || embeddingModel(env);
   const startedAt = Date.now();
+  if (provider === "gemini_vertex") {
+    const result = await requestGeminiVertexEmbeddings(texts, model, env);
+    return jsonResponse({
+      ok: true,
+      count: result.embeddings.length,
+      model,
+      active_key: "primary",
+      provider,
+      elapsed_ms: Date.now() - startedAt,
+      embeddings: result.embeddings
+    });
+  }
+
   const keyState = await readOpenAIState(env);
   const selected = await callEmbeddingWithKeyName(texts, model, keyState.activeKey, env);
   if (selected.ok) {
@@ -948,6 +1045,68 @@ function buildEmbeddingResult(result: OpenAIResult, model: string, elapsedMs: nu
   };
 }
 
+async function requestGeminiVertexEmbeddings(
+  texts: string[],
+  model: string,
+  env: WorkerEnv
+): Promise<{ embeddings: number[][] }> {
+  const documentTask = env.EMBEDDING_TASK_TYPE || "RETRIEVAL_DOCUMENT";
+  const concurrency = Math.min(Math.max(1, intEnv(env.EMBEDDING_CONCURRENCY, 8)), 16);
+  const embeddings = await mapLimit(texts, concurrency, (text) => callGeminiVertexEmbedding(text, model, documentTask, env));
+  return { embeddings };
+}
+
+async function callGeminiVertexEmbedding(
+  text: string,
+  model: string,
+  taskType: string,
+  env: WorkerEnv
+): Promise<number[]> {
+  const startedAt = Date.now();
+  const outputDimensionality = intEnv(env.EMBEDDING_OUTPUT_DIMENSIONALITY, 0);
+  const body = {
+    instances: [{ content: text, task_type: taskType }],
+    parameters: {
+      autoTruncate: true,
+      ...(outputDimensionality > 0 ? { outputDimensionality } : {}),
+    },
+  };
+  const response = await fetch(geminiEmbeddingVertexUrl(env, model), {
+    method: "POST",
+    headers: pruneHeaders({
+      "authorization": await googleAuthorizationHeader(env),
+      "content-type": "application/json",
+      "cf-aig-authorization": env.GEMINI_SERVICE_ACCOUNT_B64 ? undefined : aiGatewayAuthHeader(env),
+      "cf-aig-metadata": JSON.stringify({
+        operation: "embedding_batch",
+        model,
+        provider: "gemini_vertex",
+        task_type: taskType,
+      }),
+    }),
+    body: JSON.stringify(body),
+  });
+  const elapsedMs = Date.now() - startedAt;
+  const cfRay = response.headers.get("cf-ray") || undefined;
+  const raw = await response.text();
+  if (!response.ok) {
+    logEvent("gemini_embedding_request_failed", {
+      status: response.status,
+      elapsed_ms: elapsedMs,
+      cf_ray: cfRay,
+      model,
+      message: truncate(raw, 240),
+    });
+    throw new Error(`Gemini embedding request failed (${response.status}): ${truncate(raw, 300)}`);
+  }
+  const data = JSON.parse(raw) as { predictions?: Array<{ embeddings?: { values?: unknown } }> };
+  const values = data.predictions?.[0]?.embeddings?.values;
+  if (!Array.isArray(values) || !values.every((value) => typeof value === "number")) {
+    throw new Error("Gemini embedding response did not contain a numeric embedding");
+  }
+  return values;
+}
+
 async function requestGeminiHyDEQuestions(
   item: HyDEBatchItem,
   env: WorkerEnv,
@@ -969,6 +1128,152 @@ async function requestGeminiHyDEQuestions(
     elapsedMs: result.elapsedMs,
     cfRay: result.cfRay
   };
+}
+
+async function requestDeepSeekHyDEQuestions(
+  items: HyDEBatchItem[],
+  env: WorkerEnv,
+  model: string,
+  questionCount: number
+): Promise<DeepSeekBatchRecord[]> {
+  const startedAt = Date.now();
+  try {
+    if (!env.DEEPSEEK_API_KEY) {
+      throw new Error("Missing DEEPSEEK_API_KEY");
+    }
+    const response = await fetch(`${(env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "authorization": `Bearer ${env.DEEPSEEK_API_KEY}`,
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: DEEPSEEK_BATCH_PROMPT },
+          { role: "user", content: buildDeepSeekBatchPrompt(items, questionCount) }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: intEnv(env.DEEPSEEK_MAX_OUTPUT_TOKENS, 6000)
+      })
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(`DeepSeek request failed (${response.status}): ${truncate(text, 300)}`);
+    }
+    const body = JSON.parse(text) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = body.choices?.[0]?.message?.content || "";
+    const parsed = parseJsonObject(content);
+    return normalizeDeepSeekBatch(items, parsed, model, questionCount, Date.now() - startedAt);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return items.map((item) => ({
+      id: item.id,
+      rel_path: item.rel_path,
+      ok: false,
+      model,
+      provider: "deepseek",
+      hyde_questions: [],
+      hyde_text: "",
+      elapsed_ms: Date.now() - startedAt,
+      error: message
+    }));
+  }
+}
+
+const DEEPSEEK_BATCH_PROMPT = `You generate HyDE search questions for an autonomous code-search system.
+
+Return only valid JSON matching:
+{"results":[{"id":"input id","hyde_questions":[{"question":"..."}]}]}
+
+Rules:
+- Preserve every input id exactly and return one result per chunk.
+- Return exactly the requested number of questions per chunk.
+- Ground each question in identifiers, functions, classes, routes, payload keys, side effects, persistence, retries, fallback branches, line ranges, request or response contracts, or tests visible in the chunk.
+- Prefer exact names visible in the code over broad summaries.
+- Do not invent project facts that are not visible in the chunk.
+- Avoid generic questions like "what does this function do?".
+- Each question must be a complete natural-language question ending in '?'.`;
+
+function buildDeepSeekBatchPrompt(items: HyDEBatchItem[], questionCount: number): string {
+  return "Generate schema-valid JSON for these chunks:\n" + JSON.stringify({
+    question_count_per_chunk: questionCount,
+    chunks: items.map((item) => ({
+      id: item.id,
+      rel_path: item.rel_path,
+      text: item.text
+    }))
+  });
+}
+
+function normalizeDeepSeekBatch(
+  items: HyDEBatchItem[],
+  data: unknown,
+  model: string,
+  questionCount: number,
+  elapsedMs: number
+): DeepSeekBatchRecord[] {
+  const results = data && typeof data === "object" && Array.isArray((data as { results?: unknown }).results)
+    ? (data as { results: unknown[] }).results
+    : [];
+  const byId = new Map<string, unknown>();
+  for (const result of results) {
+    if (result && typeof result === "object" && typeof (result as { id?: unknown }).id === "string") {
+      byId.set((result as { id: string }).id, result);
+    }
+  }
+  return items.map((item) => {
+    const result = byId.get(item.id) as { hyde_questions?: unknown } | undefined;
+    const questions = normalizeQuestionList(result?.hyde_questions);
+    const errors: string[] = [];
+    if (!result) {
+      errors.push("missing result");
+    }
+    if (questions.length !== questionCount) {
+      errors.push(`expected ${questionCount} questions, got ${questions.length}`);
+    }
+    questions.forEach((question, index) => {
+      if (question.length < 10) {
+        errors.push(`question ${index} too short`);
+      }
+      if (!question.endsWith("?")) {
+        errors.push(`question ${index} does not end with '?'`);
+      }
+    });
+    return {
+      id: item.id,
+      rel_path: item.rel_path,
+      ok: errors.length === 0,
+      model,
+      provider: "deepseek" as const,
+      hyde_questions: questions,
+      hyde_text: questions.map((question) => `- ${question}`).join("\n"),
+      elapsed_ms: elapsedMs,
+      ...(errors.length ? { error: errors.join("; ") } : {})
+    };
+  });
+}
+
+function normalizeQuestionList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((item) => {
+      if (item && typeof item === "object" && typeof (item as { question?: unknown }).question === "string") {
+        return normalizeQuestion((item as { question: string }).question);
+      }
+      if (typeof item === "string") {
+        return normalizeQuestion(item);
+      }
+      return "";
+    })
+    .filter(Boolean);
+}
+
+function normalizeQuestion(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function buildGeminiBody(item: HyDEBatchItem, env: WorkerEnv): unknown {
@@ -1023,7 +1328,7 @@ async function callGeminiVertex(
     method: "POST",
     headers: pruneHeaders({
       "content-type": "application/json",
-      "authorization": geminiAuthorizationHeader(env),
+      "authorization": await googleAuthorizationHeader(env),
       "cf-aig-authorization": env.GEMINI_SERVICE_ACCOUNT_B64 ? undefined : aiGatewayAuthHeader(env),
       "cf-aig-metadata": JSON.stringify({
         job_id: jobId || "adhoc",
@@ -1071,6 +1376,20 @@ function extractQuestionsFromText(text: string, maxQuestions: number, providerLa
     throw new Error(`${providerLabel} output text was not valid JSON: ${truncate(text, 300)}`);
   }
   return validateHyDESchema(data).slice(0, maxQuestions);
+}
+
+function parseJsonObject(text: string): unknown {
+  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const start = trimmed.indexOf("{");
+    const end = trimmed.lastIndexOf("}");
+    if (start >= 0 && end > start) {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    }
+    throw new Error(`DeepSeek output text was not valid JSON: ${truncate(text, 300)}`);
+  }
 }
 
 function validateHyDESchema(data: unknown): string[] {
@@ -1187,6 +1506,14 @@ async function mapLimit<T, R>(items: T[], concurrency: number, worker: (item: T)
   return results;
 }
 
+function splitItems<T>(items: T[], size: number): T[][] {
+  const batches: T[][] = [];
+  for (let index = 0; index < items.length; index += Math.max(1, size)) {
+    batches.push(items.slice(index, index + Math.max(1, size)));
+  }
+  return batches;
+}
+
 function hydeSchema(): unknown {
   return {
     type: "object",
@@ -1263,6 +1590,19 @@ function hydeModel(env: WorkerEnv, modelOverride?: string): string {
   return env.HYDE_MODEL || "gpt-5.4-nano";
 }
 
+function embeddingProvider(env: WorkerEnv): EmbeddingProviderName {
+  return env.EMBEDDING_PROVIDER === "gemini_vertex" || env.EMBEDDING_PROVIDER === "gemini"
+    ? "gemini_vertex"
+    : "openai";
+}
+
+function embeddingModel(env: WorkerEnv): string {
+  if (embeddingProvider(env) === "gemini_vertex") {
+    return env.EMBEDDING_MODEL || "gemini-embedding-001";
+  }
+  return env.EMBEDDING_MODEL || "text-embedding-3-large";
+}
+
 function geminiVertexUrl(env: WorkerEnv, model: string): string {
   const baseUrl = (env.GEMINI_BASE_URL || "").replace(/\/$/, "");
   const project = env.GEMINI_PROJECT || "evrylo";
@@ -1271,6 +1611,108 @@ function geminiVertexUrl(env: WorkerEnv, model: string): string {
     throw new Error("GEMINI_BASE_URL is required for HYDE_PROVIDER=gemini_vertex");
   }
   return `${baseUrl}/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:generateContent`;
+}
+
+function geminiEmbeddingVertexUrl(env: WorkerEnv, model: string): string {
+  const location = env.GEMINI_EMBEDDING_LOCATION || env.GOOGLE_CLOUD_LOCATION || "us-central1";
+  const baseUrl = (env.GEMINI_BASE_URL || `https://${location}-aiplatform.googleapis.com`).replace(/\/$/, "");
+  const project = env.GEMINI_PROJECT || "evrylo";
+  return `${baseUrl}/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:predict`;
+}
+
+async function googleAuthorizationHeader(env: WorkerEnv): Promise<string | undefined> {
+  if (!env.GEMINI_SERVICE_ACCOUNT_B64) {
+    return undefined;
+  }
+  const token = await googleAccessToken(env);
+  return `Bearer ${token}`;
+}
+
+async function googleAccessToken(env: WorkerEnv): Promise<string> {
+  const now = Date.now();
+  if (googleAccessTokenCache && googleAccessTokenCache.expiresAt - 60_000 > now) {
+    return googleAccessTokenCache.token;
+  }
+  const serviceAccount = parseGoogleServiceAccount(env);
+  const issuedAt = Math.floor(now / 1000);
+  const expiresAt = issuedAt + 3600;
+  const assertion = await signGoogleJwt(serviceAccount, {
+    iss: serviceAccount.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: serviceAccount.token_uri || "https://oauth2.googleapis.com/token",
+    iat: issuedAt,
+    exp: expiresAt,
+  });
+  const response = await fetch(serviceAccount.token_uri || "https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion,
+    }),
+  });
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error(`Google token request failed (${response.status}): ${truncate(raw, 300)}`);
+  }
+  const data = JSON.parse(raw) as { access_token?: string; expires_in?: number };
+  if (!data.access_token) {
+    throw new Error("Google token response did not include access_token");
+  }
+  googleAccessTokenCache = {
+    token: data.access_token,
+    expiresAt: now + Math.max(60, data.expires_in || 3600) * 1000,
+  };
+  return data.access_token;
+}
+
+function parseGoogleServiceAccount(env: WorkerEnv): GoogleServiceAccount {
+  if (!env.GEMINI_SERVICE_ACCOUNT_B64) {
+    throw new Error("GEMINI_SERVICE_ACCOUNT_B64 is required for direct Gemini Vertex calls");
+  }
+  const decoded = atob(env.GEMINI_SERVICE_ACCOUNT_B64);
+  const serviceAccount = JSON.parse(decoded) as Partial<GoogleServiceAccount>;
+  if (!serviceAccount.client_email || !serviceAccount.private_key) {
+    throw new Error("GEMINI_SERVICE_ACCOUNT_B64 did not decode to a valid service account JSON");
+  }
+  return {
+    client_email: serviceAccount.client_email,
+    private_key: serviceAccount.private_key,
+    token_uri: serviceAccount.token_uri,
+  };
+}
+
+async function signGoogleJwt(serviceAccount: GoogleServiceAccount, claims: Record<string, string | number>): Promise<string> {
+  const header = { alg: "RS256", typ: "JWT" };
+  const signingInput = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(claims))}`;
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    pemToArrayBuffer(serviceAccount.private_key),
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(signingInput));
+  return `${signingInput}.${base64UrlEncode(signature)}`;
+}
+
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const base64 = pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, "");
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes.buffer;
+}
+
+function base64UrlEncode(value: string | ArrayBuffer): string {
+  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : new Uint8Array(value);
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
 function shouldUseFallback(status: number, text: string): boolean {

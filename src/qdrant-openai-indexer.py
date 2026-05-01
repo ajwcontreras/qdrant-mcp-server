@@ -260,6 +260,9 @@ MODEL_DIMS = {
     "text-embedding-3-small": 1536,
     "text-embedding-3-large": 3072,
     "text-embedding-ada-002": 1536,
+    "gemini-embedding-001": 3072,
+    "text-embedding-005": 768,
+    "text-multilingual-embedding-002": 768,
 }
 
 class CodebaseIndexer:
@@ -277,7 +280,11 @@ class CodebaseIndexer:
         )
         self.qdrant_url = os.environ.get("QDRANT_URL", "http://localhost:6333")
         self.openai_base_url = (os.environ.get("CLOUDFLARE_AI_GATEWAY_URL") or os.environ.get("OPENAI_BASE_URL") or "").strip() or None
-        self.embedding_model = os.environ.get("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
+        self.embedding_model = (
+            os.environ.get("GOOGLE_EMBEDDING_MODEL")
+            or os.environ.get("OPENAI_EMBEDDING_MODEL")
+            or "text-embedding-3-large"
+        )
         self.hyde_model = os.environ.get("OPENAI_HYDE_MODEL", DEFAULT_HYDE_MODEL)
         self.hyde_question_count = int(os.environ.get("HYDE_QUESTION_COUNT", DEFAULT_HYDE_QUESTION_COUNT))
         self.hyde_workers = int(os.environ.get("HYDE_WORKERS", "8"))
