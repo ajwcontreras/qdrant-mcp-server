@@ -1,0 +1,15 @@
+{
+  "poc": "29a",
+  "note": "baseline code-only canonical worker, max_concurrency=25, max_batch_size=1",
+  "chunks": 632,
+  "queued": 632,
+  "vertex_calls": 632,
+  "oauth_refreshes": -1,
+  "wall_ms": 104618,
+  "chunks_per_sec": 6.041,
+  "errors": 0,
+  "started_at": "2026-05-01T07:30:12.121Z",
+  "completed": 632,
+  "status": "published",
+  "finished_at": "2026-05-01T07:32:21.375Z"
+}
