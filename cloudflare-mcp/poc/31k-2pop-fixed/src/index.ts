@@ -257,6 +257,29 @@ export default {
     }
     const sm = u.pathname.match(/^\/jobs\/([^/]+)\/status$/);
     if (sm) { await schema(env.DB); const j = await env.DB.prepare("SELECT * FROM jobs WHERE job_id=?").bind(sm[1]).first(); return json({ ok: true, job: j }); }
+    if (u.pathname === "/hyde-enrich" && request.method === "POST") {
+      await schema(env.DB);
+      const inp = await request.json() as Record<string, unknown>;
+      const jobId = String(inp.job_id || ""), ak = String(inp.artifact_key || "");
+      if (!jobId || !ak) return json({ ok: false, error: "missing job_id/artifact_key" }, 400);
+      // Find code chunks that lack hyde entries
+      const missing = (await (env.DB.prepare(`SELECT DISTINCT c.chunk_id, c.snippet FROM chunks c WHERE c.job_id=? AND c.kind='code' AND c.chunk_id NOT IN (SELECT DISTINCT parent_chunk_id FROM chunks WHERE job_id=? AND kind='hyde') LIMIT 500`).bind(jobId, jobId) as any).all()).results || [];
+      if (!missing.length) return json({ ok: true, enriched: 0, message: "nothing to enrich" });
+      const sas = intEnv(env.NUM_SAS, 2);
+      const hb = intEnv(env.HYDE_BATCH_SIZE, 500);
+      const hs = intEnv(env.HYDE_SHARD_COUNT, 16);
+      const records = missing.map((r: any) => ({ chunk_id: r.chunk_id as string, text: r.snippet as string }));
+      const buckets: { chunk_id: string; text: string }[][] = Array.from({ length: hs }, () => []);
+      records.forEach((r: any, i: number) => buckets[i % hs].push(r));
+      const enrichOutcomes = await Promise.allSettled(buckets.map((bucket, idx) => {
+        if (!bucket.length) return Promise.resolve({ done: 0, errors: 0 });
+        const stub = env.HYDE_DO.get(env.HYDE_DO.idFromName(`h:enrich-${jobId}:${idx}`));
+        return doFetch(stub, "https://s/process", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, artifact_key: ak, shard_index: idx, shard_count: hs, sa_index: idx % sas, batch_size: hb } satisfies ShardReq) }, 300_000).then(r => r.json() as Promise<{ done: number; errors: number }>);
+      }));
+      let enriched = 0, errs = 0;
+      for (const o of enrichOutcomes) { if (o.status === "fulfilled") { enriched += o.value.done; errs += o.value.errors; } else errs++; }
+      return json({ ok: true, scanned: records.length, enriched, errors: errs });
+    }
     return json({ error: "not_found" }, 404);
   },
 };

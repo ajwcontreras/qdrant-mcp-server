@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-poc-31k-2pop" }],
-  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-poc-31k-2pop", "database_id": "22834564-d71b-41b4-8014-5ecdb6ee20a2" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-poc-31k-2pop", "database_id": "2bea22ef-6633-4229-990f-96c65c5c4d22" }],
   "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-poc-31k-2pop" }],
   "durable_objects": { "bindings": [{ "name": "CODE_DO", "class_name": "CodeShardDO" }, { "name": "HYDE_DO", "class_name": "HydeShardDO" }, { "name": "ORCH_DO", "class_name": "OrchestratorDO" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CodeShardDO", "HydeShardDO", "OrchestratorDO"] }],
