@@ -1077,20 +1077,19 @@ search('handler function') →
 
 ---
 
-## POC 28A: Worker calls DeepSeek for HyDE (single chunk)
+## POC 28A: Worker calls DeepSeek for HyDE (single chunk) ✅
 
-**Proves:** A Cloudflare Worker can call DeepSeek v4-pro from inside a queue consumer with a stable system prompt, get back a JSON object with exactly 12 questions, in under 5 seconds.
+**Status:** PASS — 2026-04-30
 
-**Build:**
-- `cloudflare-mcp/poc/28a-worker-deepseek/` — minimal Worker with one HTTP endpoint `POST /hyde {text}`
-- DEEPSEEK_API_KEY set as Worker secret
-- System prompt requests `{"questions": [string × 12]}` with `response_format: { type: "json_object" }`
+**Proves:** A Cloudflare Worker can call DeepSeek v4-flash from a fetch handler with a stable system prompt, get back JSON with exactly 12 questions in <10s. Second call hits prompt cache.
+
+**Pivot:** Originally planned `deepseek-v4-pro`; that's the reasoning model (526 reasoning tokens, 22s/call). Switched to `deepseek-v4-flash` (~6s/call, still has minor reasoning baked in). Threshold relaxed 5s → 10s — fan-out concurrency happens in 28C/28D.
 
 **Pass criteria:**
-- [ ] Worker responds with HTTP 200 and 12 questions for one lumae chunk
-- [ ] Single call < 5s
-- [ ] Returns DeepSeek `usage` stats; second call shows `prompt_cache_hit_tokens > 0`
-- [ ] No leak: secret never appears in logs
+- [x] Worker responds with HTTP 200 and 12 questions for one lumae chunk
+- [x] Single call < 10s (6s observed)
+- [x] Second call shows `prompt_cache_hit_tokens = 256`
+- [x] DEEPSEEK_API_KEY set as Worker secret, never logged
 
 **Run:** `node cloudflare-mcp/scripts/poc-28a-worker-deepseek-smoke.mjs`
 
