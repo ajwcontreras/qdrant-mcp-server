@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "__WORKER_NAME__",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "__R2_BUCKET__" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "__D1_NAME__", "database_id": "__D1_ID__" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "__VECTORIZE_INDEX__" }],
+  "durable_objects": {
+    "bindings": [
+      { "name": "INDEXING_SHARD_DO", "class_name": "IndexingShardDO" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["IndexingShardDO"] }
+  ],
+  "vars": {
+    "SHARD_COUNT": "8",
+    "BATCH_SIZE": "50",
+    "NUM_SAS": "2"
+  }
+}

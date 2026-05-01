@@ -1,0 +1,104 @@
+{
+  "poc": "29d",
+  "note": "sharded DO fan-out, SHARD_COUNT=8, BATCH_SIZE=50, NUM_SAS=2",
+  "baseline_chunks_per_sec": 6.041,
+  "target_chunks_per_sec": 18.123,
+  "shard_count": 8,
+  "batch_size": 50,
+  "num_sas": 2,
+  "chunks": 632,
+  "completed": 632,
+  "failed": 0,
+  "vertex_calls_total": 16,
+  "wall_ms": 7009,
+  "chunks_per_sec": 90.17,
+  "speedup_vs_baseline": 14.926,
+  "sa_call_counts": {
+    "0": 8,
+    "1": 8
+  },
+  "shards": [
+    {
+      "shard_index": 0,
+      "sa_index": 0,
+      "chunks_done": 79,
+      "vertex_calls": 2,
+      "vertex_ms": 2898,
+      "vectorize_ms": 3504,
+      "d1_ms": 202,
+      "errors": 0
+    },
+    {
+      "shard_index": 1,
+      "sa_index": 1,
+      "chunks_done": 79,
+      "vertex_calls": 2,
+      "vertex_ms": 3155,
+      "vectorize_ms": 3292,
+      "d1_ms": 140,
+      "errors": 0
+    },
+    {
+      "shard_index": 2,
+      "sa_index": 0,
+      "chunks_done": 79,
+      "vertex_calls": 2,
+      "vertex_ms": 2946,
+      "vectorize_ms": 3522,
+      "d1_ms": 225,
+      "errors": 0
+    },
+    {
+      "shard_index": 3,
+      "sa_index": 1,
+      "chunks_done": 79,
+      "vertex_calls": 2,
+      "vertex_ms": 3021,
+      "vectorize_ms": 3476,
+      "d1_ms": 116,
+      "errors": 0
+    },
+    {
+      "shard_index": 4,
+      "sa_index": 0,
+      "chunks_done": 79,
+      "vertex_calls": 2,
+      "vertex_ms": 2890,
+      "vectorize_ms": 3493,
+      "d1_ms": 158,
+      "errors": 0
+    },
+    {
+      "shard_index": 5,
+      "sa_index": 1,
+      "chunks_done": 79,
+      "vertex_calls": 2,
+      "vertex_ms": 2913,
+      "vectorize_ms": 3539,
+      "d1_ms": 139,
+      "errors": 0
+    },
+    {
+      "shard_index": 6,
+      "sa_index": 0,
+      "chunks_done": 79,
+      "vertex_calls": 2,
+      "vertex_ms": 2958,
+      "vectorize_ms": 3469,
+      "d1_ms": 193,
+      "errors": 0
+    },
+    {
+      "shard_index": 7,
+      "sa_index": 1,
+      "chunks_done": 79,
+      "vertex_calls": 2,
+      "vertex_ms": 2800,
+      "vectorize_ms": 3213,
+      "d1_ms": 164,
+      "errors": 0
+    }
+  ],
+  "started_at": "2026-05-01T07:53:16.457Z",
+  "finished_at": "2026-05-01T07:53:42.039Z"
+}

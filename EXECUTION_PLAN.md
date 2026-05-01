@@ -1327,7 +1327,9 @@ Required prerequisite for round-robin (29D).
 
 ---
 
-## POC 29D: Sharded Durable Object fan-out + round-robin SA
+## POC 29D: Sharded Durable Object fan-out + round-robin SA ✅
+
+**Status:** PASS — 2026-05-01 — **90.17 chunks/sec, 14.93× speedup over 29A baseline**
 
 **PIVOT NOTE (2026-05-01):** Originally three POCs (29D round-robin / 29E queue
 batch / 29F crank concurrency). User pointed at
@@ -1353,11 +1355,17 @@ combine to deliver multi-x speedup vs queue-based baseline.
 **Input:** 29C confirmed second SA works.
 
 **Pass criteria:**
-- [ ] All 632 chunks indexed with `active=1`, 0 errors
-- [ ] N shards execute (config-driven; default 8) — all report metrics
-- [ ] Per-SA call count balanced across shards (delta ≤ 1)
-- [ ] Vertex calls ≈ ceil(632 / batch_size) total (proves batching works)
-- [ ] chunks_per_sec ≥ 3× 29A baseline (≥18 cps; cfpubsub pattern suggests headroom for much more)
+- [x] All 632 chunks indexed with `active=1`, 0 errors — completed=632, failed=0
+- [x] 8 shards execute, all report metrics — `shards.length === 8`
+- [x] Per-SA call count balanced across shards — sa0=8 calls, sa1=8 calls (delta=0)
+- [x] Vertex calls ≈ ceil(632/50) per shard — 16 total (vs 632 in baseline = 40× reduction)
+- [x] chunks_per_sec ≥ 3× 29A — **90.17 cps actual vs 18.12 target = 14.93× baseline**
+
+**Evidence (bench-29d.json):**
+- 632 chunks in 7.0s wall time
+- 16 Vertex calls total (40× reduction from baseline)
+- Per-shard timings ~6.5s each (parallel): vertex 2.8–3.2s + vectorize 3.2–3.5s + d1 140–225ms
+- SA round-robin: 4 shards on `evrylo`, 4 on `underwriter-agent-479920`
 
 **Run:** `node cloudflare-mcp/scripts/poc-29d-shard-fanout-bench.mjs`
 
