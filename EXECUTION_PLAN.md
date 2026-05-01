@@ -961,18 +961,25 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 27E: search tool round-trips through dispatch
+## POC 27E: search tool round-trips through dispatch ✅
 
-**Proves:** Gateway's `search(query)` tool routes to the selected codebase's per-codebase worker (via dispatch) and returns matches in the MCP response shape.
+**Status:** PASS — 2026-04-30
 
-**Build:**
-- Gateway `search` tool: read selected slug → `env.DISPATCHER.get(slug).fetch("/search", body)` → return `matches`
-- Smoke: register a small fixture user worker that returns canned `/search` results, select it, search, assert matches in MCP response
+**Proves:** Gateway's `search(query)` tool routes to the selected codebase's user worker via dispatch, parses its match response, and returns it in MCP content shape.
 
 **Pass criteria:**
-- [ ] search forwards body correctly
-- [ ] Returned matches preserve chunk metadata (file_path, score)
-- [ ] No selected codebase → tool returns clear MCP error
+- [x] `search` without prior `select_codebase` returns clear MCP error
+- [x] `select_codebase("alpha")` binds session
+- [x] `search("flask routes chat")` returns 2 matches with score+file_path+chunk_id from user worker
+- [x] Matches text includes the selected slug (`alpha/file_a.py`), proving routing went to the right worker
+- [x] Cleanup removes everything
+
+**Evidence:** Output rendered:
+```
+2 match(es) in alpha for "flask routes chat":
+  1. [0.91] alpha/file_a.py :: chunk-alpha-1
+  2. [0.83] alpha/file_b.py :: chunk-alpha-2
+```
 
 **Run:** `node cloudflare-mcp/scripts/poc-27e-search-roundtrip-smoke.mjs`
 
