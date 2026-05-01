@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-31j-3pop",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-poc-31j-3pop" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-poc-31j-3pop", "database_id": "401e0965-a483-4a1f-8f44-819225f6e254" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-poc-31j-3pop" }],
+  "durable_objects": { "bindings": [
+    { "name": "CODE_DO", "class_name": "CodeShardDO" },
+    { "name": "QGEN_DO", "class_name": "QuestionGenDO" },
+    { "name": "HEMB_DO", "class_name": "HydeEmbedDO" },
+    { "name": "ORCH_DO", "class_name": "OrchestratorDO" }
+  ] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CodeShardDO", "QuestionGenDO", "HydeEmbedDO", "OrchestratorDO"] }],
+  "vars": { "CODE_SHARD_COUNT": "4", "QGEN_SHARD_COUNT": "64", "HEMB_SHARD_COUNT": "16", "CODE_BATCH_SIZE": "500", "HEMB_BATCH_SIZE": "500", "NUM_SAS": "2", "HYDE_QUESTIONS": "12", "HYDE_MODEL": "deepseek-v4-flash", "HYDE_VERSION": "v1" }
+}

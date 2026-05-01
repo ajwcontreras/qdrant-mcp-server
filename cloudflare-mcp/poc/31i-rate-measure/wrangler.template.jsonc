@@ -1,0 +1,10 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "__WORKER_NAME__",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-05-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "durable_objects": { "bindings": [{ "name": "TEST_DO", "class_name": "TestDO" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TestDO"] }]
+}
