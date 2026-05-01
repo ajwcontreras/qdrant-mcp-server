@@ -7,7 +7,7 @@ import { run } from "./exec.mjs";
 import { loadCfEnv } from "./env.mjs";
 
 const REPO_ROOT = path.resolve(new URL(".", import.meta.url).pathname, "../..");
-const WORKER_DIR = path.join(REPO_ROOT, "cloudflare-mcp/worker");
+const WORKER_DIR = path.join(REPO_ROOT, "cloudflare-mcp/workers/codebase");
 
 // Ensure all CF resources exist for a given repo slug. Idempotent.
 // Returns the d1_id for the database (needed for wrangler config).
