@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-28c-consumer",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-poc-28c-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-poc-28c", "database_id": "__D1_ID__" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-poc-28c-vec" }],
+  "queues": {
+    "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-poc-28c-work" }],
+    "consumers": [{
+      "queue": "cfcode-poc-28c-work",
+      "max_batch_size": 1,
+      "max_batch_timeout": 1,
+      "max_retries": 2,
+      "max_concurrency": 25,
+      "dead_letter_queue": "cfcode-poc-28c-dlq"
+    }]
+  }
+}
