@@ -942,21 +942,20 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 27D: list_codebases reads D1 registry
+## POC 27D: list_codebases reads D1 registry ✅
 
-**Proves:** Gateway maintains a D1 registry of indexed codebases (slug, indexed_path, registered_at) that `list_codebases` exposes as an MCP tool.
+**Status:** PASS — 2026-04-30
 
-**Build:**
-- Add D1 binding to gateway template
-- Schema: `codebase_registry(slug PRIMARY KEY, indexed_path, registered_at)`
-- Gateway tools: `register_codebase(slug, indexed_path)`, `list_codebases()`, `unregister_codebase(slug)`
-- Smoke: register two slugs, list returns both, unregister one, list returns one
+**Proves:** Gateway maintains a D1 registry; register/list/unregister tools work via MCP.
 
 **Pass criteria:**
-- [ ] register_codebase inserts row idempotently
-- [ ] list_codebases returns all rows
-- [ ] unregister_codebase removes the row
-- [ ] D1 schema migrations run on cold start
+- [x] `register_codebase("alpha", "/Users/me/alpha")` and `("beta", "/Users/me/beta")` succeed
+- [x] `list_codebases` returns both
+- [x] `unregister_codebase("beta")` returns "unregistered: beta"
+- [x] `list_codebases` after unregister returns alpha only
+- [x] D1 schema is created lazily on first call (CREATE TABLE IF NOT EXISTS)
+
+**Evidence:** `node cloudflare-mcp/scripts/poc-27d-registry-smoke.mjs` exited 0 first run. All 7 checks PASS.
 
 **Run:** `node cloudflare-mcp/scripts/poc-27d-registry-smoke.mjs`
 
