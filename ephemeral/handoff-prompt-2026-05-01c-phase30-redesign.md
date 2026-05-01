@@ -351,11 +351,22 @@ Known leftover: `cfcode-poc-30d-artifacts` R2 bucket with ~5MB of unused JSONL a
 
 ## What's authoritatively current at end of 2026-05-01b session
 
-- Last commit: `1e61eaa` (POC 30C+30D PASS)
-- Uncommitted (in working tree): 30E worker source + bench + script
-- Doc state: CLAUDE.md, EXECUTION_PLAN.md, all memory files updated to reflect Phase 29 + 30. This handoff is the connective tissue.
+- Last commit: **`b6e1fc1`** ("docs+POC 30E: comprehensive handoff + SA scaling bench data") on `mine/main`
+- Working tree clean except for ambient pre-existing modifications listed in initial `git status` (those predate this session and are not Phase 29/30 work).
+- Doc state: CLAUDE.md, EXECUTION_PLAN.md, all memory files, and this handoff updated to reflect Phase 29 + 30. This handoff is the connective tissue.
 - Production: lumae search live, untouched, on legacy queue path. CLI works.
-- `~/.config/cfcode/sas/` has all 4 SAs at mode 0600.
+- `~/.config/cfcode/sas/` has all 4 SAs at mode 0600. SA4 IAM-fixed, all four now Vertex-ready.
+- Recent commit chain (newest first):
+  - `b6e1fc1` docs+POC 30E: comprehensive handoff + SA scaling bench data
+  - `1e61eaa` POC 30C+30D PASS: dual fan-out + 4-codebase benchmark
+  - `ac835aa` POC 30B PASS (revised): /hyde-enrich resumable, gap-filling proven
+  - `966c18e` POC 30A PASS (revised): HyDE+code parallel in shards = 122 vectors/sec
+  - `9f354be` POC 29G PASS: income-scout-bun = 78.5 chunks/sec
+  - `85d8d91` POC 29F PASS: shard fan-out ported into canonical worker
+  - `8f34180` POC 29E PASS (revised): tuning sweep
+  - `61ba7e7` POC 29D PASS: sharded DO fan-out = 90.17 chunks/sec
+  - `80df58f` PLAN REVISION: Phase 29 pivots to sharded Durable Object fan-out
+  - `7ab7f04` POC 29B PASS (revised): KV oauth cache implementation correct
 
 ---
 
