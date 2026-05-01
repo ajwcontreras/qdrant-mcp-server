@@ -25,6 +25,8 @@ type Env = {
   HYDE_SHARD_DO: DONamespaceLike;
   GEMINI_SERVICE_ACCOUNT_B64?: string;
   GEMINI_SERVICE_ACCOUNT_B64_2?: string;
+  GEMINI_SERVICE_ACCOUNT_B64_3?: string;
+  GEMINI_SERVICE_ACCOUNT_B64_4?: string;
   DEEPSEEK_API_KEY?: string;
   CODE_SHARD_COUNT?: string; HYDE_SHARD_COUNT?: string;
   CODE_BATCH_SIZE?: string; HYDE_BATCH_SIZE?: string;
@@ -40,6 +42,7 @@ type IngestReq = {
   artifact_key: string; artifact_text: string;
   code_shard_count?: number; hyde_shard_count?: number;
   code_batch_size?: number; hyde_batch_size?: number;
+  num_sas?: number;
   hyde?: boolean;
 };
 type CodeBatchReq = {
@@ -92,7 +95,11 @@ function parseRecords(text: string): SourceRecord[] {
 
 const tokenCacheBySA: Map<string, { token: string; expiresAt: number }> = new Map();
 function parseSAByIndex(env: Env, saIndex: number): GoogleSA {
-  const b64 = saIndex === 1 ? env.GEMINI_SERVICE_ACCOUNT_B64_2 : env.GEMINI_SERVICE_ACCOUNT_B64;
+  let b64: string | undefined;
+  if (saIndex === 0) b64 = env.GEMINI_SERVICE_ACCOUNT_B64;
+  else if (saIndex === 1) b64 = env.GEMINI_SERVICE_ACCOUNT_B64_2;
+  else if (saIndex === 2) b64 = env.GEMINI_SERVICE_ACCOUNT_B64_3;
+  else if (saIndex === 3) b64 = env.GEMINI_SERVICE_ACCOUNT_B64_4;
   if (!b64) throw new Error(`SA secret for index ${saIndex} missing`);
   const a = JSON.parse(atob(b64)) as Partial<GoogleSA>;
   if (!a.client_email || !a.private_key) throw new Error("invalid SA");
@@ -353,7 +360,7 @@ async function ingestSharded(env: Env, input: IngestReq): Promise<Response> {
   const hydeShards = Math.max(1, input.hyde_shard_count ?? intEnv(env.HYDE_SHARD_COUNT, 16));
   const codeBatch = Math.max(1, input.code_batch_size ?? intEnv(env.CODE_BATCH_SIZE, 100));
   const hydeBatch = Math.max(1, input.hyde_batch_size ?? intEnv(env.HYDE_BATCH_SIZE, 100));
-  const numSAs = Math.max(1, intEnv(env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1));
+  const numSAs = Math.max(1, input.num_sas ?? intEnv(env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_4 ? 4 : env.GEMINI_SERVICE_ACCOUNT_B64_3 ? 3 : env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1));
   const includeHyde = input.hyde !== false;
 
   await env.ARTIFACTS.put(input.artifact_key, input.artifact_text, {

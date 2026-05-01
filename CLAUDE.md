@@ -17,7 +17,7 @@ The repo also still contains the **legacy local Qdrant MCP** (`src/qdrant-openai
 - **Never suggest stopping or "wrapping up."** User decides when to stop.
 - **Inline scripts forbidden.** Every script — no matter how small — gets its own file in `cloudflare-mcp/poc/`, `cloudflare-mcp/scripts/`, `eval/`, or `ephemeral/`. Inline heredocs vanish from history.
 
-## Active Architecture: cfcode (Phase 26 + 27 SHIPPED, Phase 28 IN FLIGHT)
+## Active Architecture: cfcode (Phase 26+27+29+30 SHIPPED in source; production lumae still on pre-29 worker)
 
 ```
 Claude Code / Cursor / any MCP client
@@ -27,14 +27,28 @@ cfcode-gateway (Worker + McpAgent Durable Object)
     │ env.DISPATCHER.get(`cfcode-codebase-${slug}`)
     ▼
 cfcode-codebases (dispatch namespace, Workers for Platforms)
-    ├─ cfcode-codebase-lumae-fresh   ← live, 608 chunks searchable
+    ├─ cfcode-codebase-lumae-fresh   ← live, 608 chunks (still on legacy queue path)
     ├─ cfcode-codebase-<future>      ← added via `cfcode index <path>`
     └─ ...
         ▼
-    per-codebase R2 + D1 + Vectorize + Queue
-    Vertex gemini-embedding-001 (1536d) for embeddings
-    DeepSeek v4-flash for HyDE (Phase 28, in development)
+    per-codebase R2 + D1 + Vectorize + (legacy Queue or new sharded DO fan-out)
+    Vertex gemini-embedding-001 (1536d, multi-SA round-robin)
+    DeepSeek v4-flash for HyDE (separate fan-out target)
 ```
+
+### Indexing pipeline shape (post-Phase 30)
+
+The canonical worker (`cloudflare-mcp/workers/codebase/`) now exposes BOTH paths:
+- `/ingest` — legacy queue-based path (still works; production lumae uses this)
+- `/ingest-sharded` — new sharded DO fan-out, 12-15× faster (29F/30C proven)
+
+Phase 30 architecture (in `poc/30c-dual-fanout/`, ready for canonical port):
+- Producer fires TWO independent `Promise.allSettled` fan-outs at the request handler:
+  - `CodeShardDO` (×N, deterministic IDs `cfcode:code-shard:N`) — pure code path
+  - `HydeShardDO` (×M, deterministic IDs `cfcode:hyde-shard:M`) — pure HyDE path
+- **No DO is dual-purpose. No combined mode anywhere.** (User directive 2026-05-01.)
+- Code becomes searchable in ~8s independent of HyDE; HyDE finishes ~70s later.
+- `parent_chunk_id` joins HyDE rows back to their parent code chunk in D1.
 
 ## Commands
 
@@ -54,17 +68,29 @@ cfcode mcp-url                                    # print the single MCP URL
 ### POC smoke runs
 
 ```bash
-# 26-series (Cloudflare-native indexing pipeline) — all PASS, ledger only
-node cloudflare-mcp/scripts/poc-26d3-full-lumae-job.mjs        # full lumae index
+# 26-series (CF-native indexing) — all PASS
+node cloudflare-mcp/scripts/poc-26d3-full-lumae-job.mjs
 node cloudflare-mcp/scripts/poc-26e1-git-diff-manifest-smoke.mjs
 
 # 27-series (stateful MCP gateway) — all PASS
-node cloudflare-mcp/scripts/poc-27a-wfp-dispatch-smoke.mjs     # plain WfP
-node cloudflare-mcp/scripts/poc-27g-lumae-via-gateway-smoke.mjs  # end-to-end
+node cloudflare-mcp/scripts/poc-27g-lumae-via-gateway-smoke.mjs
 
-# 28-series (HyDE quality pass) — A-D PASS, E-G pending
+# 28-series (HyDE per-chunk pipeline) — A-D PASS; E-G superseded by Phase 30
 node cloudflare-mcp/scripts/poc-28a-worker-deepseek-smoke.mjs
-node cloudflare-mcp/scripts/poc-28d-lumae-hyde-reindex-smoke.mjs --limit=50
+
+# 29-series (sharded DO fan-out for code-only) — ALL PASS, 12-15× speedup
+node cloudflare-mcp/scripts/poc-29a-baseline-bench.mjs           # 6.04 cps baseline
+node cloudflare-mcp/scripts/poc-29d-shard-fanout-bench.mjs       # 90.17 cps, 14.93×
+node cloudflare-mcp/scripts/poc-29e-shard-tuning-bench.mjs       # tuning sweep
+node cloudflare-mcp/scripts/poc-29f-canonical-port-smoke.mjs     # canonical worker port
+node cloudflare-mcp/scripts/poc-29g-income-scout-bun-bench.mjs   # real codebase
+
+# 30-series (HyDE in dual fan-out) — ALL PASS
+node cloudflare-mcp/scripts/poc-30a-hyde-shard-bench.mjs         # 122 vps in shards
+node cloudflare-mcp/scripts/poc-30b-hyde-enrich-bench.mjs        # /hyde-enrich resumable
+node cloudflare-mcp/scripts/poc-30c-dual-fanout-bench.mjs        # dual fan-out (no combined)
+node cloudflare-mcp/scripts/poc-30d-multi-repo-bench.mjs         # 4 codebases
+node cloudflare-mcp/scripts/poc-30e-sa-scaling-bench.mjs         # 2-vs-3-vs-4 SAs
 ```
 
 ### Worker deploys
@@ -178,17 +204,36 @@ As of wrangler 4.87. To set a secret on a Workers-for-Platforms user worker, use
 
 `compatibility_flags: ["nodejs_compat"]` required for the `agents` package.
 
+### 6. CF Worker outbound fetch concurrency cap (≈6 per origin per isolate)
+
+Discovered in 30A: each Worker isolate caps concurrent outbound fetches per origin to ~6. Hammering DeepSeek with `Promise.all` over 158 chunks-per-shard didn't run all 158 in parallel — they queued at 6-at-a-time, taking ~200s instead of ~7s. **Fix:** more shards (each shard = own isolate = own ~6-wide pool). 16 hyde shards × 6 concurrent = 96 effective DeepSeek concurrency, drops wall to ~28s on lumae.
+
+### 7. NEVER write a "combined mode" DO
+
+User directive (2026-05-01): no DO does both code AND HyDE in `Promise.all`. Code DO and HyDE DO are SEPARATE classes with separate `idFromName(...)` namespaces, fired as TWO `Promise.allSettled` populations from the producer. Each path becomes available on its own timeline (code in ~8s, HyDE in ~70s).
+
 ## Phase Status (as of 2026-05-01)
 
 | Phase | Status | What it shipped |
 |---|---|---|
 | 26A1-26E5 | ✅ ALL PASS | Cloudflare-native indexing + diff-driven incremental |
 | 27A-27G | ✅ ALL PASS | Stateful MCP gateway via Workers for Platforms |
-| 28A-28D | ✅ PASS | HyDE per-chunk pipeline (Worker calls DeepSeek + batch Vertex), scaling proven |
-| 28E-28F | 🚧 PENDING | Dual-channel search + RRF, golden eval **DECISION GATE** |
-| 28G | 🔒 Gated | Scale to 9 more codebases (only if 28F shows MRR delta ≥ +0.05) |
+| 28A-28D | ✅ PASS | HyDE per-chunk pipeline POCs (superseded by Phase 30) |
+| 28E-28G | ⚪ SUPERSEDED by Phase 30 architecture |
+| 29A-29G | ✅ ALL PASS | Sharded DO fan-out for code path. Lumae **6 → 90 cps (15×)**. Income-scout-bun **78.5 cps (12.99×)**. Canonical worker now has DO + `/ingest-sharded`. |
+| 30A | ✅ PASS | HyDE+code parallel inside one shard (122 vps, but combined mode banned) |
+| 30B | ✅ PASS | `/hyde-enrich` resumable endpoint — gap-fill works (`missing_hyde: 632 → 12 → 8`) |
+| 30C | ✅ PASS | **Dual fan-out**: code shards + hyde shards as TWO independent `Promise.allSettled` populations. Lumae 632 chunks: code 8.3s, hyde 72.3s, e2e 73.3s. |
+| 30D | ✅ PASS | 4 real codebases benched: cfpubsub-scaffold 28.7s, reviewer-s-workbench 69.1s, node-orchestrator 28.4s, launcher (process killed mid-run) |
+| 30E | ✅ PASS (with finding) | 2 vs 3 vs 4 SAs on lumae. Wall time drops monotonically (74s → 54s → 47s) BUT hyde completion DROPS (97.9% → 69.3% → 56.7%). More SAs alone don't break past Vertex quota — they trade integrity for wall time. |
 
-**Decision rule:** Phase 28 lives or dies on POC 28F. If lumae golden eval doesn't show ≥ +0.05 MRR lift vs dense-only, drop HyDE and pivot to bge-reranker (had +0.227 MRR in earlier 240-query eval).
+**Current production decision rule:** Default to `NUM_SAS=2, hyde_shard_count=16` for the dual fan-out (Run A in 30E) — best completion rate at acceptable wall time. `/hyde-enrich` cleans up the small (~2%) gap. Higher concurrency only helps if combined with longer Vertex retry windows or actual quota increase.
+
+### Production cutover status
+
+- **Canonical worker source (`workers/codebase/src/index.ts`)** has `IndexingShardDO`, `/ingest-sharded`, KV oauth cache (29F port). Backwards-compatible: legacy `/ingest` still works.
+- **Production lumae user worker** (`cfcode-codebase-lumae-fresh`) is still running the PRE-29 worker — search works fine, but reindexes use slow queue path. Cutover requires redeploy + DO migration (additive).
+- **`cfcode index` CLI** still calls `/ingest`, not `/ingest-sharded`. To benefit from the new path in production, CLI needs a one-line update + flag for sharded mode.
 
 ## Handoff Discipline
 
@@ -208,9 +253,20 @@ After every meaningful unit of progress:
   CF_ORIGIN_CA_KEY=v1.0-...
   DEEPSEEK_API_KEY=sk-...
 
-Vertex SA:  /Users/awilliamspcsevents/Downloads/team (1).json
-Project:    evrylo
+Vertex Service Accounts (in /Users/awilliamspcsevents/.config/cfcode/sas/, mode 0600):
+  team (1).json                                  → project=evrylo (billing A)            — SA1
+  underwriter-agent-479920-af2b45745dac.json     → project=underwriter-agent-479920 (B)  — SA2
+  big-maxim-331514-b90fae4428bc.json             → project=big-maxim-331514 (C)          — SA3
+  embedding-code-495015-2fa24eece6fa.json        → project=embedding-code-495015 (C)     — SA4 (same billing as SA3)
+
+NOTE: SA files were originally in ~/Downloads. Copied to ~/.config/cfcode/sas/ on
+2026-05-01 because user clears Downloads frequently. Update bench scripts to use
+the .config path. The original repo path `/Users/awilliamspcsevents/Downloads/team (1).json`
+is still referenced in older POC scripts (29A/29D etc.) — those still work as long
+as the file exists in Downloads, but new POCs should use the .config path.
+
 Embed model: gemini-embedding-001 (1536d, RETRIEVAL_DOCUMENT/RETRIEVAL_QUERY)
+HyDE model:  deepseek-v4-flash (deepseek-chat is deprecated 2026-07-24)
 ```
 
 Legacy (still configured for the Python local Qdrant MCP):
@@ -233,7 +289,8 @@ gh auth switch -u awilliamsevrylo    # ALWAYS switch back
 
 ## When in Doubt
 
-1. Read `EXECUTION_PLAN.md` end-to-end. Every POC has explicit pass criteria.
-2. Read `AGENT_HANDOFF_MASTER_PLAN.md` Progress Log. Per-timestamp status with commit hashes.
-3. Read project memory at `~/.claude/projects/-Users-awilliamspcsevents-PROJECTS-qdrant-mcp-server/memory/`.
-4. The two files that supersede everything else for current state: `project_session_2026-05-01_cfcode_v2.md` and `reference_cfcode_architecture.md`.
+1. Read `EXECUTION_PLAN.md` end-to-end. Every POC has explicit pass criteria; Phase 29 + 30 are at the bottom with full evidence tables.
+2. Read project memory at `~/.claude/projects/-Users-awilliamspcsevents-PROJECTS-qdrant-mcp-server/memory/`. Index in `MEMORY.md`.
+3. Most recent state: `project_session_2026-05-01b_phase29_30.md` (created in this session).
+4. Architecture map: `reference_cfcode_architecture.md` + `reference_shard_fanout.md`.
+5. Latest handoff: `ephemeral/handoff-prompt-2026-05-01.md` (rewritten in this session).

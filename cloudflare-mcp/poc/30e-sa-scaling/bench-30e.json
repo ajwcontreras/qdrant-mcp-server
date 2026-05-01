@@ -1,0 +1,47 @@
+{
+  "poc": "30e",
+  "note": "SA scaling test on lumae 632 chunks. Compares 2-SA, 3-SA, 4-SA configs. SA3+SA4 share billing account.",
+  "sas": {
+    "1": "evrylo (billing A)",
+    "2": "underwriter-agent-479920 (billing B)",
+    "3": "big-maxim-331514 (billing C)",
+    "4": "embedding-code-495015 (billing C, same as SA3)"
+  },
+  "runs": [
+    {
+      "label": "A_2sas_16shards",
+      "num_sas": 2,
+      "hyde_shard_count": 16,
+      "code": { "completed": 632, "wall_ms": 9009, "errors": 0 },
+      "hyde": { "hyde_completed": 7428, "wall_ms": 74435, "errors": 13, "completion_pct": 97.9 },
+      "total_wall_ms": 74506,
+      "client_e2e_wall_ms": 77121
+    },
+    {
+      "label": "B_3sas_24shards",
+      "num_sas": 3,
+      "hyde_shard_count": 24,
+      "code": { "completed": 574, "wall_ms": 11466, "errors": 58, "note": "code path also took hits at higher concurrency" },
+      "hyde": { "hyde_completed": 5256, "wall_ms": 54299, "errors": 39, "completion_pct": 69.3 },
+      "total_wall_ms": 54396,
+      "client_e2e_wall_ms": 55672
+    },
+    {
+      "label": "C_4sas_32shards",
+      "num_sas": 4,
+      "hyde_shard_count": 32,
+      "code": { "completed": 632, "wall_ms": 7734, "errors": 0 },
+      "hyde": { "hyde_completed": 4300, "wall_ms": 47495, "errors": 51, "completion_pct": 56.7 },
+      "total_wall_ms": 47566,
+      "client_e2e_wall_ms": 49149
+    }
+  ],
+  "interpretation": {
+    "wall_time_trend": "decreases monotonically — 74.5s → 54.4s → 47.6s",
+    "completion_quality_trend": "DEGRADES sharply — 97.9% → 69.3% → 56.7% hyde completion",
+    "error_count_trend": "increases — 13 → 39 → 51 hyde errors",
+    "conclusion": "Adding more SAs reduces wall time but does NOT linearly add Vertex headroom. At higher hyde_shard_count more requests fire simultaneously than the available quota can absorb, retry budgets exhaust, and chunks fail to ever complete. Net effect: faster but lossier. The 'fastest' run isn't the best.",
+    "production_recommendation": "Stick with NUM_SAS=2, hyde_shard_count=16 (Run A) for production. 97.9% hyde completion rate is acceptable; the gap can be filled by /hyde-enrich resumable retry. Higher shard counts trade data integrity for wall time — wrong tradeoff.",
+    "billing_vs_project_question": "Inconclusive from this test. To distinguish project-level vs billing-account quota, would need to (a) add longer Vertex retry windows so all configs complete eventually, then compare PURE wall time apples-to-apples, OR (b) test SA3 alone vs SA4 alone with same shard count and see if they hit the same RPM ceiling."
+  }
+}
