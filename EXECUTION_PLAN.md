@@ -884,23 +884,20 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 27A: Plain Workers for Platforms dispatch
+## POC 27A: Plain Workers for Platforms dispatch ✅
+
+**Status:** PASS — 2026-04-30
 
 **Proves:** A dispatch namespace + dispatcher Worker can route requests to a user Worker by name at runtime, with no static service binding.
 
-**Build:**
-- `cloudflare-mcp/poc/27a-wfp-dispatch/` — throwaway POC dir
-- Create dispatch namespace `cfcode-poc-27a-codebases`
-- Deploy stub user worker `hello` into the namespace (returns `{ok:true, slug:"hello"}`)
-- Deploy dispatcher worker that calls `env.DISPATCHER.get(slug).fetch(req)`
-- Smoke: hit dispatcher with slug=hello, get hello's response. With unknown slug, get 404.
-
 **Pass criteria:**
-- [ ] Dispatch namespace creates successfully via wrangler
-- [ ] User worker `hello` is uploaded to the namespace
-- [ ] Dispatcher hit at `/<slug>` returns user worker's body
-- [ ] Unknown slug returns 404 cleanly
-- [ ] Cleanup deletes user workers and namespace
+- [x] Dispatch namespace creates successfully via wrangler
+- [x] User worker `hello` is uploaded to the namespace
+- [x] Dispatcher hit at `/<slug>` returns user worker's body (200, `{ok:true, slug:"hello", path:"/test"}`)
+- [x] Unknown slug returns 404 cleanly (`{ok:false, error:"unknown slug: missing"}`)
+- [x] Cleanup deletes user workers, dispatcher, and namespace
+
+**Evidence:** `node cloudflare-mcp/scripts/poc-27a-wfp-dispatch-smoke.mjs` exited 0 on first run. Workers for Platforms dispatch is enabled on the Cloudflare account.
 
 **Run:** `node cloudflare-mcp/scripts/poc-27a-wfp-dispatch-smoke.mjs`
 

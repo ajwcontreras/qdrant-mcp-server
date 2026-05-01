@@ -1,0 +1,9 @@
+{
+  "$schema": "../../../../node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-27a-dispatcher",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "dispatch_namespaces": [
+    { "binding": "DISPATCHER", "namespace": "cfcode-poc-27a-codebases" }
+  ]
+}
