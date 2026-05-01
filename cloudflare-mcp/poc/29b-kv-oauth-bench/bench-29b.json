@@ -1,0 +1,18 @@
+{
+  "poc": "29b",
+  "note": "KV oauth cache via VERTEX_TOKEN_CACHE binding, max_concurrency=25, max_batch_size=1",
+  "baseline_chunks_per_sec": 6.041,
+  "chunks": 632,
+  "queued": 632,
+  "vertex_calls": 632,
+  "oauth_refreshes": 1,
+  "oauth_kv_hits": 2,
+  "wall_ms": 133887,
+  "chunks_per_sec": 4.72,
+  "speedup_vs_baseline": 0.781,
+  "errors": 0,
+  "started_at": "2026-05-01T07:38:46.088Z",
+  "completed": 632,
+  "status": "published",
+  "finished_at": "2026-05-01T07:41:24.368Z"
+}

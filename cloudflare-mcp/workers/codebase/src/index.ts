@@ -25,9 +25,14 @@ type VecLike = {
   upsert(v: VecEntry[]): Promise<unknown>;
   query(v: number[], opts?: { topK?: number; returnMetadata?: "none" | "indexed" | "all" }): Promise<{ matches?: Array<{ id: string; score: number; metadata?: Record<string, unknown> }> }>;
 };
+type KVLike = {
+  get(key: string, opts?: { type?: "text" | "json" }): Promise<string | null | Record<string, unknown>>;
+  put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
+};
 
 type Env = {
   ARTIFACTS: R2Like; DB: D1Like; VECTORIZE: VecLike; WORK_QUEUE: QueueLike;
+  VERTEX_TOKEN_CACHE?: KVLike;
   GEMINI_SERVICE_ACCOUNT_B64?: string;
   GOOGLE_PROJECT_ID?: string;
   GOOGLE_LOCATION?: string;
@@ -141,10 +146,30 @@ async function signJwt(sa: GoogleSA, claims: Record<string, string | number>): P
   const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(input));
   return `${input}.${b64url(sig)}`;
 }
+async function bumpMetric(env: Env, key: string) {
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS metrics (key TEXT PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0)`).run();
+    await env.DB.prepare(`INSERT INTO metrics (key, value) VALUES (?, 1) ON CONFLICT(key) DO UPDATE SET value = value + 1`).bind(key).run();
+  } catch { /* metrics are best-effort */ }
+}
 async function googleToken(env: Env): Promise<string> {
   const now = Date.now();
+  // Fast path: per-isolate cache
   if (tokenCache && tokenCache.expiresAt - 60_000 > now) return tokenCache.token;
   const sa = parseSA(env);
+  const cacheKey = `vertex_token:${sa.client_email}`;
+  // KV path: shared across isolates if binding present
+  if (env.VERTEX_TOKEN_CACHE) {
+    try {
+      const cached = await env.VERTEX_TOKEN_CACHE.get(cacheKey, { type: "json" }) as { token?: string; expiresAt?: number } | null;
+      if (cached && cached.token && typeof cached.expiresAt === "number" && cached.expiresAt - 60_000 > now) {
+        tokenCache = { token: cached.token, expiresAt: cached.expiresAt };
+        await bumpMetric(env, "oauth_kv_hit");
+        return cached.token;
+      }
+    } catch { /* fall through to refresh */ }
+  }
+  // Slow path: full JWT exchange
   const iat = Math.floor(now / 1000);
   const assertion = await signJwt(sa, { iss: sa.client_email, scope: "https://www.googleapis.com/auth/cloud-platform", aud: sa.token_uri || "https://oauth2.googleapis.com/token", iat, exp: iat + 3600 });
   const res = await fetch(sa.token_uri || "https://oauth2.googleapis.com/token", {
@@ -155,7 +180,16 @@ async function googleToken(env: Env): Promise<string> {
   if (!res.ok) throw new Error(`Google token failed ${res.status}: ${raw.slice(0, 300)}`);
   const d = JSON.parse(raw) as { access_token?: string; expires_in?: number };
   if (!d.access_token) throw new Error("no access_token in Google response");
-  tokenCache = { token: d.access_token, expiresAt: now + Math.max(60, d.expires_in || 3600) * 1000 };
+  const ttl = Math.max(60, d.expires_in || 3600);
+  const expiresAt = now + ttl * 1000;
+  tokenCache = { token: d.access_token, expiresAt };
+  await bumpMetric(env, "oauth_refresh");
+  if (env.VERTEX_TOKEN_CACHE) {
+    try {
+      // KV TTL must be ≥60s; cache for token lifetime minus 5min buffer.
+      await env.VERTEX_TOKEN_CACHE.put(cacheKey, JSON.stringify({ token: d.access_token, expiresAt }), { expirationTtl: Math.max(60, ttl - 300) });
+    } catch { /* best-effort */ }
+  }
   return d.access_token;
 }
 
@@ -372,10 +406,23 @@ async function deactivate(env: Env, chunkId: string): Promise<Response> {
   return json({ ok: true, chunk_id: chunkId });
 }
 
+async function metrics(env: Env): Promise<Response> {
+  try {
+    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS metrics (key TEXT PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0)`).run();
+    const r = await env.DB.prepare("SELECT key, value FROM metrics").all();
+    const out: Record<string, number> = {};
+    for (const row of r.results || []) out[row.key as string] = Number(row.value);
+    return json({ ok: true, metrics: out, kv_bound: !!env.VERTEX_TOKEN_CACHE });
+  } catch (e) {
+    return json({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/health") return json({ ok: true, service: "cfcode-canonical" });
+    if (url.pathname === "/metrics") return metrics(env);
     if (url.pathname === "/ingest" && request.method === "POST") return ingest(env, await request.json().catch(() => ({})) as IngestReq);
     if (url.pathname === "/incremental-ingest" && request.method === "POST") return incrementalIngest(env, await request.json().catch(() => ({})) as IncrementalReq);
     const sm = url.pathname.match(/^\/jobs\/([^/]+)\/status$/);
