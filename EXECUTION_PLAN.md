@@ -1056,157 +1056,154 @@ search('handler function') →
 
 ---
 
-# Phase 28: HyDE Quality Pass via DeepSeek Fan-Out
-
-**Goal:** Add HyDE (12 generated questions per chunk) to the cfcode pipeline. Speed mandate: indexing must finish in seconds-not-minutes for thousands of chunks. DeepSeek has no documented rate limits — design for high concurrency. Prompt-caching brings input costs to ~$0.0028/M when the system prompt is stable, so make it stable.
-
-**Decision rule:** Phase 28 lives or dies on POC 28F (golden eval). If MRR lift on lumae is < +0.05 vs the dense-only baseline, we drop HyDE and add the bge-reranker instead (which had +0.227 MRR in your earlier eval).
-
-**Cost ceiling for the 24-hour discount window:**
-- 10 codebases × ~600 chunks avg = 6,000 chunks
-- v4-pro at 75% off: ~$0.001/chunk → ~$6 worst case
-- v4-flash at standard: ~$0.0004/chunk → ~$2.40
 
 ---
 
-## POC 28A: DeepSeek single-chunk HyDE generation
+# Phase 28: HyDE Quality Pass — Pure Cloudflare
 
-**Proves:** DeepSeek v4-pro can take one source chunk + a stable system prompt and return a JSON object with exactly 12 well-formed developer questions. Auth, schema, and JSON output mode work.
+**Architectural constraint (2026-04-30):** HyDE generation runs **inside the Cloudflare Worker** (queue consumer), not locally. CLI sends chunk records as today; Worker fans out HyDE+embed+upsert per chunk over Queues. This keeps the system Cloudflare-native and lets it scale via Queue concurrency.
 
-**Build:**
-- `cloudflare-mcp/poc/28a-deepseek-hyde-single/generate.mjs`
-- Reads DEEPSEEK_API_KEY from `.cfapikeys`
-- POST to `https://api.deepseek.com/chat/completions` with `response_format: { type: "json_object" }`
-- One real lumae chunk as input
-- Stable system prompt that requests `{ "questions": [12 strings] }`
+**Per-chunk consumer work:**
+1. Embed code with Vertex (1 instance, RETRIEVAL_DOCUMENT)
+2. Generate 12 HyDE questions with DeepSeek v4-pro (one chat call, JSON output)
+3. Embed all 12 questions with Vertex (one batched :predict, 12 instances)
+4. Upsert 13 vectors (1 code + 12 hyde) to Vectorize with `kind` metadata
+5. Insert/update D1 chunk + 12 hyde rows
+6. Update jobs counter via COUNT(*)
 
-**Pass criteria:**
-- [ ] HTTP 200 and valid JSON returned
-- [ ] Exactly 12 questions in the array
-- [ ] All questions are non-empty strings
-- [ ] Single call completes in < 5 seconds
+**Speed mandate:** Queue concurrency ≥ 25. With ~5s per chunk consumer, 600 chunks should publish in ~2 minutes wall time. DeepSeek's `cache_hit` pricing kicks in after the first call (stable system prompt) — costs hover near $0.0028/M input.
 
-**Run:** `node cloudflare-mcp/poc/28a-deepseek-hyde-single/generate.mjs`
+**Decision gate (28F):** lumae golden eval MRR delta vs dense-only must be ≥ +0.05 to scale. Otherwise pivot to bge-reranker (had +0.227 in your earlier eval).
 
 ---
 
-## POC 28B: DeepSeek 1000-chunk concurrent fan-out
+## POC 28A: Worker calls DeepSeek for HyDE (single chunk)
 
-**Proves:** DeepSeek can handle 1000 concurrent chunk → HyDE calls without rate-limiting, with prompt-cache hits keeping cost low and total wall time under 60 seconds.
+**Proves:** A Cloudflare Worker can call DeepSeek v4-pro from inside a queue consumer with a stable system prompt, get back a JSON object with exactly 12 questions, in under 5 seconds.
 
 **Build:**
-- `cloudflare-mcp/poc/28b-deepseek-hyde-fanout/fanout.mjs`
-- Reads 1000 random lumae chunks from disk (already chunked)
-- Promise.all with concurrency limit (start: unlimited)
-- Stable system prompt → DeepSeek prompt cache should kick in after call 1
+- `cloudflare-mcp/poc/28a-worker-deepseek/` — minimal Worker with one HTTP endpoint `POST /hyde {text}`
+- DEEPSEEK_API_KEY set as Worker secret
+- System prompt requests `{"questions": [string × 12]}` with `response_format: { type: "json_object" }`
 
 **Pass criteria:**
-- [ ] All 1000 chunks return 12 questions each
-- [ ] Zero 429 / rate-limit errors
-- [ ] Wall time < 60 seconds
-- [ ] After call 1, log prints `cache_hit_tokens > 0` from DeepSeek usage stats (proves caching works)
+- [ ] Worker responds with HTTP 200 and 12 questions for one lumae chunk
+- [ ] Single call < 5s
+- [ ] Returns DeepSeek `usage` stats; second call shows `prompt_cache_hit_tokens > 0`
+- [ ] No leak: secret never appears in logs
 
-**Run:** `node cloudflare-mcp/poc/28b-deepseek-hyde-fanout/fanout.mjs`
+**Run:** `node cloudflare-mcp/scripts/poc-28a-worker-deepseek-smoke.mjs`
 
 ---
 
-## POC 28C: Vertex batched embedding (250 instances per call)
+## POC 28B: Worker batches 12 HyDE embeddings via Vertex in one call
 
-**Proves:** Vertex `gemini-embedding-001` accepts batched instance arrays and the embedding pipeline can keep up with HyDE generation. Avoids the "embed each question individually" anti-pattern.
+**Proves:** A Worker can take 12 HyDE questions and embed them in a single Vertex `:predict` call with `instances` array of 12, getting back 12×1536d vectors, in under 3 seconds.
 
 **Build:**
-- `cloudflare-mcp/poc/28c-vertex-batch-embed/batch.mjs`
-- Take 7,296 HyDE questions (608 lumae chunks × 12)
-- Batch 250 per Vertex `:predict` call, parallel batches
-- Each instance gets `task_type: RETRIEVAL_DOCUMENT`
+- Extend `28a` Worker with `POST /embed-questions {questions[]}`
+- Single Vertex call with all 12 questions as `instances`, `task_type: RETRIEVAL_DOCUMENT`
 
 **Pass criteria:**
-- [ ] All 7,296 embeddings returned, dimensions = 1536
-- [ ] Wall time < 90 seconds
-- [ ] No 429 / quota errors
-- [ ] Result file is a JSONL where each line has `chunk_id`, `question_index`, `values`
+- [ ] Returns 12 vectors, each length 1536
+- [ ] Wall time < 3s
+- [ ] `predictions[]` length matches `instances[]` length
 
-**Run:** `node cloudflare-mcp/poc/28c-vertex-batch-embed/batch.mjs`
+**Run:** `node cloudflare-mcp/scripts/poc-28b-batch-embed-questions-smoke.mjs`
 
 ---
 
-## POC 28D: Two-channel Vectorize indexing
+## POC 28C: Queue consumer does HyDE + embed + upsert (1 chunk)
 
-**Proves:** A codebase Worker can ingest both code-dense AND hyde-dense vectors into the same Vectorize index, distinguishing them via metadata `kind = "code" | "hyde"` plus parent linkage `parent_chunk_id`.
+**Proves:** The full per-chunk consumer pipeline (DeepSeek HyDE → Vertex embed code → Vertex batch embed 12 questions → Vectorize upsert 13 → D1 insert 13) works end-to-end for a single chunk in under 10 seconds.
 
 **Build:**
-- Extend `workers/codebase/src/index.ts` ingest path to accept HyDE artifacts
-- Schema: HyDE entries get `vector_id = "${chunk_id}-h${i}"`, metadata `{ kind: "hyde", parent_chunk_id, repo_slug, file_path }`
-- Bulk upsert via Vectorize `upsert([...])` (1000-per-call max)
-- Lumae re-index: 608 code + 7,296 HyDE = 7,904 vectors
+- Throwaway codebase Worker (modeled after `workers/codebase`)
+- Queue config: `max_concurrency = 25` (verify in wrangler config)
+- Schema: chunks table gets `kind TEXT NOT NULL DEFAULT 'code'`, `parent_chunk_id TEXT`, `question_index INTEGER`
+- Vector IDs: `<chunk_id>` for code, `<chunk_id>-h<i>` for hyde
 
 **Pass criteria:**
-- [ ] All 7,904 vectors in Vectorize
-- [ ] D1 chunks table has parent_chunk_id linkage for HyDE rows
-- [ ] Wall time for full lumae HyDE re-index < 5 minutes
-- [ ] Sample query against HyDE-only kind returns plausible matches
+- [ ] After enqueue, D1 chunks has 13 rows for the one input chunk (1 code + 12 hyde)
+- [ ] Vectorize has 13 vectors with correct `kind` metadata
+- [ ] Per-chunk wall time < 10s
+- [ ] No DeepSeek/Vertex errors
 
-**Run:** `node cloudflare-mcp/scripts/poc-28d-twoch-index-smoke.mjs`
+**Run:** `node cloudflare-mcp/scripts/poc-28c-consumer-pipeline-smoke.mjs`
 
 ---
 
-## POC 28E: Worker dual-channel search + RRF fusion
+## POC 28D: Full lumae HyDE re-index (608 chunks, fanout)
 
-**Proves:** Worker `/search` queries both code-dense and hyde-dense channels, fuses results with RRF (k=60), returns merged top-K with chunk metadata.
+**Proves:** Queue fan-out scales — 608 lumae chunks with HyDE complete in under 5 minutes wall time at queue concurrency 25.
 
 **Build:**
-- `workers/codebase/src/index.ts` search path:
-  - Embed query as `RETRIEVAL_QUERY`
-  - Two Vectorize queries: `filter: kind=code`, `filter: kind=hyde`
-  - For HyDE matches, dedupe to parent_chunk_id (keep best score)
-  - RRF: `score = sum(1 / (k + rank))` across channels
-- D1 active filter still applies to final candidates
+- Reuse `cfcode-codebase-lumae-fresh` namespace user worker — but this is a re-index, write to a SEPARATE Vectorize index and D1 to avoid touching production until 28F decides
+- POST artifact to a new test slug, e.g. `lumae-hyde-test`, register in gateway, ingest, poll until published
 
 **Pass criteria:**
-- [ ] Search returns N matches; each has both channel scores when present
-- [ ] Same query that previously returned X chunks now returns matches that include HyDE-only hits (recall improvement)
-- [ ] Wall time per search < 1.5 seconds
-- [ ] Cleanup OK
+- [ ] All 608 × 13 = 7,904 vectors in Vectorize
+- [ ] D1 has 7,904 chunk rows
+- [ ] Wall time < 5 min
+- [ ] Failure rate < 1% (DLQ inspection)
+- [ ] DeepSeek bill check — total spend tracked from usage stats < $1
+
+**Run:** `node cloudflare-mcp/scripts/poc-28d-lumae-hyde-reindex-smoke.mjs`
+
+---
+
+## POC 28E: Worker dual-channel search + RRF
+
+**Proves:** Updated `/search` queries both `kind=code` and `kind=hyde` channels, dedupes HyDE matches to parent_chunk_id, fuses with RRF (k=60), returns merged top-K. Each search < 1.5s.
+
+**Build:**
+- Update `workers/codebase/src/index.ts` search path
+- Two `Vectorize.query()` calls in parallel with metadata filter
+- RRF: rank in each list → `score = sum(1/(k+rank))` → top-K
+
+**Pass criteria:**
+- [ ] Search returns matches; some come from HyDE-only that dense-only missed
+- [ ] Wall time per search < 1.5s
+- [ ] D1 active filter still applied to final candidates
 
 **Run:** `node cloudflare-mcp/scripts/poc-28e-dualch-search-smoke.mjs`
 
 ---
 
-## POC 28F: Lumae golden eval — measure HyDE lift
+## POC 28F: Lumae golden eval — DECISION GATE
 
-**Proves (or disproves):** HyDE materially improves retrieval on lumae's 240 golden queries vs the dense-only baseline. Decision gate.
+**Proves (or disproves):** HyDE lifts retrieval on the 240 lumae golden queries by ≥ +0.05 MRR vs dense-only. Hard decision gate.
 
 **Build:**
 - `cloudflare-mcp/scripts/poc-28f-golden-eval.mjs`
-- Read `benchmarks/lumae_eval_bm25f.json` golden queries
-- Two passes:
-  - **Baseline (dense only):** `kind=code` filter
-  - **HyDE (dual-channel + RRF):** as in 28E
-- Compute MRR, nDCG@10, Recall@5, Recall@10
+- Run all 240 queries through `lumae-fresh` (dense baseline) AND `lumae-hyde-test` (dual-channel)
+- Compute MRR, nDCG@10, Recall@5, Recall@10 for both
+- Output: `benchmarks/lumae_eval_hyde_v1.json`
 
 **Pass criteria:**
 - [ ] All 240 queries scored
-- [ ] Output JSON includes both pass results + delta
-- [ ] **DECISION GATE:** MRR lift ≥ +0.05 → proceed to 28G; else stop and pivot to bge-reranker
+- [ ] **GATE:** MRR delta ≥ +0.05 → proceed to 28G
+- [ ] If gate fails: tear down `lumae-hyde-test`, pivot to bge-reranker (28R)
 
 **Run:** `node cloudflare-mcp/scripts/poc-28f-golden-eval.mjs`
 
 ---
 
-## POC 28G: Batch-index 9 more codebases (if 28F passes)
+## POC 28G: Migrate lumae-fresh to HyDE + scale to 9 more codebases
 
-**Proves:** The pipeline scales — `cfcode index <repo>` for 9 more repos completes within the 24-hour discount window.
+**Only if 28F passes the gate.**
 
 **Build:**
-- User provides list of 9 repo paths
-- `cfcode index <path>` for each, sequentially (CF resource provisioning has its own rate limits we don't want to fight)
-- HyDE generation step runs concurrently within each codebase
+- Cut over `lumae-fresh` from dense-only to dual-channel (re-index in place via `cfcode reindex --full`)
+- User provides 9 repo paths
+- `cfcode index <path>` × 9, sequential (CF API rate limits), HyDE on by default
+- Verify each via gateway `search` after index completes
 
 **Pass criteria:**
-- [ ] All 9 codebases registered in gateway D1
-- [ ] All 9 user workers deployed in `cfcode-codebases` namespace
-- [ ] Sample search per codebase via gateway returns plausible matches
-- [ ] Total run time well within 24 hours
+- [ ] All 10 codebases have HyDE rows in D1
+- [ ] All 10 reachable via gateway, return real matches
+- [ ] DeepSeek total spend < $10 (within discount window)
+- [ ] Total elapsed < 4 hours
 
-**Run:** `cfcode index <repo>` × 9, manual
+**Run:** repeated `cfcode index <repo>` calls
 
