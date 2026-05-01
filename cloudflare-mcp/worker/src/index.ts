@@ -1,0 +1,395 @@
+// Canonical per-codebase MCP Worker.
+// Merges proven endpoints from 26D1 (full job) + 26E4 (incremental + git state).
+// Endpoints:
+//   GET  /health
+//   POST /ingest                — full job: store artifact, queue chunks
+//   POST /incremental-ingest    — diff job: deactivate stale, queue changed, advance git on completion
+//   GET  /jobs/:job_id/status
+//   GET  /collection_info       — active publication metadata
+//   POST /search                — Vectorize query, D1 active filter
+//   POST /search-active         — diagnostic: D1 active rows by repo_slug + optional file_path
+//   GET  /git-state/:repo_slug
+//   POST /chunks/:chunk_id/deactivate
+
+// ── Type stubs ──
+type R2BodyLike = { text(): Promise<string> };
+type R2Like = {
+  put(key: string, value: string, opts?: { httpMetadata?: Record<string, string>; customMetadata?: Record<string, string> }): Promise<unknown>;
+  get(key: string): Promise<R2BodyLike | null>;
+};
+type D1Stmt = { bind(...v: unknown[]): D1Stmt; run(): Promise<unknown>; first(): Promise<Record<string, unknown> | null>; all(): Promise<{ results?: Array<Record<string, unknown>> }> };
+type D1Like = { prepare(sql: string): D1Stmt; batch(stmts: D1Stmt[]): Promise<unknown[]> };
+type QueueLike = { send(msg: unknown): Promise<void> };
+type VecEntry = { id: string; values: number[]; metadata?: Record<string, string | number | boolean> };
+type VecLike = {
+  upsert(v: VecEntry[]): Promise<unknown>;
+  query(v: number[], opts?: { topK?: number; returnMetadata?: "none" | "indexed" | "all" }): Promise<{ matches?: Array<{ id: string; score: number; metadata?: Record<string, unknown> }> }>;
+};
+
+type Env = {
+  ARTIFACTS: R2Like; DB: D1Like; VECTORIZE: VecLike; WORK_QUEUE: QueueLike;
+  GEMINI_SERVICE_ACCOUNT_B64?: string;
+  GOOGLE_PROJECT_ID?: string;
+  GOOGLE_LOCATION?: string;
+  GOOGLE_EMBEDDING_MODEL?: string;
+  GOOGLE_EMBEDDING_DIMENSIONS?: string;
+};
+
+// ── Domain types ──
+type SourceRecord = { chunk_id: string; repo_slug: string; file_path: string; source_sha256: string; text: string };
+type IncrementalRecord = SourceRecord & { manifest_id?: string; action?: "added" | "modified" | "renamed"; previous_path?: string | null };
+type Tombstone = { action: "tombstone"; file_path: string; manifest_id: string; repo_slug: string };
+type IngestReq = { job_id?: string; repo_slug?: string; indexed_path?: string; active_commit?: string; artifact_key?: string; artifact_text?: string };
+type IncrementalReq = {
+  job_id: string; repo_slug: string; manifest_id: string;
+  base_commit: string; target_commit: string;
+  artifact_key: string; artifact_text: string;
+};
+type QueueMsg = { job_id: string; chunk_id: string; artifact_key: string; ordinal: number; target_commit?: string; repo_slug?: string };
+type GoogleSA = { client_email: string; private_key: string; project_id?: string; token_uri?: string };
+
+function json(v: unknown, s = 200) { return Response.json(v, { status: s, headers: { "content-type": "application/json" } }); }
+function intEnv(v: string | undefined, d: number) { const n = Number.parseInt(v || "", 10); return Number.isFinite(n) ? n : d; }
+
+// ── Schema ──
+async function schema(db: D1Like) {
+  await db.prepare(`CREATE TABLE IF NOT EXISTS jobs (
+    job_id TEXT PRIMARY KEY, repo_slug TEXT NOT NULL, indexed_path TEXT NOT NULL,
+    active_commit TEXT NOT NULL, artifact_key TEXT NOT NULL,
+    job_type TEXT NOT NULL DEFAULT 'full',
+    manifest_id TEXT, base_commit TEXT, target_commit TEXT,
+    manifest_files INTEGER NOT NULL DEFAULT 0,
+    changed_files INTEGER NOT NULL DEFAULT 0,
+    deleted_files INTEGER NOT NULL DEFAULT 0,
+    total INTEGER NOT NULL, queued INTEGER NOT NULL DEFAULT 0,
+    completed INTEGER NOT NULL DEFAULT 0, failed INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL, created_at TEXT NOT NULL
+  )`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS chunks (
+    chunk_id TEXT PRIMARY KEY, job_id TEXT NOT NULL, repo_slug TEXT NOT NULL,
+    file_path TEXT NOT NULL, source_sha256 TEXT NOT NULL,
+    snippet TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1,
+    model TEXT, dimensions INTEGER, norm REAL,
+    published_at TEXT NOT NULL
+  )`).run();
+  await db.prepare(`CREATE INDEX IF NOT EXISTS idx_chunks_repo_path ON chunks(repo_slug, file_path)`).run();
+  // Migrations for jobs (idempotent — ignore "duplicate column name" errors)
+  for (const alter of [
+    "ALTER TABLE jobs ADD COLUMN job_type TEXT NOT NULL DEFAULT 'full'",
+    "ALTER TABLE jobs ADD COLUMN manifest_id TEXT",
+    "ALTER TABLE jobs ADD COLUMN base_commit TEXT",
+    "ALTER TABLE jobs ADD COLUMN target_commit TEXT",
+    "ALTER TABLE jobs ADD COLUMN manifest_files INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE jobs ADD COLUMN changed_files INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE jobs ADD COLUMN deleted_files INTEGER NOT NULL DEFAULT 0",
+  ]) {
+    try { await db.prepare(alter).run(); } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/duplicate column/i.test(msg)) throw e;
+    }
+  }
+  await db.prepare(`CREATE TABLE IF NOT EXISTS active_publication (
+    repo_slug TEXT PRIMARY KEY, indexed_path TEXT NOT NULL,
+    job_id TEXT NOT NULL, active_commit TEXT NOT NULL,
+    vectorize_index TEXT NOT NULL, active_at TEXT NOT NULL
+  )`).run();
+  await db.prepare(`CREATE TABLE IF NOT EXISTS git_state (
+    repo_slug TEXT PRIMARY KEY, active_commit TEXT NOT NULL,
+    last_manifest_id TEXT, updated_at TEXT NOT NULL
+  )`).run();
+}
+
+// ── Artifact parsing (handles full job records OR incremental records + tombstones) ──
+function parseRecords(text: string): SourceRecord[] {
+  return text.split(/\r?\n/).filter(Boolean).map(l => JSON.parse(l) as SourceRecord)
+    .filter(r => r.chunk_id && r.text && r.repo_slug && r.file_path);
+}
+function parseArtifact(text: string): { records: IncrementalRecord[]; tombstones: Tombstone[] } {
+  const records: IncrementalRecord[] = [];
+  const tombstones: Tombstone[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const obj = JSON.parse(line) as Record<string, unknown>;
+    if (obj.action === "tombstone") tombstones.push(obj as unknown as Tombstone);
+    else if (typeof obj.chunk_id === "string" && typeof obj.text === "string") records.push(obj as unknown as IncrementalRecord);
+  }
+  return { records, tombstones };
+}
+
+// ── Google OAuth ──
+let tokenCache: { token: string; expiresAt: number } | undefined;
+function parseSA(env: Env): GoogleSA {
+  if (!env.GEMINI_SERVICE_ACCOUNT_B64) throw new Error("GEMINI_SERVICE_ACCOUNT_B64 required");
+  const a = JSON.parse(atob(env.GEMINI_SERVICE_ACCOUNT_B64)) as Partial<GoogleSA>;
+  if (!a.client_email || !a.private_key) throw new Error("invalid service account");
+  return { client_email: a.client_email, private_key: a.private_key, project_id: a.project_id, token_uri: a.token_uri };
+}
+function pemToAB(pem: string): ArrayBuffer {
+  const b64 = pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, "");
+  const bin = atob(b64); const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes.buffer;
+}
+function b64url(v: string | ArrayBuffer): string {
+  const bytes = typeof v === "string" ? new TextEncoder().encode(v) : new Uint8Array(v);
+  let bin = ""; for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+async function signJwt(sa: GoogleSA, claims: Record<string, string | number>): Promise<string> {
+  const input = `${b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }))}.${b64url(JSON.stringify(claims))}`;
+  const key = await crypto.subtle.importKey("pkcs8", pemToAB(sa.private_key), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(input));
+  return `${input}.${b64url(sig)}`;
+}
+async function googleToken(env: Env): Promise<string> {
+  const now = Date.now();
+  if (tokenCache && tokenCache.expiresAt - 60_000 > now) return tokenCache.token;
+  const sa = parseSA(env);
+  const iat = Math.floor(now / 1000);
+  const assertion = await signJwt(sa, { iss: sa.client_email, scope: "https://www.googleapis.com/auth/cloud-platform", aud: sa.token_uri || "https://oauth2.googleapis.com/token", iat, exp: iat + 3600 });
+  const res = await fetch(sa.token_uri || "https://oauth2.googleapis.com/token", {
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
+  });
+  const raw = await res.text();
+  if (!res.ok) throw new Error(`Google token failed ${res.status}: ${raw.slice(0, 300)}`);
+  const d = JSON.parse(raw) as { access_token?: string; expires_in?: number };
+  if (!d.access_token) throw new Error("no access_token in Google response");
+  tokenCache = { token: d.access_token, expiresAt: now + Math.max(60, d.expires_in || 3600) * 1000 };
+  return d.access_token;
+}
+
+// ── Vertex embedding ──
+async function embed(env: Env, content: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<{ values: number[]; model: string; dimensions: number; norm: number }> {
+  const sa = parseSA(env);
+  const project = env.GOOGLE_PROJECT_ID || sa.project_id;
+  if (!project) throw new Error("GOOGLE_PROJECT_ID required");
+  const location = env.GOOGLE_LOCATION || "us-central1";
+  const model = env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
+  const dims = intEnv(env.GOOGLE_EMBEDDING_DIMENSIONS, 1536);
+  const token = await googleToken(env);
+  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:predict`;
+  const res = await fetch(url, {
+    method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ instances: [{ content, task_type: taskType }], parameters: { autoTruncate: true, outputDimensionality: dims } }),
+  });
+  const raw = await res.text();
+  if (!res.ok) throw new Error(`Vertex embed failed ${res.status}: ${raw.slice(0, 500)}`);
+  const d = JSON.parse(raw) as { predictions?: Array<{ embeddings?: { values?: unknown } }> };
+  const values = d.predictions?.[0]?.embeddings?.values;
+  if (!Array.isArray(values) || !values.every(v => typeof v === "number")) throw new Error("bad Vertex response");
+  const norm = Math.sqrt(values.reduce((s: number, v: number) => s + v * v, 0));
+  return { values, model, dimensions: values.length, norm };
+}
+
+// ── Full job ingest ──
+async function ingest(env: Env, input: IngestReq): Promise<Response> {
+  await schema(env.DB);
+  if (!input.job_id || !input.repo_slug || !input.indexed_path || !input.active_commit || !input.artifact_key || !input.artifact_text) {
+    return json({ ok: false, error: "job_id, repo_slug, indexed_path, active_commit, artifact_key, artifact_text required" }, 400);
+  }
+  const records = parseRecords(input.artifact_text);
+  if (records.length === 0) return json({ ok: false, error: "no valid records in artifact_text" }, 400);
+  await env.ARTIFACTS.put(input.artifact_key, input.artifact_text, {
+    httpMetadata: { contentType: "application/jsonl" },
+    customMetadata: { repo_slug: input.repo_slug, job_id: input.job_id, record_count: String(records.length) },
+  });
+  await env.DB.prepare(`INSERT OR REPLACE INTO jobs
+    (job_id, repo_slug, indexed_path, active_commit, artifact_key, job_type, total, queued, completed, failed, status, created_at)
+    VALUES (?, ?, ?, ?, ?, 'full', ?, ?, 0, 0, ?, ?)`)
+    .bind(input.job_id, input.repo_slug, input.indexed_path, input.active_commit,
+      input.artifact_key, records.length, records.length, "queued", new Date().toISOString()).run();
+  await env.DB.prepare(`INSERT OR REPLACE INTO active_publication
+    (repo_slug, indexed_path, job_id, active_commit, vectorize_index, active_at)
+    VALUES (?, ?, ?, ?, ?, ?)`)
+    .bind(input.repo_slug, input.indexed_path, input.job_id, input.active_commit,
+      "live", new Date().toISOString()).run();
+  for (let i = 0; i < records.length; i++) {
+    await env.WORK_QUEUE.send({ job_id: input.job_id, chunk_id: records[i].chunk_id, artifact_key: input.artifact_key, ordinal: i, repo_slug: input.repo_slug } satisfies QueueMsg);
+  }
+  return json({ ok: true, job_id: input.job_id, queued: records.length });
+}
+
+// ── Incremental ingest ──
+async function incrementalIngest(env: Env, input: IncrementalReq): Promise<Response> {
+  await schema(env.DB);
+  for (const k of ["job_id", "repo_slug", "manifest_id", "base_commit", "target_commit", "artifact_key", "artifact_text"] as const) {
+    if (!input[k]) return json({ ok: false, error: `${k} required` }, 400);
+  }
+  const { records, tombstones } = parseArtifact(input.artifact_text);
+  if (records.length === 0 && tombstones.length === 0) return json({ ok: false, error: "no records or tombstones" }, 400);
+
+  await env.ARTIFACTS.put(input.artifact_key, input.artifact_text, {
+    httpMetadata: { contentType: "application/jsonl" },
+    customMetadata: { repo_slug: input.repo_slug, job_id: input.job_id, manifest_id: input.manifest_id },
+  });
+
+  const deactivatePaths = new Set<string>();
+  for (const t of tombstones) deactivatePaths.add(t.file_path);
+  for (const r of records) {
+    deactivatePaths.add(r.file_path);
+    if (r.previous_path) deactivatePaths.add(r.previous_path);
+  }
+  let deactivatedCount = 0;
+  for (const fp of deactivatePaths) {
+    const result = await env.DB.prepare(`UPDATE chunks SET active = 0 WHERE repo_slug = ? AND file_path = ? AND active = 1`)
+      .bind(input.repo_slug, fp).run() as { meta?: { changes?: number } };
+    deactivatedCount += result?.meta?.changes || 0;
+  }
+
+  const manifestFiles = records.length + tombstones.length;
+  const initialStatus = records.length === 0 ? "published" : "queued";
+  await env.DB.prepare(`INSERT OR REPLACE INTO jobs
+    (job_id, repo_slug, indexed_path, active_commit, artifact_key, job_type,
+     manifest_id, base_commit, target_commit,
+     manifest_files, changed_files, deleted_files,
+     total, queued, completed, failed, status, created_at)
+    VALUES (?, ?, ?, ?, ?, 'incremental', ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)`)
+    .bind(
+      input.job_id, input.repo_slug, "/incremental", input.target_commit, input.artifact_key,
+      input.manifest_id, input.base_commit, input.target_commit,
+      manifestFiles, records.length, tombstones.length,
+      records.length, records.length, initialStatus, new Date().toISOString()
+    ).run();
+
+  if (records.length === 0) {
+    await env.DB.prepare(`INSERT OR REPLACE INTO git_state (repo_slug, active_commit, last_manifest_id, updated_at) VALUES (?, ?, ?, ?)`)
+      .bind(input.repo_slug, input.target_commit, input.manifest_id, new Date().toISOString()).run();
+  }
+
+  for (let i = 0; i < records.length; i++) {
+    await env.WORK_QUEUE.send({
+      job_id: input.job_id, chunk_id: records[i].chunk_id, artifact_key: input.artifact_key,
+      ordinal: i, target_commit: input.target_commit, repo_slug: input.repo_slug,
+    } satisfies QueueMsg);
+  }
+
+  return json({
+    ok: true, job_id: input.job_id,
+    manifest_files: manifestFiles, changed_files: records.length, deleted_files: tombstones.length,
+    queued: records.length, deactivated: deactivatedCount,
+    git_advanced: records.length === 0,
+  });
+}
+
+// ── Queue consumer (handles both full and incremental jobs) ──
+async function processChunk(env: Env, msg: QueueMsg) {
+  await schema(env.DB);
+  try {
+    const artifact = await env.ARTIFACTS.get(msg.artifact_key);
+    if (!artifact) throw new Error(`missing artifact ${msg.artifact_key}`);
+    const { records } = parseArtifact(await artifact.text());
+    const record = records[msg.ordinal];
+    if (!record) throw new Error(`missing record at ordinal ${msg.ordinal}`);
+
+    const embedding = await embed(env, record.text.slice(0, 8000), "RETRIEVAL_DOCUMENT");
+    await env.VECTORIZE.upsert([{
+      id: record.chunk_id, values: embedding.values,
+      metadata: { repo_slug: record.repo_slug, file_path: record.file_path, active_commit: msg.target_commit || "live" },
+    }]);
+    await env.DB.prepare(`INSERT OR REPLACE INTO chunks
+      (chunk_id, job_id, repo_slug, file_path, source_sha256, snippet, active, model, dimensions, norm, published_at)
+      VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`)
+      .bind(record.chunk_id, msg.job_id, record.repo_slug, record.file_path, record.source_sha256,
+        record.text.slice(0, 500), embedding.model, embedding.dimensions, embedding.norm,
+        new Date().toISOString()).run();
+
+    await env.DB.prepare(`UPDATE jobs SET
+      completed = (SELECT COUNT(*) FROM chunks WHERE job_id = ? AND active = 1),
+      status = CASE WHEN (SELECT COUNT(*) FROM chunks WHERE job_id = ? AND active = 1) >= total THEN 'published' ELSE 'publishing' END
+      WHERE job_id = ?`).bind(msg.job_id, msg.job_id, msg.job_id).run();
+
+    const job = await env.DB.prepare(`SELECT job_type, status, target_commit, manifest_id, repo_slug FROM jobs WHERE job_id = ?`).bind(msg.job_id).first();
+    if (job && job.job_type === "incremental" && job.status === "published" && job.target_commit) {
+      await env.DB.prepare(`INSERT OR REPLACE INTO git_state (repo_slug, active_commit, last_manifest_id, updated_at) VALUES (?, ?, ?, ?)`)
+        .bind(job.repo_slug, job.target_commit, job.manifest_id, new Date().toISOString()).run();
+    }
+  } catch (error) {
+    await env.DB.prepare("UPDATE jobs SET failed = failed + 1 WHERE job_id = ?").bind(msg.job_id).run();
+    throw error;
+  }
+}
+
+// ── Endpoints ──
+async function jobStatus(env: Env, jobId: string): Promise<Response> {
+  await schema(env.DB);
+  const job = await env.DB.prepare("SELECT * FROM jobs WHERE job_id = ?").bind(jobId).first();
+  if (!job) return json({ ok: false, error: "not found" }, 404);
+  const cnt = await env.DB.prepare("SELECT COUNT(*) as c FROM chunks WHERE job_id = ? AND active = 1").bind(jobId).first();
+  return json({ ok: true, job, chunk_rows: (cnt as Record<string, unknown>)?.c ?? 0 });
+}
+
+async function collectionInfo(env: Env): Promise<Response> {
+  await schema(env.DB);
+  const active = await env.DB.prepare("SELECT * FROM active_publication ORDER BY active_at DESC LIMIT 1").first();
+  return json({ ok: true, active });
+}
+
+async function search(env: Env, request: Request): Promise<Response> {
+  await schema(env.DB);
+  const input = await request.json().catch(() => ({})) as { query?: string; values?: number[]; topK?: number; repo_slug?: string };
+  let queryValues: number[];
+  if (Array.isArray(input.values) && input.values.length > 0) {
+    queryValues = input.values;
+  } else if (input.query) {
+    const q = await embed(env, input.query, "RETRIEVAL_QUERY");
+    queryValues = q.values;
+  } else {
+    return json({ ok: false, error: "query (text) or values (vector) required" }, 400);
+  }
+  const result = await env.VECTORIZE.query(queryValues, { topK: input.topK || 10, returnMetadata: "all" });
+  const matches = [];
+  for (const m of result.matches || []) {
+    const stmt = input.repo_slug
+      ? env.DB.prepare("SELECT * FROM chunks WHERE chunk_id = ? AND repo_slug = ? AND active = 1").bind(m.id, input.repo_slug)
+      : env.DB.prepare("SELECT * FROM chunks WHERE chunk_id = ? AND active = 1").bind(m.id);
+    const chunk = await stmt.first();
+    if (chunk) matches.push({ ...m, chunk });
+  }
+  return json({ ok: true, matches, vectorize_returned: (result.matches || []).length, d1_filtered: matches.length });
+}
+
+async function searchActive(env: Env, request: Request): Promise<Response> {
+  await schema(env.DB);
+  const input = await request.json().catch(() => ({})) as { repo_slug?: string; file_path?: string };
+  if (!input.repo_slug) return json({ ok: false, error: "repo_slug required" }, 400);
+  const stmt = input.file_path
+    ? env.DB.prepare("SELECT chunk_id, file_path, active FROM chunks WHERE repo_slug = ? AND file_path = ? AND active = 1").bind(input.repo_slug, input.file_path)
+    : env.DB.prepare("SELECT chunk_id, file_path, active FROM chunks WHERE repo_slug = ? AND active = 1").bind(input.repo_slug);
+  const rows = await stmt.all();
+  return json({ ok: true, matches: rows.results || [] });
+}
+
+async function gitState(env: Env, slug: string): Promise<Response> {
+  await schema(env.DB);
+  const state = await env.DB.prepare("SELECT * FROM git_state WHERE repo_slug = ?").bind(slug).first();
+  return json({ ok: true, state });
+}
+
+async function deactivate(env: Env, chunkId: string): Promise<Response> {
+  await schema(env.DB);
+  await env.DB.prepare("UPDATE chunks SET active = 0 WHERE chunk_id = ?").bind(chunkId).run();
+  return json({ ok: true, chunk_id: chunkId });
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === "/health") return json({ ok: true, service: "cfcode-canonical" });
+    if (url.pathname === "/ingest" && request.method === "POST") return ingest(env, await request.json().catch(() => ({})) as IngestReq);
+    if (url.pathname === "/incremental-ingest" && request.method === "POST") return incrementalIngest(env, await request.json().catch(() => ({})) as IncrementalReq);
+    const sm = url.pathname.match(/^\/jobs\/([^/]+)\/status$/);
+    if (sm) return jobStatus(env, sm[1]);
+    if (url.pathname === "/collection_info") return collectionInfo(env);
+    if (url.pathname === "/search" && request.method === "POST") return search(env, request);
+    if (url.pathname === "/search-active" && request.method === "POST") return searchActive(env, request);
+    const gm = url.pathname.match(/^\/git-state\/([^/]+)$/);
+    if (gm) return gitState(env, gm[1]);
+    const dm = url.pathname.match(/^\/chunks\/([^/]+)\/deactivate$/);
+    if (dm && request.method === "POST") return deactivate(env, dm[1]);
+    return json({ ok: false, error: "not found" }, 404);
+  },
+  async queue(batch: { messages: Array<{ body: QueueMsg }> }, env: Env): Promise<void> {
+    for (const message of batch.messages) await processChunk(env, message.body);
+  },
+};
