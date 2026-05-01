@@ -922,22 +922,21 @@ POCs 10 and 11 can run in parallel.
 
 ---
 
-## POC 27C: McpAgent gateway proxies into dispatch namespace
+## POC 27C: McpAgent gateway proxies into dispatch namespace ✅
+
+**Status:** PASS — 2026-04-30
 
 **Proves:** McpAgent gateway can call `env.DISPATCHER.get(slug).fetch(...)` from inside a tool implementation and return the user worker's response to the MCP client.
 
-**Build:**
-- `cloudflare-mcp/poc/27c-mcp-dispatch/` — throwaway dir
-- Reuse 27A's dispatch namespace + 1-2 stub user workers
-- Gateway exposes `select_codebase(slug)`, `proxy_call(method, path)` tools
-- `proxy_call` reads selected slug from session state, dispatches via namespace
-- Smoke: select_codebase("hello"), proxy_call("GET", "/test"), assert hello's response
-
 **Pass criteria:**
-- [ ] Gateway can call user worker via dispatcher
-- [ ] Selected codebase persists across calls
-- [ ] Calling proxy_call without first selecting returns clear error
-- [ ] Cleanup removes Worker and namespace
+- [x] Dispatch namespace + user worker + gateway all deploy
+- [x] MCP `initialize` succeeds; gateway returns Mcp-Session-Id
+- [x] `proxy_call` without prior `select_codebase` returns clear error
+- [x] `select_codebase("alpha")` binds session state
+- [x] `proxy_call({method:"POST", path:"/echo", body:{hello:"world"}})` returns `200: {"ok":true,"slug":"alpha","echoed":{"hello":"world"}}`
+- [x] Cleanup removes gateway, user worker, namespace
+
+**Evidence:** `node cloudflare-mcp/scripts/poc-27c-mcp-dispatch-smoke.mjs` exited 0 first run. Verified the full McpAgent + dispatch namespace combo: stateful session binding + dynamic dispatch in one tool call.
 
 **Run:** `node cloudflare-mcp/scripts/poc-27c-mcp-dispatch-smoke.mjs`
 

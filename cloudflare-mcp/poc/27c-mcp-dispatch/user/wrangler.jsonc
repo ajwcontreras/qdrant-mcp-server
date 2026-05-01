@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-27c-user-alpha",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "vars": { "CFCODE_SLUG": "alpha" }
+}
