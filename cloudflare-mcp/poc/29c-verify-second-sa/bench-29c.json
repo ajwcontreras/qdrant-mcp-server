@@ -1,0 +1,22 @@
+{
+  "poc": "29c",
+  "checks": {
+    "saLoaded": true,
+    "tokenExchange": true,
+    "vertexCall": true,
+    "embedding1536d": true,
+    "finiteValues": true
+  },
+  "evidence": {
+    "sa_path": "/Users/awilliamspcsevents/Downloads/underwriter-agent-479920-af2b45745dac.json",
+    "project_id": "underwriter-agent-479920",
+    "client_email": "firebase-adminsdk-fbsvc@underwriter-agent-479920.iam.gserviceaccount.com",
+    "embedding_length": 1536,
+    "sample_values": [
+      -0.028699001297354698,
+      0.018895568326115608,
+      0.005911389831453562
+    ]
+  },
+  "finished_at": "2026-05-01T07:30:52.256Z"
+}

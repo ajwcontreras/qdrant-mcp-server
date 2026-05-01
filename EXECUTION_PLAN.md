@@ -1275,28 +1275,27 @@ measurable wall-time win on cold-start-heavy workloads.
 
 ---
 
-## POC 29C: Second SA Vertex access verified
+## POC 29C: Second SA Vertex access verified ✅
+
+**Status:** PASS — 2026-05-01
 
 **Proves:** `underwriter-agent-479920` SA can call Vertex `gemini-embedding-001`.
-Required prerequisite for round-robin (29D). Cheap one-shot — no point building
-29D if Vertex isn't enabled on that project.
+Required prerequisite for round-robin (29D).
 
 **Build:**
 - `cloudflare-mcp/scripts/poc-29c-verify-second-sa.mjs`
-- Local Node script: load `/Users/awilliamspcsevents/Downloads/underwriter-agent-479920-af2b45745dac.json`
-- JWT-sign, exchange for token, single `:predict` call with 1 instance
-- Print response shape, embedding length, project/region
+- `cloudflare-mcp/poc/29c-verify-second-sa/bench-29c.json` (evidence)
 
-**Input:** SA JSON file.
+**Input:** `/Users/awilliamspcsevents/Downloads/underwriter-agent-479920-af2b45745dac.json`.
 
 **Pass criteria:**
-- [ ] HTTP 200 from `:predict`
-- [ ] Response contains `predictions[0].embeddings.values` of length 1536
-- [ ] Embedding values are finite floats (no NaN)
+- [x] HTTP 200 from `:predict` — status=200
+- [x] Response contains `predictions[0].embeddings.values` of length 1536 — embedding_length=1536
+- [x] Embedding values are finite floats (no NaN) — sample [-0.0287, 0.0189, 0.0059...]
 
 **Run:** `node cloudflare-mcp/scripts/poc-29c-verify-second-sa.mjs`
 
-**Failure mode:** if 403/billing/API-not-enabled — STOP, ask user to enable Vertex on that project or supply a different second SA. Do not proceed to 29D.
+**Evidence:** SA `firebase-adminsdk-fbsvc@underwriter-agent-479920.iam.gserviceaccount.com` returns 1536d embedding from `us-central1`. Vertex AI is enabled on the project. 29D unblocked.
 
 ---
 
