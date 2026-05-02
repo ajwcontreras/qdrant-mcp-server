@@ -243,6 +243,40 @@ async function cmdStatus(repoPath) {
   log(`   git_state:       ${gs?.state ? `active=${gs.state.active_commit?.slice(0, 8)}, manifest=${gs.state.last_manifest_id}` : "(none)"}`);
 }
 
+async function cmdSearch(repoPath, query, flags) {
+  const abs = path.resolve(repoPath);
+  const slug = repoSlugFromPath(abs);
+
+  const all = await gatewayList();
+  const reg = all.find(c => c.slug === slug);
+  if (!reg) {
+    log(`Not registered: ${slug}`);
+    return;
+  }
+
+  const topK = Number(flags.topK || flags.top) || 10;
+  const searchRes = await proxyToCodebase(slug, "/search", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ query, repo_slug: slug, topK }),
+  });
+  if (!searchRes?.ok) {
+    log(`search failed: ${searchRes?.error || JSON.stringify(searchRes)}`);
+    return;
+  }
+
+  const matches = Array.isArray(searchRes.matches) ? searchRes.matches : [];
+  if (!matches.length) {
+    log("No results");
+    return;
+  }
+
+  for (const m of matches) {
+    log(`  ${m.score} ${m.chunk?.file_path || ""}`);
+  }
+  log(`${matches.length} results (${searchRes.vectorize_returned} returned, ${searchRes.d1_filtered} filtered)`);
+}
+
 async function cmdList() {
   const repos = await gatewayList();
   if (!repos.length) {
@@ -280,6 +314,7 @@ ONE MCP URL: ${GATEWAY_URL}/mcp
 Usage:
   cfcode index <repo-path> [--fast] [--shards N] [--batch N]   Full-index a codebase
   cfcode reindex <repo-path> [--base R] [--target R]  Diff reindex
+  cfcode search <repo-path> "query" [--topK N]     Semantic code search
   cfcode status [<repo-path>]                       Show indexed state
   cfcode list                                       List registered codebases
   cfcode uninstall <repo-path>                      Remove + delete resources
@@ -301,6 +336,7 @@ async function main() {
   switch (cmd) {
     case "index":     if (!positional[0]) throw new Error("repo-path required"); return cmdIndex(positional[0], flags);
     case "reindex":   if (!positional[0]) throw new Error("repo-path required"); return cmdReindex(positional[0], flags);
+    case "search":    if (!positional[0] || !positional[1]) throw new Error("repo-path and query required"); return cmdSearch(positional[0], positional[1], flags);
     case "status":    return cmdStatus(positional[0]);
     case "list":      return cmdList();
     case "uninstall": if (!positional[0]) throw new Error("repo-path required"); return cmdUninstall(positional[0]);
