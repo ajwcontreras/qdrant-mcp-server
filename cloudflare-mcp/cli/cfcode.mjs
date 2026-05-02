@@ -288,6 +288,35 @@ async function cmdLogs(repoPath, flags) {
   run("npx", args, { cwd: path.resolve(__dirname, "../workers/codebase") });
 }
 
+async function cmdSetup() {
+  log("\n⚙️  cfcode setup\n");
+
+  log("→ Gateway health...");
+  const gw = await fetchJson(`${GATEWAY_URL}/health`).catch(() => null);
+  if (gw?.ok) {
+    log(`   ${GATEWAY_URL} ✓`);
+  } else {
+    log(`   ${GATEWAY_URL} ✗ (unreachable)`);
+    throw new Error("gateway not reachable. Deploy it first: cd cloudflare-mcp/workers/mcp-gateway && npx wrangler deploy");
+  }
+
+  log("→ Gateway D1 registry...");
+  try {
+    const repos = await gatewayList();
+    log(`   ${repos.length} codebase(s) registered`);
+  } catch {
+    log("   D1 unreachable through gateway");
+  }
+
+  log("→ Dispatch namespace...");
+  log(`   ${NAMESPACE_NAME}`);
+
+  log("→ MCP URL (for agent config)...");
+  log(`   ${GATEWAY_URL}/mcp`);
+
+  log("\n✅ Setup complete. Ready to cfcode index <repo>.");
+}
+
 async function cmdList() {
   const repos = await gatewayList();
   if (!repos.length) {
@@ -395,6 +424,7 @@ ONE MCP URL: ${GATEWAY_URL}/mcp
 (drop into ~/.claude/settings.json once, never edit again)
 
 Usage:
+  cfcode setup                                     Verify gateway + namespace health
   cfcode index <repo-path> [--fast] [--shards N] [--batch N]   Full-index a codebase
   cfcode reindex <repo-path> [--base R] [--target R]  Diff reindex
   cfcode search <repo-path> "query" [--topK N]     Semantic code search
@@ -429,6 +459,7 @@ async function main() {
     case "resources": return cmdResources();
     case "logs":     if (!positional[0]) throw new Error("repo-path required"); return cmdLogs(positional[0], flags);
     case "uninstall": if (!positional[0]) throw new Error("repo-path required"); return cmdUninstall(positional[0]);
+    case "setup":     return cmdSetup();
     case "mcp-url":   return cmdMcpUrl();
     case "help": case "-h": case "--help": console.log(HELP); return;
     default: throw new Error(`Unknown command: ${cmd}\n\n${HELP}`);
