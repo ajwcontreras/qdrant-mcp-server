@@ -1,0 +1,79 @@
+{
+  "slug": "cfpubsub-scaffold",
+  "recall5": 0.6,
+  "recall10": 0.8,
+  "mrr": 0.2066666666666667,
+  "ndcg": 0.34861199886851274,
+  "perQuery": [
+    {
+      "query": "how does message publishing work",
+      "latency_ms": 2612,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "0.3333",
+      "top_hits": [
+        "README.md",
+        "packages/gateway-template/src/index.ts",
+        "packages/sdk/src/index.ts",
+        "packages/sdk/tests/sdk.test.ts",
+        "AGENTS.md"
+      ]
+    },
+    {
+      "query": "how are workers registered with the broker",
+      "latency_ms": 2350,
+      "recall5": 0,
+      "recall10": 0,
+      "mrr": "0.0000",
+      "top_hits": [
+        "packages/gateway-template/src/index.ts",
+        "packages/engine-template/migrations/0005_add_binding_name.sql",
+        "packages/cli/src/commands-broker.ts",
+        "packages/cli/src/commands-workspace.ts",
+        "packages/engine-template/migrations/0001_initial.sql"
+      ]
+    },
+    {
+      "query": "how is the CLI entry point built",
+      "latency_ms": 2377,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "0.3333",
+      "top_hits": [
+        "bin/cfpubsub.js",
+        "scripts/build-cli.mjs",
+        "packages/cli/src/index.ts",
+        "packages/cli/package.json",
+        "packages/cli/src/workspace-files.ts"
+      ]
+    },
+    {
+      "query": "how is the workspace initialized",
+      "latency_ms": 2324,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "0.2000",
+      "top_hits": [
+        "packages/cli/tests/deploy.test.ts",
+        "cfpubsub.config.json",
+        "packages/cli/src/index.ts",
+        "AGENTS.md",
+        "packages/cli/src/commands-workspace.ts"
+      ]
+    },
+    {
+      "query": "how are subscriber subscriptions configured",
+      "latency_ms": 2308,
+      "recall5": 0,
+      "recall10": 1,
+      "mrr": "0.1667",
+      "top_hits": [
+        "broker.config.ts",
+        "packages/cli/src/commands-runtime.ts",
+        "cfpubsub.config.json",
+        "packages/engine-template/migrations/0002_webhooks_and_rpc.sql",
+        "packages/sdk/tests/sdk.test.ts"
+      ]
+    }
+  ]
+}

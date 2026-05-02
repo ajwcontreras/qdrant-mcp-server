@@ -1,0 +1,7 @@
+[
+  { "query": "how does the search endpoint work", "answer_files": ["worker/src/search.ts"] },
+  { "query": "how is the MCP server set up", "answer_files": ["worker/src/index.ts"] },
+  { "query": "how does the CLI tool index docs", "answer_files": ["cli/src/cli.mjs"] },
+  { "query": "how are search results formatted", "answer_files": ["worker/src/search.ts"] },
+  { "query": "how is the database seeded", "answer_files": ["worker/scripts/seed.mjs"] }
+]

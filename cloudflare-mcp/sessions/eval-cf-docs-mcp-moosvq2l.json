@@ -1,0 +1,79 @@
+{
+  "slug": "cf-docs-mcp",
+  "recall5": 1,
+  "recall10": 1,
+  "mrr": 0.6166666666666667,
+  "ndcg": 0.7148732061086583,
+  "perQuery": [
+    {
+      "query": "how does the search endpoint work",
+      "latency_ms": 1863,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "0.5000",
+      "top_hits": [
+        "cli/src/search.mjs",
+        "worker/src/search.ts",
+        "worker/src/search.ts",
+        "worker/src/index.ts",
+        "cli/src/search.mjs"
+      ]
+    },
+    {
+      "query": "how is the MCP server set up",
+      "latency_ms": 1026,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "1.0000",
+      "top_hits": [
+        "worker/src/index.ts",
+        "README.md",
+        "worker/wrangler.jsonc",
+        "worker/src/index.ts",
+        "worker/src/types.ts"
+      ]
+    },
+    {
+      "query": "how does the CLI tool index docs",
+      "latency_ms": 993,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "0.2500",
+      "top_hits": [
+        "cli/src/ingest.mjs",
+        "cli/src/ingest.mjs",
+        "cli/src/ingest.mjs",
+        "cli/src/cli.mjs",
+        "cli/src/cli.mjs"
+      ]
+    },
+    {
+      "query": "how are search results formatted",
+      "latency_ms": 1009,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "0.3333",
+      "top_hits": [
+        "cli/src/format.mjs",
+        "cli/src/format.mjs",
+        "worker/src/search.ts",
+        "worker/src/index.ts",
+        "worker/src/search.ts"
+      ]
+    },
+    {
+      "query": "how is the database seeded",
+      "latency_ms": 1034,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "1.0000",
+      "top_hits": [
+        "worker/scripts/seed.mjs",
+        "worker/scripts/seed.mjs",
+        "worker/scripts/seed.mjs",
+        "scripts/seed-from-data.mjs",
+        "worker/src/index.ts"
+      ]
+    }
+  ]
+}

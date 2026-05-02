@@ -1,0 +1,149 @@
+{
+  "slug": "qdrant-mcp-server",
+  "recall5": 0.9,
+  "recall10": 0.9,
+  "mrr": 0.5916666666666666,
+  "ndcg": 0.6663742658988372,
+  "perQuery": [
+    {
+      "query": "how does the semantic search endpoint work",
+      "latency_ms": 2127,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "0.3333",
+      "top_hits": [
+        "cloudflare-mcp/poc/26d0-full-job-safety-worker/src/index.ts",
+        "cloudflare-mcp/poc/26d1-full-job-worker/src/index.ts",
+        "cloudflare-mcp/workers/codebase/src/index.ts",
+        "cloudflare-mcp/poc/26c4-cloud-publication-worker/src/index.ts",
+        "cloudflare-mcp/poc/20-lumae-fresh-mcp-worker/src/index.ts"
+      ]
+    },
+    {
+      "query": "how is the CLI entry point structured",
+      "latency_ms": 1073,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "0.5000",
+      "top_hits": [
+        "scripts/qdrant-project.cjs",
+        "cloudflare-mcp/cli/cfcode.mjs",
+        "scripts/qdrant-project.cjs",
+        "cloudflare-mcp/cli/cfcode.mjs",
+        "cloudflare-mcp/cli/cfcode.mjs"
+      ]
+    },
+    {
+      "query": "how are Cloudflare resources provisioned",
+      "latency_ms": 1046,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "1.0000",
+      "top_hits": [
+        "cloudflare-mcp/lib/cf.mjs",
+        "cloudflare-mcp/lib/cf.mjs",
+        "cloudflare-mcp/cli/cfcode.mjs",
+        "cloudflare-mcp/sessions/poc-19/cleanup-manifest.json",
+        "cloudflare-mcp/scripts/poc-31i-rate-measure-smoke.mjs"
+      ]
+    },
+    {
+      "query": "how are code chunks built from a repo",
+      "latency_ms": 869,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "0.5000",
+      "top_hits": [
+        "cloudflare-mcp/scripts/poc-30d-continue.mjs",
+        "cloudflare-mcp/lib/files.mjs",
+        "cloudflare-mcp/scripts/poc-31k-e2e-cfpubsub.mjs",
+        "cloudflare-mcp/scripts/poc-30d-multi-repo-bench.mjs",
+        "src/poc/04b-gemini-golden-smoke.py"
+      ]
+    },
+    {
+      "query": "how does AST-aware chunking work",
+      "latency_ms": 1119,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "1.0000",
+      "top_hits": [
+        "cloudflare-mcp/lib/ast-chunk.mjs",
+        "cloudflare-mcp/lib/files.mjs",
+        "cloudflare-mcp/lib/files.mjs",
+        "cloudflare-mcp/lib/ast-chunk.mjs",
+        "cloudflare-mcp/lib/files.mjs"
+      ]
+    },
+    {
+      "query": "how are gateway routes handled",
+      "latency_ms": 1151,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "0.3333",
+      "top_hits": [
+        "cloudflare-mcp/poc/27e-search-roundtrip/gateway/src/index.ts",
+        "cloudflare-mcp/poc/27c-mcp-dispatch/gateway/src/index.ts",
+        "cloudflare-mcp/workers/mcp-gateway/src/index.ts",
+        "cloudflare-mcp/poc/27e-search-roundtrip/gateway/src/index.ts",
+        "cloudflare-mcp/workers/mcp-gateway/src/index.ts"
+      ]
+    },
+    {
+      "query": "how does the HyDE enrichment endpoint work",
+      "latency_ms": 1380,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "1.0000",
+      "top_hits": [
+        "cloudflare-mcp/workers/codebase/src/index.ts",
+        "cloudflare-mcp/cli/cfcode.mjs",
+        "cloudflare-mcp/poc/31k-2pop-fixed/src/index.ts",
+        "cloudflare-mcp/poc/30a-hyde-shard/src/index.ts",
+        "cloudflare-mcp/poc/30a-hyde-shard/src/index.ts"
+      ]
+    },
+    {
+      "query": "how is the Vertex embedding pipeline implemented",
+      "latency_ms": 1173,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "0.2500",
+      "top_hits": [
+        "cloudflare-mcp/poc/26d1-full-job-worker/src/index.ts",
+        "cloudflare-mcp/poc/28d-lumae-hyde-reindex/src/index.ts",
+        "cloudflare-mcp/poc/28c-consumer-pipeline/src/index.ts",
+        "cloudflare-mcp/workers/codebase/src/index.ts",
+        "cloudflare-mcp/poc/29d-shard-fanout/src/index.ts"
+      ]
+    },
+    {
+      "query": "how does file-type boosting penalize config files",
+      "latency_ms": 1250,
+      "recall5": 1,
+      "recall10": 1,
+      "mrr": "1.0000",
+      "top_hits": [
+        "cloudflare-mcp/workers/codebase/src/index.ts",
+        "cloudflare-mcp/workers/codebase/src/index.ts",
+        "cloudflare-mcp/scripts/index-codebase.mjs",
+        "cloudflare-mcp/poc/12-mcp-search-vectorize-worker/src/index.ts",
+        "cloudflare-mcp/poc/13-mcp-hybrid-search-worker/src/index.ts"
+      ]
+    },
+    {
+      "query": "how are service account secrets managed",
+      "latency_ms": 1095,
+      "recall5": 0,
+      "recall10": 0,
+      "mrr": "0.0000",
+      "top_hits": [
+        "cloudflare-mcp/poc/06-google-embedding-worker/src/index.ts",
+        "src/poc/03-gemini-hyde-batch.py",
+        "src/poc/04-golden-queries.py",
+        "src/poc/09-eval-harness.py",
+        "src/poc/05-index-qdrant-bare.py"
+      ]
+    }
+  ]
+}

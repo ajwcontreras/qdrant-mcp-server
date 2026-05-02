@@ -1,0 +1,22 @@
+[
+  {
+    "query": "how does message publishing work",
+    "answer_files": ["packages/sdk/src/index.ts"]
+  },
+  {
+    "query": "how are workers registered with the broker",
+    "answer_files": ["packages/cli/src/commands-runtime.ts"]
+  },
+  {
+    "query": "how is the CLI entry point built",
+    "answer_files": ["packages/cli/src/index.ts"]
+  },
+  {
+    "query": "how is the workspace initialized",
+    "answer_files": ["packages/cli/src/commands-workspace.ts"]
+  },
+  {
+    "query": "how are subscriber subscriptions configured",
+    "answer_files": ["packages/cli/src/commands-workspace.ts"]
+  }
+]

@@ -1,0 +1,12 @@
+[
+  { "query": "how does the semantic search endpoint work", "answer_files": ["cloudflare-mcp/workers/codebase/src/index.ts"] },
+  { "query": "how is the CLI entry point structured", "answer_files": ["cloudflare-mcp/cli/cfcode.mjs"] },
+  { "query": "how are Cloudflare resources provisioned", "answer_files": ["cloudflare-mcp/lib/cf.mjs"] },
+  { "query": "how are code chunks built from a repo", "answer_files": ["cloudflare-mcp/lib/files.mjs"] },
+  { "query": "how does AST-aware chunking work", "answer_files": ["cloudflare-mcp/lib/ast-chunk.mjs"] },
+  { "query": "how are gateway routes handled", "answer_files": ["cloudflare-mcp/workers/mcp-gateway/src/index.ts"] },
+  { "query": "how does the HyDE enrichment endpoint work", "answer_files": ["cloudflare-mcp/workers/codebase/src/index.ts"] },
+  { "query": "how is the Vertex embedding pipeline implemented", "answer_files": ["cloudflare-mcp/workers/codebase/src/index.ts"] },
+  { "query": "how does file-type boosting penalize config files", "answer_files": ["cloudflare-mcp/workers/codebase/src/index.ts"] },
+  { "query": "how are service account secrets managed", "answer_files": ["cloudflare-mcp/lib/wfp-secret.mjs"] }
+]
