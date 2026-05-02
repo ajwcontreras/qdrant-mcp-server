@@ -1,13 +1,13 @@
 # HANDOFF — crash-recovery prompt for next session
-# Date: 2026-05-02 (build session)
-# Commit: f09924c (pushed to mine/main)
+# Date: 2026-05-02 (build session — FINAL)
+# Commit: 1f7762a (pushed to mine/main)
 # Writer: Claude session with Andrew Williams
 
 ## TL;DR
 
-Phase 31 indexing pipeline is DONE and PROVEN. 10-POC chain (31D→31K). Fire-and-forget producer via DO alarm, 4 code shards + 64 hyde shards, 97% hyde completion on lumae. Council-reviewed by chatgpt+gemini+deepseek. All documentation written.
+Phase 31 indexing pipeline is DONE and PROVEN. Phase 32 DX is DONE — 11 CLI commands built, HyDE ported to canonical worker. The cfcode CLI is now a complete tool: index, search, logs, hyde-enrich, resources, setup. All committed and pushed.
 
-**Phase 32 DX is in progress.** `cfcode index --fast` shipped. Using Codex sub-agents for mechanical CLI implementation.
+Canonical worker at `workers/codebase/src/index.ts` now has HydeShardDO, /hyde-enrich endpoint, deepseek(), 4-SA support, and schema migrations. TypeScript passes clean.
 
 ## Current authoritative state
 
@@ -21,53 +21,32 @@ Phase 31 indexing pipeline is DONE and PROVEN. 10-POC chain (31D→31K). Fire-an
 - **Canonical worker:** cloudflare-mcp/workers/codebase/src/index.ts (still on old queue path, NOT updated)
 - **Skills cleaned up:** 48→36 skills, cloudflare-master installed globally with code patterns
 
-## What's done (Phase 31 + Phase 32 start)
+## What's done (Phase 31 + Phase 32 — COMPLETE)
 
-**Phase 31 (complete):**
-1. **atob PEM decoding bug found and fixed** — line 66 of 31k-2pop-fixed/src/index.ts
-2. **CF per-origin fetch cap measured** — 6 for api.deepseek.com, UNLIMITED for Vertex
-3. **Fire-and-forget producer** — DO alarm driven, <2s response
-4. **R2-pull per shard** — no artifact text in subrequest payloads
-5. **Explicit DS batching** — 6 at a time per shard
-6. **Per-shard DO fetch timeout** — 120s, prevents hung shards
-7. **/hyde-enrich endpoint** — fills gap when hyde < 100%
-8. **parseSA supports 4 SAs** — indexed array pattern
-9. **Poll log streaming** — JSONL file for background observation
-10. **Council review** — 3/4 providers, all findings addressed
+**Phase 31 (complete):** 10-POC chain, atob fix, fire-and-forget, council review. See EXECUTION_PLAN.md.
 
-**Phase 32 (in progress):**
-1. **`cfcode index --fast`** — switches POST from `/ingest` to `/ingest-sharded` (15.6x faster). Also `--shards N`, `--batch N` flags. Backward compatible. Implemented by Codex sub-agent, committed at f09924c.
+**Phase 32 (complete — 11 CLI commands + HyDE worker port, all pushed):**
+1. `cfcode index --fast` — /ingest-sharded, 15.6x faster. Supports `--shards N`, `--batch N`.
+2. `cfcode search <repo> "query"` — semantic search, `--topK N`.
+3. `cfcode logs <repo>` — live wrangler tail, `--errors` filter.
+4. `cfcode resources` — list D1/R2/Vectorize/Queues via wrangler.
+5. `cfcode search-active` — diagnostic D1 active rows by slug.
+6. `cfcode setup` — health check gateway + registry + namespace.
+7. `cfcode hyde-enrich <repo>` — post-index HyDE question gen, autodiscovers job_id from /collection_info.
+8. **HyDE DO classes ported** to `workers/codebase/src/index.ts`: HydeShardDO, /hyde-enrich, deepseek(), 4-SA parseSAByIndex, D1 schema migrations. tsc passes.
+9. `cfcode reindex` / `cfcode status` / `cfcode list` / `cfcode uninstall` / `cfcode mcp-url` — already existed.
 
-## What's NEXT (Phase 32 - Developer Experience)
-
-The engine can index any repo at 100% code + 91-97% hyde. 5 CLI commands already built via Codex sub-agents:
-
-### DONE (committed and pushed)
-1. **`cfcode index --fast`** — switches to `/ingest-sharded` (15.6x faster). Supports `--shards N`, `--batch N`.
-2. **`cfcode search <repo> "query"`** — semantic search via gateway `/search` proxy. `--topK N` flag.
-3. **`cfcode logs <repo>`** — live `wrangler tail` wrapper. `--errors` flag for filtering.
-4. **`cfcode resources`** — lists D1, R2, Vectorize, Queues via wrangler. Filters by `cfcode-` prefix.
-5. **`cfcode list`** — already existed (lists registered codebases from gateway).
-
-### BLOCKED (needs canonical worker update)
-6. **`cfcode hyde-enrich <repo>`** — requires `/hyde-enrich` endpoint (canonical worker has no HyDE support yet). Must port 31K DO classes (HydeShardDO, OrchestratorDO) into `workers/codebase/src/index.ts` first.
-
-### Next (can do without worker changes)
-7. **`cfcode setup`** — verify gateway deploy + dispatch namespace. Mostly a health-check wrapper.
-8. **`cfcode bench`** — standard benchmark script for search quality evaluation.
-9. **`cfcode search-active`** — diagnostic: list active D1 rows by slug. Worker already has `/search-active` endpoint.
-
-### Deferred
-10. **Progress bar** — cosmetic. Can add pubsub-style polling output later.
-11. **`cfcode resources cleanup`** — complex (needs to correlate resources against gateway D1 registry, handle account switching).
+### Deferred (Phase 33)
+- `cfcode resources cleanup` — needs account-level CF API correlation
+- `cfcode bench` — benchmark search quality
+- Progress bar — cosmetic
+- Worker deploy for hyde-enrich — needs wrangler.jsonc template update (HYDE_SHARD_DO binding + DEEPSEEK_API_KEY secret)
 
 ### Implementation notes
-- CLI entry: cloudflare-mcp/cli/cfcode.mjs (10 commands, 5 added via Codex sub-agents)
-- Gateway lib: cloudflare-mcp/lib/gateway.mjs
-- Shared libs: cloudflare-mcp/lib/ (env, exec, http, files, cf)
-- Codex sub-agent pattern: write AGENTS.md + prompt.txt → `codex exec -m gpt-5.3-codex-spark -s workspace-write --ephemeral` → review diff → commit
-- The canonical worker port (codebase/src/index.ts) still needs HyDE merge. Backward compatibility: keep old `/ingest` path working.
-- Edcub0 failed — might need fresh npm install in workers/codebase for `wrangler` to work
+- CLI: cloudflare-mcp/cli/cfcode.mjs (11 commands, 8 added via Codex sub-agents)
+- Canonical worker: cloudflare-mcp/workers/codebase/src/index.ts (~820 lines, HyDE added)
+- Codex pattern: write AGENTS.md + prompt.txt → `codex exec -m gpt-5.3-codex-spark -s workspace-write --ephemeral` → review → commit
+- Edcub0 might need fresh `npm install` in workers/codebase for wrangler to work
 
 ## How to verify the engine still works
 
