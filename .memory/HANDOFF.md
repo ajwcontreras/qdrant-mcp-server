@@ -40,30 +40,34 @@ Phase 31 indexing pipeline is DONE and PROVEN. 10-POC chain (31D→31K). Fire-an
 
 ## What's NEXT (Phase 32 - Developer Experience)
 
-The engine can index any repo at 100% code + 91-97% hyde. But every operation requires throwaway scripts. Next session needs to build:
+The engine can index any repo at 100% code + 91-97% hyde. 5 CLI commands already built via Codex sub-agents:
 
-### Critical (top priority)
-1. **`cfcode index --fast` — DONE (f09924c)**. Also `--shards N`, `--batch N`. Backward compatible.
-2. **`cfcode logs <repo>`** — wrap `wrangler tail` with correct worker name. Support `--errors` flag.
-3. **`cfcode search <repo> "query"`** — handle Vectorize ~45s consistency delay. Format results with file paths and scores.
+### DONE (committed and pushed)
+1. **`cfcode index --fast`** — switches to `/ingest-sharded` (15.6x faster). Supports `--shards N`, `--batch N`.
+2. **`cfcode search <repo> "query"`** — semantic search via gateway `/search` proxy. `--topK N` flag.
+3. **`cfcode logs <repo>`** — live `wrangler tail` wrapper. `--errors` flag for filtering.
+4. **`cfcode resources`** — lists D1, R2, Vectorize, Queues via wrangler. Filters by `cfcode-` prefix.
+5. **`cfcode list`** — already existed (lists registered codebases from gateway).
 
-### Important (next wave)
-4. **`cfcode hyde-enrich <repo>`** — wrap the /hyde-enrich endpoint
-5. **`cfcode resources`** — list all deployed R2/D1/Vectorize/workers for this account
-6. **`cfcode resources cleanup`** — remove orphaned resources (stale POC workers, old D1s)
-7. **`cfcode setup`** — one-command gateway deploy + namespace create
+### BLOCKED (needs canonical worker update)
+6. **`cfcode hyde-enrich <repo>`** — requires `/hyde-enrich` endpoint (canonical worker has no HyDE support yet). Must port 31K DO classes (HydeShardDO, OrchestratorDO) into `workers/codebase/src/index.ts` first.
 
-### Nice-to-have
-8. **Progress bar during index** — poll /jobs/:id/status with tqdm-style bar
-9. **`cfcode bench [--repo <path>]`** — run standard benchmark with fresh resources
-10. **`cfcode index --shards N`** — custom shard count override
+### Next (can do without worker changes)
+7. **`cfcode setup`** — verify gateway deploy + dispatch namespace. Mostly a health-check wrapper.
+8. **`cfcode bench`** — standard benchmark script for search quality evaluation.
+9. **`cfcode search-active`** — diagnostic: list active D1 rows by slug. Worker already has `/search-active` endpoint.
+
+### Deferred
+10. **Progress bar** — cosmetic. Can add pubsub-style polling output later.
+11. **`cfcode resources cleanup`** — complex (needs to correlate resources against gateway D1 registry, handle account switching).
 
 ### Implementation notes
-- CLI entry: cloudflare-mcp/cli/cfcode.mjs
+- CLI entry: cloudflare-mcp/cli/cfcode.mjs (10 commands, 5 added via Codex sub-agents)
 - Gateway lib: cloudflare-mcp/lib/gateway.mjs
 - Shared libs: cloudflare-mcp/lib/ (env, exec, http, files, cf)
-- The CLI currently sends JSONL artifact to gateway via HTTP POST. Same pattern works for the new endpoints.
-- The canonical worker port (codebase/src/index.ts) still needs the 31K DO classes merged in. Backward compatibility: keep old `/ingest` path working, add new DO classes + `/ingest-sharded` update.
+- Codex sub-agent pattern: write AGENTS.md + prompt.txt → `codex exec -m gpt-5.3-codex-spark -s workspace-write --ephemeral` → review diff → commit
+- The canonical worker port (codebase/src/index.ts) still needs HyDE merge. Backward compatibility: keep old `/ingest` path working.
+- Edcub0 failed — might need fresh npm install in workers/codebase for `wrangler` to work
 
 ## How to verify the engine still works
 
