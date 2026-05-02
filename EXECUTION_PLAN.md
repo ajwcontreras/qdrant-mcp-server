@@ -1880,6 +1880,165 @@ node cloudflare-mcp/scripts/poc-30d-continue.mjs
 **Remaining (deferred):**
 - Module-level `tokenCache` — acknowledged but ephemeral isolates make it safe
 - Stream-based R2 reading — not needed at current artifact sizes (< 2MB)
+
+---
+
+# Phase 32 — Developer Experience ✅
+
+**Status:** COMPLETE — 2026-05-02 — 11 CLI commands + HyDE worker port. Pushed to mine/main.
+
+**Goal:** Make cfcode a usable tool, not just a proven engine. All commands proxy through the gateway.
+
+**Completed:**
+- `cfcode index --fast` — 15.6x faster via `/ingest-sharded`. `--shards N`, `--batch N`.
+- `cfcode search <repo> "query"` — semantic search via gateway `/search` proxy. `--topK N`.
+- `cfcode logs <repo>` — live `wrangler tail`. `--errors` filter.
+- `cfcode resources` — list D1/R2/Vectorize/Queues via wrangler. `cfcode-` prefix filter.
+- `cfcode search-active` — diagnostic: list active D1 rows by slug. `--file` filter.
+- `cfcode setup` — health check gateway + registry + namespace.
+- `cfcode hyde-enrich <repo>` — post-index HyDE question gen via `/hyde-enrich`.
+- HyDE DO classes ported to canonical worker: HydeShardDO, `/hyde-enrich`, deepseek(), 4-SA parseSAByIndex, D1 schema migrations.
+- Wrangler template updated with HYDE_SHARD_DO binding + observability.
+- Lumae worker redeployed with both DOs + DEEPSEEK_API_KEY secret.
+- Cfpubsub-scaffold fully indexed + hyde-enriched (59 code → 767 active chunks).
+- 29-paper research survey across 4 categories, saved to `.memory/research-papers-retrieval-quality.md`.
+- Qualitative search evaluation: FAIR. Config files outrank implementation files.
+
+---
+
+# Phase 33 — Retrieval Quality
+
+**Goal:** Improve semantic code search quality from FAIR to GOOD/VERY GOOD using 4 research-backed techniques in priority order.
+
+**Qualitative baseline (Phase 32 spot check):**
+| Query | Verdict | Root Issue |
+|-------|---------|------------|
+| "message publishing" | GOOD | SDK + gateway correctly top-ranked |
+| "workers registered" | FAIR | Config files outrank implementation files |
+| "CLI built" | FAIR | Runtime files outrank build pipeline files |
+
+**Target metrics:**
+- Config/template files should rank BELOW implementation files for functional queries
+- Exact matches (API names, function signatures) should appear when hyde vectors are present
+- HyDE vectors must contribute to ranking (currently generated but unused in search)
+- AST-chunked vectors should be more semantically coherent than 4KB-truncated vectors
+
+---
+
+## POC 33A: File-type Boosting in Search ✅
+
+**Status:** PASS — 2026-05-02 — commit `TBD`
+
+**Proves:** D1-side filtering can penalize low-signal file types during search, improving ranking quality by demoting config/test/template files.
+
+**Build:**
+- `cloudflare-mcp/workers/codebase/src/index.ts` — modify `/search` endpoint
+- Add `FILE_TYPE_PENALTY` map (`.json` → 0.5, `.config.ts` → 0.6, `.test.ts` → 0.7, `.toml` → 0.5, `.md` → 0.7)
+- Apply score multiplier in D1 filtering loop based on `file_path` extension
+- Keep backward compatibility (penalty only applies when file matches pattern)
+
+**Pass criteria:**
+- [ ] Config files (`.json`, `.config.ts`, `.toml`) appear with reduced scores
+- [ ] Implementation files (`.ts`, `.py`, `.go`) unaffected
+- [ ] Re-run spot check queries — config files should drop in ranking
+
+---
+
+## POC 33B: Dual-Channel RRF Fusion
+
+**Status:** PENDING
+
+**Proves:** Reciprocal Rank Fusion (k=60) applied to code-only + hyde-only search channels produce better rankings than single-channel code search.
+
+**Build:**
+- `cloudflare-mcp/workers/codebase/src/index.ts` — new `/search-rrf` endpoint (or modify `/search`)
+- Query Vectorize twice: `{ filter: { kind: "code" } }` and `{ filter: { kind: "hyde" } }`
+- Apply RRF: `score(d) = Σ_{channel} 1 / (k + rank_d_in_channel)` with k=60
+- Cross-reference D1 for active chunks (only from code channel matches)
+- Return fused rankings with `rrf_score`, `code_rank`, `hyde_rank` per result
+
+**RRF formula:** `RRF_score(d) = 1/(60 + rank_code) + 1/(60 + rank_hyde)`
+
+**Pass criteria:**
+- [ ] Dual-channel results differ from single-channel results
+- [ ] HyDE channel brings in results that code-only missed
+- [ ] Re-run spot check queries — "workers registered" should improve (HyDE questions about worker registration should boost implementation files)
+- [ ] Latency < 2x single-channel (Vectorize queries are sequential)
+
+---
+
+## POC 33C: AST-Aware Chunking
+
+**Status:** PENDING
+
+**Proves:** Splitting files at function/class/method boundaries (via tree-sitter) produces better vectors than 4KB truncation, and the cfcode CLI can install+use tree-sitter grammars on demand.
+
+**Build:**
+- `cloudflare-mcp/lib/ast-chunk.mjs` — new AST chunking module
+- Install tree-sitter: `npm install tree-sitter tree-sitter-javascript tree-sitter-typescript tree-sitter-python`
+- Language detection: extension → grammar mapping
+- Chunking algorithm:
+  1. Parse file with tree-sitter grammar
+  2. Collect boundary nodes (function_declaration, class_declaration, method_definition, etc.)
+  3. Sort by byte offset, split into chunks at boundaries
+  4. If chunk > MAX_CHARS, recurse into child boundaries
+  5. If no boundaries found (unsupported language), fall back to current 4KB truncation
+- Modify `buildFullChunks` in `files.mjs` to call AST chunker before 4KB fallback
+- Add `--no-ast` flag to skip tree-sitter
+
+**Language → Grammar mapping:**
+| Extension | Grammar | Boundary Nodes |
+|-----------|---------|---------------|
+| .js, .mjs, .cjs | tree-sitter-javascript | function_declaration, method_definition, class_declaration |
+| .ts, .tsx | tree-sitter-typescript | function_declaration, method_definition, class_declaration, interface_declaration |
+| .py | tree-sitter-python | function_definition, async_function_definition, class_definition |
+| .go | tree-sitter-go | function_declaration, method_declaration, type_declaration |
+| .rs | tree-sitter-rust | function_item, impl_item, struct_item, enum_item, trait_item |
+| .java | tree-sitter-java | method_declaration, class_declaration, interface_declaration |
+| Others | tree-sitter-* | Best-effort boundary detection |
+
+**Pass criteria:**
+- [ ] `cfcode index` works with AST chunking enabled (no errors)
+- [ ] Files with function boundaries produce multiple chunks (vs 1 for 4KB truncation)
+- [ ] Small files (< 4KB) with no function boundaries produce 1 chunk (unchanged)
+- [ ] Unsupported language files fall back to 4KB truncation
+- [ ] `--no-ast` flag skips tree-sitter
+- [ ] Re-index lumae with AST chunks — compare search quality to baseline
+
+---
+
+## POC 33D: DeepSeek Reranking Layer
+
+**Status:** PENDING
+
+**Proves:** Post-retrieval DeepSeek reranking (zero-shot, listwise) improves top-K precision over raw vector search results, and the latency increase is acceptable (< 3s for top-10 reranking).
+
+**Build:**
+- `cloudflare-mcp/workers/codebase/src/index.ts` — new `/search-rerank` endpoint
+- Flow: Vectorize query → get top-20 results → D1 chunks → send to DeepSeek as judge → return reranked top-10
+- Prompt: "Given the query and these code snippets, rank them by relevance from 1 to N. Return JSON: {\"ranking\": [index1, index2, ...]}"
+- Fallback: on DeepSeek error/timeout, return original vector ranking
+- Optional `--rerank` flag in CLI search command
+
+**Pass criteria:**
+- [ ] Reranked results differ from vector-only results for ambiguous queries
+- [ ] DeepSeek reranking moves implementation files above config files
+- [ ] Latency penalty < 3 seconds for top-10
+- [ ] Error fallback returns original ranking (no regressions)
+- [ ] Combine with RRF (33B): vector-fuse → top-20 → DeepSeek rerank → top-10
+
+---
+
+## Phase 33 Combined E2E Gate
+
+**Status:** PENDING
+
+**Pass criteria:**
+- [ ] All 3 spot check queries achieve GOOD or EXCELLENT
+- [ ] File-type boosting + RRF + AST chunking all active simultaneously
+- [ ] DeepSeek reranking works as optional flag
+- [ ] No regressions on lumae (10 results still returned for search queries)
+- [ ] Cfpubsub-scaffold re-indexed with AST chunks — quality measured against Phase 32 baseline
 - `any` type casts — deliberate in POC code, not production
 
 
