@@ -76,7 +76,7 @@ function parseArgs(argv) {
   return { positional, flags };
 }
 
-async function cmdIndex(repoPath) {
+async function cmdIndex(repoPath, flags) {
   const abs = path.resolve(repoPath);
   if (!fs.existsSync(path.join(abs, ".git"))) throw new Error(`${abs} is not a git repo`);
   if (!fs.existsSync(SA_PATH)) throw new Error(`Vertex service account not found at ${SA_PATH}`);
@@ -113,14 +113,20 @@ async function cmdIndex(repoPath) {
   const jobId = `job-${slug}-${Date.now().toString(36)}`;
   const artifactKey = `full/${jobId}.jsonl`;
   const artifactText = fullChunksToJsonl(chunks);
+  const shards = typeof flags?.shards === "string" ? Number(flags.shards) : NaN;
+  const batchSize = typeof flags?.batch === "string" ? Number(flags.batch) : NaN;
+  const ingestPath = flags?.fast ? "/ingest-sharded" : "/ingest";
+  const body = {
+    job_id: jobId, repo_slug: slug, indexed_path: abs,
+    active_commit: activeCommit, artifact_key: artifactKey, artifact_text: artifactText,
+  };
+  if (Number.isFinite(shards) && shards > 0) body.shard_count = shards;
+  if (Number.isFinite(batchSize) && batchSize > 0) body.batch_size = batchSize;
 
-  log("→ POST /ingest via gateway proxy...");
-  const ingestRes = await proxyToCodebase(slug, "/ingest", {
+  log(`→ POST ${ingestPath} via gateway proxy${flags?.fast ? " (fast path)" : ""}...`);
+  const ingestRes = await proxyToCodebase(slug, ingestPath, {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      job_id: jobId, repo_slug: slug, indexed_path: abs,
-      active_commit: activeCommit, artifact_key: artifactKey, artifact_text: artifactText,
-    }),
+    body: JSON.stringify(body),
   });
   if (!ingestRes.ok) throw new Error(`ingest failed: ${JSON.stringify(ingestRes)}`);
   log(`   queued: ${ingestRes.queued}`);
@@ -272,7 +278,7 @@ ONE MCP URL: ${GATEWAY_URL}/mcp
 (drop into ~/.claude/settings.json once, never edit again)
 
 Usage:
-  cfcode index <repo-path>                          Full-index a codebase
+  cfcode index <repo-path> [--fast] [--shards N] [--batch N]   Full-index a codebase
   cfcode reindex <repo-path> [--base R] [--target R]  Diff reindex
   cfcode status [<repo-path>]                       Show indexed state
   cfcode list                                       List registered codebases
@@ -293,7 +299,7 @@ async function main() {
   Object.assign(process.env, loadCfEnv());
 
   switch (cmd) {
-    case "index":     if (!positional[0]) throw new Error("repo-path required"); return cmdIndex(positional[0]);
+    case "index":     if (!positional[0]) throw new Error("repo-path required"); return cmdIndex(positional[0], flags);
     case "reindex":   if (!positional[0]) throw new Error("repo-path required"); return cmdReindex(positional[0], flags);
     case "status":    return cmdStatus(positional[0]);
     case "list":      return cmdList();
