@@ -347,6 +347,30 @@ async function cmdSearchActive(repoPath, flags) {
   log(`${rows.length} active chunks`);
 }
 
+async function cmdHydeEnrich(repoPath) {
+  const abs = path.resolve(repoPath);
+  const slug = repoSlugFromPath(abs);
+  const all = await gatewayList();
+  const reg = all.find(c => c.slug === slug);
+  if (!reg) { log(`Not registered: ${slug}`); return; }
+
+  const ci = await proxyToCodebase(slug, "/collection_info").catch(() => null);
+  const jobId = ci?.active?.job_id;
+  if (!jobId) { log("No active publication found — index first with cfcode index"); return; }
+
+  log(`\n🧠 cfcode hyde-enrich ${slug}`);
+  log(`   job_id: ${jobId}`);
+
+  log("→ Generating HyDE questions + embedding...");
+  const res = await proxyToCodebase(slug, "/hyde-enrich", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ job_id: jobId, repo_slug: slug }),
+  });
+  if (!res?.ok) { log(`hyde-enrich failed: ${res?.error || JSON.stringify(res)}`); return; }
+  log(`   scanned=${res.scanned}, enriched=${res.enriched}, errors=${res.errors || 0}`);
+  log(`✅ HyDE enrichment complete`);
+}
+
 async function cmdResources() {
   const WORKER_DIR = path.resolve(__dirname, "../workers/codebase");
   
@@ -429,6 +453,7 @@ Usage:
   cfcode reindex <repo-path> [--base R] [--target R]  Diff reindex
   cfcode search <repo-path> "query" [--topK N]     Semantic code search
   cfcode search-active <repo-path> [--file <path>]  List active D1 chunks
+  cfcode hyde-enrich <repo-path>                     Generate HyDE questions post-index
   cfcode status [<repo-path>]                       Show indexed state
   cfcode list                                       List registered codebases
   cfcode resources                                  List deployed CF resources
@@ -454,6 +479,7 @@ async function main() {
     case "reindex":   if (!positional[0]) throw new Error("repo-path required"); return cmdReindex(positional[0], flags);
     case "search":    if (!positional[0] || !positional[1]) throw new Error("repo-path and query required"); return cmdSearch(positional[0], positional[1], flags);
     case "search-active": if (!positional[0]) throw new Error("repo-path required"); return cmdSearchActive(positional[0], flags);
+    case "hyde-enrich": if (!positional[0]) throw new Error("repo-path required"); return cmdHydeEnrich(positional[0]);
     case "status":    return cmdStatus(positional[0]);
     case "list":      return cmdList();
     case "resources": return cmdResources();
