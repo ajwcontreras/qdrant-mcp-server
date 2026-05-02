@@ -33,21 +33,42 @@ export function readFileText(repoPath, relPath) {
   } catch { return null; }
 }
 
-// Build full-job chunk records (one chunk per file, MAX_CHUNK_CHARS).
-export function buildFullChunks(repoPath, repoSlug) {
+// Build full-job chunk records. Tries AST-aware chunking first; falls back to 4KB truncation.
+export async function buildFullChunks(repoPath, repoSlug) {
+  let astChunk = () => null;
+  try { const mod = await import("./ast-chunk.mjs"); astChunk = mod.astChunk; } catch { /* optional */ }
+
   const files = listSourceFiles(repoPath);
   const chunks = [];
   for (const relPath of files) {
     const text = readFileText(repoPath, relPath);
     if (text === null) continue;
-    const truncated = text.slice(0, MAX_CHUNK_CHARS);
-    chunks.push({
-      chunk_id: chunkIdFor(relPath, 0),
-      repo_slug: repoSlug,
-      file_path: relPath,
-      source_sha256: sha256(truncated),
-      text: truncated,
-    });
+
+    // Try AST-aware chunking
+    const astChunks = astChunk(text, relPath);
+    if (astChunks && astChunks.length > 1) {
+      for (let i = 0; i < astChunks.length; i++) {
+        const c = astChunks[i];
+        if (!c.text) continue;
+        chunks.push({
+          chunk_id: chunkIdFor(relPath, i),
+          repo_slug: repoSlug,
+          file_path: relPath,
+          source_sha256: sha256(c.text),
+          text: c.text,
+        });
+      }
+    } else {
+      // Fallback: one chunk per file, truncated
+      const truncated = text.slice(0, MAX_CHUNK_CHARS);
+      chunks.push({
+        chunk_id: chunkIdFor(relPath, 0),
+        repo_slug: repoSlug,
+        file_path: relPath,
+        source_sha256: sha256(truncated),
+        text: truncated,
+      });
+    }
   }
   return chunks;
 }

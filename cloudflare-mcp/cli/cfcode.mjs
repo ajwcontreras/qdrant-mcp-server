@@ -106,7 +106,7 @@ async function cmdIndex(repoPath, flags) {
   await registerCodebase(slug, abs);
 
   log("→ Building chunks from repo...");
-  const chunks = buildFullChunks(abs, slug);
+  const chunks = await buildFullChunks(abs, slug);
   log(`   ${chunks.length} chunks`);
   if (!chunks.length) throw new Error("no source files found");
 
