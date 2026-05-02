@@ -1,13 +1,13 @@
 # HANDOFF — crash-recovery prompt for next session
-# Date: 2026-05-01 late session
-# Commit: 5a8f35d (release freeze, pushed to mine/main)
+# Date: 2026-05-02 (build session)
+# Commit: f09924c (pushed to mine/main)
 # Writer: Claude session with Andrew Williams
 
 ## TL;DR
 
 Phase 31 indexing pipeline is DONE and PROVEN. 10-POC chain (31D→31K). Fire-and-forget producer via DO alarm, 4 code shards + 64 hyde shards, 97% hyde completion on lumae. Council-reviewed by chatgpt+gemini+deepseek. All documentation written.
 
-**The engine works. The Developer Experience does not.** Next phase is building the CLI UX.
+**Phase 32 DX is in progress.** `cfcode index --fast` shipped. Using Codex sub-agents for mechanical CLI implementation.
 
 ## Current authoritative state
 
@@ -21,8 +21,9 @@ Phase 31 indexing pipeline is DONE and PROVEN. 10-POC chain (31D→31K). Fire-an
 - **Canonical worker:** cloudflare-mcp/workers/codebase/src/index.ts (still on old queue path, NOT updated)
 - **Skills cleaned up:** 48→36 skills, cloudflare-master installed globally with code patterns
 
-## What's done (Phase 31)
+## What's done (Phase 31 + Phase 32 start)
 
+**Phase 31 (complete):**
 1. **atob PEM decoding bug found and fixed** — line 66 of 31k-2pop-fixed/src/index.ts
 2. **CF per-origin fetch cap measured** — 6 for api.deepseek.com, UNLIMITED for Vertex
 3. **Fire-and-forget producer** — DO alarm driven, <2s response
@@ -34,14 +35,17 @@ Phase 31 indexing pipeline is DONE and PROVEN. 10-POC chain (31D→31K). Fire-an
 9. **Poll log streaming** — JSONL file for background observation
 10. **Council review** — 3/4 providers, all findings addressed
 
+**Phase 32 (in progress):**
+1. **`cfcode index --fast`** — switches POST from `/ingest` to `/ingest-sharded` (15.6x faster). Also `--shards N`, `--batch N` flags. Backward compatible. Implemented by Codex sub-agent, committed at f09924c.
+
 ## What's NEXT (Phase 32 - Developer Experience)
 
 The engine can index any repo at 100% code + 91-97% hyde. But every operation requires throwaway scripts. Next session needs to build:
 
 ### Critical (top priority)
-1. **`cfcode index` must use 31K fast path** — currently calls old `/ingest` (queue-based). Needs to call `/ingest-sharded` with 31K params. Add `--fast` (code-only) and `--shards N` flags.
-2. **`cfcode logs <repo>`** — wrap `wrangler tail` with correct worker name and format. Support `--errors` flag.
-3. **`cfcode search <repo> "query"`** — handle Vectorize ~45s consistency delay after index. Format results with file paths and scores.
+1. **`cfcode index --fast` — DONE (f09924c)**. Also `--shards N`, `--batch N`. Backward compatible.
+2. **`cfcode logs <repo>`** — wrap `wrangler tail` with correct worker name. Support `--errors` flag.
+3. **`cfcode search <repo> "query"`** — handle Vectorize ~45s consistency delay. Format results with file paths and scores.
 
 ### Important (next wave)
 4. **`cfcode hyde-enrich <repo>`** — wrap the /hyde-enrich endpoint
