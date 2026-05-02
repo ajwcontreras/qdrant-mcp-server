@@ -300,6 +300,60 @@ async function cmdList() {
   }
 }
 
+async function cmdResources() {
+  const WORKER_DIR = path.resolve(__dirname, "../workers/codebase");
+  
+  log("\n📦 cfcode deployed resources\n");
+
+  log("=== D1 databases ===");
+  const d1 = run("npx", ["wrangler", "d1", "list", "--json"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
+  try {
+    const dbs = JSON.parse(d1.stdout || "[]");
+    for (const db of dbs) {
+      if (db.name?.startsWith("cfcode-")) log(`  ${db.name}  ${db.uuid || ""}`);
+    }
+  } catch {
+    log("  (parse error)");
+  }
+
+  log("\n=== R2 buckets ===");
+  const r2 = run("npx", ["wrangler", "r2", "bucket", "list", "--json"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
+  try {
+    const buckets = JSON.parse(r2.stdout || "[]");
+    for (const b of buckets) {
+      if (b.name?.startsWith("cfcode-")) log(`  ${b.name}`);
+    }
+  } catch {
+    log("  (parse error)");
+  }
+
+  log("\n=== Vectorize indexes ===");
+  const viz = run("npx", ["wrangler", "vectorize", "list-indexes", "--json"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
+  try {
+    const indexes = JSON.parse(viz.stdout || "[]");
+    for (const ix of indexes) {
+      if (ix.name?.startsWith("cfcode-")) log(`  ${ix.name}  dims=${ix.config?.dimensions || "?"}`);
+    }
+  } catch {
+    log("  (parse error)");
+  }
+
+  log("\n=== Queues ===");
+  const q = run("npx", ["wrangler", "queues", "list", "--json"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
+  try {
+    const queues = JSON.parse(q.stdout || "[]");
+    for (const qu of queues) {
+      if (qu.queue_name?.startsWith("cfcode-")) log(`  ${qu.queue_name}`);
+    }
+  } catch {
+    log("  (parse error)");
+  }
+
+  log("\n=== Gateway ===");
+  log(`  ${GATEWAY_URL}`);
+  log(`  Namespace: ${NAMESPACE_NAME}`);
+}
+
 async function cmdUninstall(repoPath) {
   const abs = path.resolve(repoPath);
   const slug = repoSlugFromPath(abs);
@@ -328,6 +382,7 @@ Usage:
   cfcode search <repo-path> "query" [--topK N]     Semantic code search
   cfcode status [<repo-path>]                       Show indexed state
   cfcode list                                       List registered codebases
+  cfcode resources                                  List deployed CF resources
   cfcode logs <repo-path> [--errors]                 Tail worker logs (live stream)
   cfcode uninstall <repo-path>                      Remove + delete resources
   cfcode mcp-url                                    Print the single MCP URL
@@ -351,6 +406,7 @@ async function main() {
     case "search":    if (!positional[0] || !positional[1]) throw new Error("repo-path and query required"); return cmdSearch(positional[0], positional[1], flags);
     case "status":    return cmdStatus(positional[0]);
     case "list":      return cmdList();
+    case "resources": return cmdResources();
     case "logs":     if (!positional[0]) throw new Error("repo-path required"); return cmdLogs(positional[0], flags);
     case "uninstall": if (!positional[0]) throw new Error("repo-path required"); return cmdUninstall(positional[0]);
     case "mcp-url":   return cmdMcpUrl();
