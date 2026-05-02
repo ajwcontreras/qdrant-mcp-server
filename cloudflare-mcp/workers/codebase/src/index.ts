@@ -742,6 +742,61 @@ async function searchActive(env: Env, request: Request): Promise<Response> {
   return json({ ok: true, matches: rows.results || [] });
 }
 
+async function searchHybrid(env: Env, request: Request): Promise<Response> {
+  await schema(env.DB);
+  const input = await request.json().catch(() => ({})) as { query?: string; values?: number[]; topK?: number; repo_slug?: string };
+  let queryValues: number[];
+  if (Array.isArray(input.values) && input.values.length > 0) {
+    queryValues = input.values;
+  } else if (input.query) {
+    const q = await embed(env, input.query, "RETRIEVAL_QUERY");
+    queryValues = q.values;
+  } else {
+    return json({ ok: false, error: "query (text) or values (vector) required" }, 400);
+  }
+  const result = await env.VECTORIZE.query(queryValues, { topK: 40, returnMetadata: "all" });
+
+  const aggregated = new Map<string, { codeScore: number; hydeBoost: number }>();
+  for (const m of result.matches || []) {
+    const meta = (m.metadata || {}) as Record<string, unknown>;
+    const kind = String(meta.kind || "code");
+    if (kind === "hyde" && meta.parent_chunk_id) {
+      const pid = String(meta.parent_chunk_id);
+      const entry = aggregated.get(pid) || { codeScore: 0, hydeBoost: 0 };
+      entry.hydeBoost = Math.max(entry.hydeBoost, m.score);
+      aggregated.set(pid, entry);
+    } else {
+      const entry = aggregated.get(m.id) || { codeScore: 0, hydeBoost: 0 };
+      entry.codeScore = Math.max(entry.codeScore, m.score);
+      aggregated.set(m.id, entry);
+    }
+  }
+
+  const ranked = [...aggregated.entries()]
+    .map(([id, s]) => ({ id, score: s.codeScore + s.hydeBoost * 0.5, code_score: s.codeScore, hyde_boost: s.hydeBoost }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, input.topK || 10);
+
+  const matches = [];
+  for (const r of ranked) {
+    const stmt = input.repo_slug
+      ? env.DB.prepare("SELECT * FROM chunks WHERE chunk_id = ? AND repo_slug = ? AND active = 1").bind(r.id, input.repo_slug)
+      : env.DB.prepare("SELECT * FROM chunks WHERE chunk_id = ? AND active = 1").bind(r.id);
+    const chunk = await stmt.first();
+    if (chunk) {
+      let score = r.score;
+      const fp = (chunk.file_path as string || "").toLowerCase();
+      if (/\.json$/.test(fp) || /\.toml$/.test(fp) || /\.yaml$/.test(fp) || /\.yml$/.test(fp)) score *= 0.5;
+      else if (/\.config\.(ts|js|mjs)$/.test(fp) || /\.md$/.test(fp)) score *= 0.6;
+      else if (/\.test\.(ts|js|tsx|jsx)$/.test(fp) || /\.spec\.(ts|js)$/.test(fp)) score *= 0.7;
+      else if (/\.css$/.test(fp) || /\.html$/.test(fp) || /\.svg$/.test(fp)) score *= 0.6;
+      else if (/\.lock$/.test(fp) || /\.gitignore$/.test(fp)) score *= 0.3;
+      matches.push({ id: r.id, score, code_score: r.code_score, hyde_boost: r.hyde_boost, chunk });
+    }
+  }
+  return json({ ok: true, matches, vectorize_returned: (result.matches || []).length, d1_filtered: matches.length, hybrid: true });
+}
+
 async function hydeEnrich(env: Env, request: Request): Promise<Response> {
   await schema(env.DB);
   if (!env.HYDE_SHARD_DO) return json({ ok: false, error: "HYDE_SHARD_DO binding missing" }, 501);
@@ -808,6 +863,7 @@ export default {
     if (url.pathname === "/collection_info") return collectionInfo(env);
     if (url.pathname === "/search" && request.method === "POST") return search(env, request);
     if (url.pathname === "/search-active" && request.method === "POST") return searchActive(env, request);
+    if (url.pathname === "/search-hybrid" && request.method === "POST") return searchHybrid(env, request);
     if (url.pathname === "/hyde-enrich" && request.method === "POST") return hydeEnrich(env, request);
     const gm = url.pathname.match(/^\/git-state\/([^/]+)$/);
     if (gm) return gitState(env, gm[1]);
