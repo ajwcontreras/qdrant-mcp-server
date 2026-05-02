@@ -257,7 +257,8 @@ async function cmdSearch(repoPath, query, flags) {
 
   const topK = Number(flags.topK || flags.top) || 10;
   const hybrid = flags.hybrid === true;
-  const endpoint = hybrid ? "/search-hybrid" : "/search";
+  const rerank = flags.rerank === true;
+  const endpoint = rerank ? "/search-rerank" : hybrid ? "/search-hybrid" : "/search";
   const searchRes = await proxyToCodebase(slug, endpoint, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -278,7 +279,7 @@ async function cmdSearch(repoPath, query, flags) {
     const boost = typeof m.hyde_boost === "number" && m.hyde_boost > 0 ? ` +${m.hyde_boost.toFixed(3)}h` : "";
     log(`  ${m.score}${boost} ${m.chunk?.file_path || ""}`);
   }
-  const hybridNote = hybrid ? ` (hybrid)` : "";
+  const hybridNote = rerank ? ` (reranked)` : hybrid ? ` (hybrid)` : "";
   log(`${matches.length} results${hybridNote} (${searchRes.vectorize_returned} returned, ${searchRes.d1_filtered} filtered)`);
 }
 
@@ -455,7 +456,7 @@ Usage:
   cfcode setup                                     Verify gateway + namespace health
   cfcode index <repo-path> [--fast] [--shards N] [--batch N]   Full-index a codebase
   cfcode reindex <repo-path> [--base R] [--target R]  Diff reindex
-  cfcode search <repo-path> "query" [--topK N] [--hybrid]  Semantic code search
+  cfcode search <repo-path> "query" [--topK N] [--hybrid] [--rerank]  Semantic code search
   cfcode search-active <repo-path> [--file <path>]  List active D1 chunks
   cfcode hyde-enrich <repo-path>                     Generate HyDE questions post-index
   cfcode status [<repo-path>]                       Show indexed state

@@ -797,6 +797,42 @@ async function searchHybrid(env: Env, request: Request): Promise<Response> {
   return json({ ok: true, matches, vectorize_returned: (result.matches || []).length, d1_filtered: matches.length, hybrid: true });
 }
 
+async function searchRerank(env: Env, request: Request): Promise<Response> {
+  if (!env.DEEPSEEK_API_KEY) return json({ ok: false, error: "DEEPSEEK_API_KEY missing" }, 501);
+  const body = await request.json() as { query?: string; repo_slug?: string; topK?: number };
+  const query = body.query || "";
+  const topK = body.topK || 10;
+
+  const hyBody = JSON.stringify({ query, repo_slug: body.repo_slug, topK: 20 });
+  const hyReq = new Request("https://s/search-hybrid", { method: "POST", body: hyBody, headers: { "content-type": "application/json" } });
+  const hyRes = await searchHybrid(env, hyReq);
+  const hyData = await hyRes.json() as { ok: boolean; matches?: Array<{ id?: string; score: number; chunk?: Record<string, unknown> }>; error?: string };
+  if (!hyData.ok || !hyData.matches || hyData.matches.length <= 1) return json({ ok: true, matches: hyData.matches || [], reranked: false });
+
+  const snippets = hyData.matches.map(m => m.chunk);
+  const prompt = `Given the query: "${query}", rank these code snippets by relevance from 1 to ${snippets.length}. Output ONLY JSON: {"ranking": [index1, index2, ...]}. Higher index = more relevant.\n\n` +
+    snippets.map((s, i) => `[${i}] ${(s as any)?.file_path || ""}: ${((s as any)?.snippet || "").slice(0, 200)}`).join("\n\n");
+
+  try {
+    const dsRes = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${env.DEEPSEEK_API_KEY}` },
+      body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "user", content: prompt }], response_format: { type: "json_object" }, temperature: 0, max_tokens: 500 }),
+    });
+    if (!dsRes.ok) throw new Error(`DS ${dsRes.status}`);
+    const raw = await dsRes.text();
+    const j = JSON.parse(raw) as { choices?: Array<{ message?: { content?: string } }> };
+    const content = j.choices?.[0]?.message?.content;
+    if (!content) throw new Error("DS empty response");
+    const parsed = JSON.parse(content) as { ranking?: number[] };
+    const ranking = (parsed.ranking || []).map(Number).filter(n => n >= 0 && n < hyData.matches!.length);
+
+    const reranked = ranking.map(idx => hyData.matches![idx]).filter(Boolean).slice(0, topK);
+    return json({ ok: true, matches: reranked, reranked: true });
+  } catch {
+    return json({ ok: true, matches: hyData.matches.slice(0, topK), reranked: false, fallback: true });
+  }
+}
+
 async function hydeEnrich(env: Env, request: Request): Promise<Response> {
   await schema(env.DB);
   if (!env.HYDE_SHARD_DO) return json({ ok: false, error: "HYDE_SHARD_DO binding missing" }, 501);
@@ -864,6 +900,7 @@ export default {
     if (url.pathname === "/search" && request.method === "POST") return search(env, request);
     if (url.pathname === "/search-active" && request.method === "POST") return searchActive(env, request);
     if (url.pathname === "/search-hybrid" && request.method === "POST") return searchHybrid(env, request);
+    if (url.pathname === "/search-rerank" && request.method === "POST") return searchRerank(env, request);
     if (url.pathname === "/hyde-enrich" && request.method === "POST") return hydeEnrich(env, request);
     const gm = url.pathname.match(/^\/git-state\/([^/]+)$/);
     if (gm) return gitState(env, gm[1]);
