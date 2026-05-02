@@ -717,7 +717,16 @@ async function search(env: Env, request: Request): Promise<Response> {
       ? env.DB.prepare("SELECT * FROM chunks WHERE chunk_id = ? AND repo_slug = ? AND active = 1").bind(m.id, input.repo_slug)
       : env.DB.prepare("SELECT * FROM chunks WHERE chunk_id = ? AND active = 1").bind(m.id);
     const chunk = await stmt.first();
-    if (chunk) matches.push({ ...m, chunk });
+    if (chunk) {
+      let score = m.score;
+      const fp = (chunk.file_path as string || "").toLowerCase();
+      if (/\.json$/.test(fp) || /\.toml$/.test(fp) || /\.yaml$/.test(fp) || /\.yml$/.test(fp)) score *= 0.5;
+      else if (/\.config\.(ts|js|mjs)$/.test(fp) || /\.md$/.test(fp)) score *= 0.6;
+      else if (/\.test\.(ts|js|tsx|jsx)$/.test(fp) || /\.spec\.(ts|js)$/.test(fp)) score *= 0.7;
+      else if (/\.css$/.test(fp) || /\.html$/.test(fp) || /\.svg$/.test(fp)) score *= 0.6;
+      else if (/\.lock$/.test(fp) || /\.gitignore$/.test(fp)) score *= 0.3;
+      matches.push({ ...m, score, chunk });
+    }
   }
   return json({ ok: true, matches, vectorize_returned: (result.matches || []).length, d1_filtered: matches.length });
 }
