@@ -48,6 +48,11 @@ type Env = {
   SHARD_COUNT?: string;
   BATCH_SIZE?: string;
   NUM_SAS?: string;
+  DEEPSEEK_API_KEY?: string;
+  HYDE_SHARD_DO?: DONamespaceLike;
+  HYDE_MODEL?: string;
+  HYDE_VERSION?: string;
+  HYDE_QUESTIONS?: string;
   GOOGLE_PROJECT_ID?: string;
   GOOGLE_LOCATION?: string;
   GOOGLE_EMBEDDING_MODEL?: string;
@@ -69,6 +74,12 @@ type GoogleSA = { client_email: string; private_key: string; project_id?: string
 
 function json(v: unknown, s = 200) { return Response.json(v, { status: s, headers: { "content-type": "application/json" } }); }
 function intEnv(v: string | undefined, d: number) { const n = Number.parseInt(v || "", 10); return Number.isFinite(n) ? n : d; }
+async function doFetch(s: DOStubLike, url: string, init: RequestInit, ms = 120_000): Promise<Response> {
+  return new Promise<Response>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("shard timeout")), ms);
+    s.fetch(url, init).then(r => { clearTimeout(timer); resolve(r); }, e => { clearTimeout(timer); reject(e); });
+  });
+}
 
 // ── Schema ──
 async function schema(db: D1Like) {
@@ -116,6 +127,20 @@ async function schema(db: D1Like) {
     repo_slug TEXT PRIMARY KEY, active_commit TEXT NOT NULL,
     last_manifest_id TEXT, updated_at TEXT NOT NULL
   )`).run();
+  for (const alter of [
+    "ALTER TABLE chunks ADD COLUMN kind TEXT DEFAULT 'code'",
+    "ALTER TABLE chunks ADD COLUMN parent_chunk_id TEXT",
+    "ALTER TABLE chunks ADD COLUMN hyde_version TEXT",
+    "ALTER TABLE chunks ADD COLUMN hyde_model TEXT",
+    "ALTER TABLE jobs ADD COLUMN code_status TEXT DEFAULT 'pending'",
+    "ALTER TABLE jobs ADD COLUMN hyde_status TEXT DEFAULT 'pending'",
+    "ALTER TABLE jobs ADD COLUMN hyde_completed INTEGER NOT NULL DEFAULT 0",
+  ]) {
+    try { await db.prepare(alter).run(); } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/duplicate column/i.test(msg)) throw e;
+    }
+  }
 }
 
 // ── Artifact parsing (handles full job records OR incremental records + tombstones) ──
@@ -234,7 +259,8 @@ async function embed(env: Env, content: string, taskType: "RETRIEVAL_DOCUMENT" |
 // Per-isolate token cache keyed by SA email so multiple SAs (round-robin) coexist.
 const tokenCacheBySA: Map<string, { token: string; expiresAt: number }> = new Map();
 function parseSAByIndex(env: Env, saIndex: number): GoogleSA {
-  const b64 = saIndex === 1 ? env.GEMINI_SERVICE_ACCOUNT_B64_2 : env.GEMINI_SERVICE_ACCOUNT_B64;
+  const keys = [env.GEMINI_SERVICE_ACCOUNT_B64, env.GEMINI_SERVICE_ACCOUNT_B64_2, undefined as string | undefined, undefined as string | undefined];
+  const b64 = keys[saIndex] || env.GEMINI_SERVICE_ACCOUNT_B64;
   if (!b64) throw new Error(`SA secret for index ${saIndex} missing`);
   const a = JSON.parse(atob(b64)) as Partial<GoogleSA>;
   if (!a.client_email || !a.private_key) throw new Error("invalid service account");
@@ -285,9 +311,27 @@ async function embedBatch(env: Env, sa: GoogleSA, texts: string[]): Promise<{ va
   });
 }
 
+const HYDE_SYS = "You are a code search assistant. Given a code snippet, generate exactly 12 distinct natural-language questions that a developer might ask whose answer would be this snippet. Output ONLY a JSON object: {\"questions\": [\"q1\", ..., \"q12\"]}. No prose, no markdown.";
+
+async function deepseek(env: Env, text: string): Promise<string[]> {
+  if (!env.DEEPSEEK_API_KEY) throw new Error("DS key missing");
+  for (let a = 0; a < 4; a++) {
+    const r = await fetch("https://api.deepseek.com/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${env.DEEPSEEK_API_KEY}` }, body: JSON.stringify({ model: env.HYDE_MODEL || "deepseek-v4-flash", messages: [{ role: "system", content: HYDE_SYS }, { role: "user", content: text }], response_format: { type: "json_object" }, temperature: 0.4, max_tokens: 1500 }) });
+    const raw = await r.text(); if (r.ok) {
+      const j = JSON.parse(raw) as { choices?: Array<{ message?: { content?: string } }> };
+      const c = j.choices?.[0]?.message?.content; if (!c) throw new Error("DS empty");
+      const p = JSON.parse(c) as { questions?: unknown };
+      return (Array.isArray(p.questions) ? p.questions : []).filter((q): q is string => typeof q === "string").slice(0, 12);
+    }
+    if (r.status >= 500 || r.status === 429) { await new Promise(r => setTimeout(r, 300 * (a + 1))); continue; }
+    throw new Error(`DS ${r.status}`);
+  }
+  throw new Error("DS retries exhausted");
+}
+
 type ShardBatchReq = {
   job_id: string; repo_slug: string; shard_index: number; sa_index: number; batch_size: number;
-  records: SourceRecord[];
+  records?: SourceRecord[];
 };
 type ShardResult = {
   shard_index: number; sa_index: number; chunks_done: number; vertex_calls: number;
@@ -300,14 +344,14 @@ export class IndexingShardDO extends DurableObject<Env> {
       shard_index: req.shard_index, sa_index: req.sa_index,
       chunks_done: 0, vertex_calls: 0, vertex_ms: 0, vectorize_ms: 0, d1_ms: 0, errors: 0,
     };
-    if (!req.records.length) return result;
+    if (!req.records?.length) return result;
     const sa = parseSAByIndex(this.env, req.sa_index);
     const model = this.env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
     const dims = intEnv(this.env.GOOGLE_EMBEDDING_DIMENSIONS, 1536);
 
     const groups: SourceRecord[][] = [];
-    for (let i = 0; i < req.records.length; i += req.batch_size) {
-      groups.push(req.records.slice(i, i + req.batch_size));
+    for (let i = 0; i < req.records!.length; i += req.batch_size) {
+      groups.push(req.records!.slice(i, i + req.batch_size));
     }
 
     for (const group of groups) {
@@ -372,6 +416,52 @@ export class IndexingShardDO extends DurableObject<Env> {
     if (url.pathname === "/process-batch" && request.method === "POST") {
       const body = await request.json() as ShardBatchReq;
       return json(await this.processBatch(body));
+    }
+    return json({ error: "not_found" }, 404);
+  }
+}
+
+export class HydeShardDO extends DurableObject<Env> {
+  async process(req: ShardBatchReq): Promise<{ done: number; errors: number }> {
+    let done = 0, errs = 0;
+    const records = req.records || [];
+    if (!records.length) return { done, errors: errs };
+    const sa = parseSAByIndex(this.env, req.sa_index);
+    const model = this.env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
+    const dims = intEnv(this.env.GOOGLE_EMBEDDING_DIMENSIONS, 1536);
+    const hydeVer = this.env.HYDE_VERSION || "v1", hydeMdl = this.env.HYDE_MODEL || "deepseek-v4-flash";
+    const nowStr = new Date().toISOString();
+
+    const collected: { record: SourceRecord; questions: string[] }[] = [];
+    for (let i = 0; i < records.length; i += 6) {
+      const batch = records.slice(i, i + 6);
+      const outcomes = await Promise.allSettled(batch.map(async r => ({ record: r, questions: await deepseek(this.env, r.text) })));
+      for (const o of outcomes) { if (o.status === "fulfilled") collected.push(o.value); else errs++; }
+    }
+    if (!collected.length) return { done, errors: errs };
+
+    const flat: { parentId: string; qIndex: number; text: string }[] = [];
+    for (const { record, questions } of collected) for (let i = 0; i < questions.length; i++) flat.push({ parentId: record.chunk_id, qIndex: i, text: questions[i] });
+    const groups: typeof flat[] = [];
+    for (let i = 0; i < flat.length; i += req.batch_size) groups.push(flat.slice(i, i + req.batch_size));
+
+    for (const group of groups) {
+      let embs: { values: number[]; norm: number }[];
+      try { embs = await embedBatch(this.env, sa, group.map(g => g.text)); } catch { errs += group.length; continue; }
+      try { await this.env.VECTORIZE.upsert(group.map((g, i) => ({ id: `${g.parentId}-h${g.qIndex}`, values: embs[i].values, metadata: { kind: "hyde", parent_chunk_id: g.parentId, hyde_index: g.qIndex } }))); } catch { errs += group.length; continue; }
+      try {
+        const stmts = group.map((g, i) => this.env.DB.prepare(`INSERT OR REPLACE INTO chunks (chunk_id,job_id,repo_slug,file_path,source_sha256,snippet,active,kind,parent_chunk_id,hyde_version,hyde_model,model,dimensions,norm,published_at) VALUES (?,?,?,?,?,?,1,'hyde',?,?,?,?,?,?,?)`).bind(`${g.parentId}-h${g.qIndex}`, req.job_id, req.repo_slug || "", g.parentId, g.parentId, g.text.slice(0, 500), g.parentId, hydeVer, hydeMdl, model, dims, embs[i].norm, nowStr));
+        await this.env.DB.batch(stmts); done += group.length;
+        await this.env.DB.prepare(`UPDATE jobs SET hyde_completed=hyde_completed+? WHERE job_id=?`).bind(group.length, req.job_id).run();
+      } catch { errs += group.length; }
+    }
+    return { done, errors: errs };
+  }
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === "/process-batch" && request.method === "POST") {
+      const body = await request.json() as ShardBatchReq;
+      return json(await this.process(body));
     }
     return json({ error: "not_found" }, 404);
   }
@@ -643,6 +733,35 @@ async function searchActive(env: Env, request: Request): Promise<Response> {
   return json({ ok: true, matches: rows.results || [] });
 }
 
+async function hydeEnrich(env: Env, request: Request): Promise<Response> {
+  await schema(env.DB);
+  if (!env.HYDE_SHARD_DO) return json({ ok: false, error: "HYDE_SHARD_DO binding missing" }, 501);
+  if (!env.DEEPSEEK_API_KEY) return json({ ok: false, error: "DEEPSEEK_API_KEY missing" }, 501);
+  const inp = await request.json() as { job_id?: string; repo_slug?: string; batch_size?: number };
+  if (!inp.job_id) return json({ ok: false, error: "job_id required" }, 400);
+  const jobId = inp.job_id;
+
+  const missing = (await env.DB.prepare(`SELECT c.chunk_id, c.snippet FROM chunks c WHERE c.job_id=? AND (c.kind='code' OR c.kind IS NULL) AND c.active=1 AND c.chunk_id NOT IN (SELECT DISTINCT parent_chunk_id FROM chunks WHERE job_id=? AND kind='hyde' AND parent_chunk_id IS NOT NULL)`).bind(jobId, jobId).all()).results || [];
+  if (!missing.length) return json({ ok: true, enriched: 0, message: "nothing to enrich" });
+
+  const rows = missing.map((r: any) => ({ chunk_id: r.chunk_id as string, text: r.snippet as string, repo_slug: inp.repo_slug as string || "", file_path: r.chunk_id as string, source_sha256: "" }));
+  const sas = intEnv(env.NUM_SAS, 2);
+  const bs = inp.batch_size || intEnv(env.BATCH_SIZE, 500);
+  const numShards = Math.min(64, Math.max(1, Math.ceil(rows.length / Math.max(1, bs))));
+  const buckets: SourceRecord[][] = Array.from({ length: numShards }, () => []);
+  rows.forEach((r: SourceRecord, i: number) => buckets[i % numShards].push(r));
+
+  const outcomes = await Promise.allSettled(buckets.map((bucket, idx) => {
+    if (!bucket.length) return Promise.resolve({ done: 0, errors: 0 });
+    const stub = env.HYDE_SHARD_DO!.get(env.HYDE_SHARD_DO!.idFromName(`h-enrich:${jobId}:${idx}`));
+    return doFetch(stub, "https://s/process-batch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, repo_slug: inp.repo_slug || "", shard_index: idx, shard_count: numShards, sa_index: idx % sas, batch_size: bs, records: bucket }) }, 300_000).then(r => r.json() as Promise<{ done: number; errors: number }>);
+  }));
+
+  let enriched = 0, errs = 0;
+  for (const o of outcomes) { if (o.status === "fulfilled") { enriched += o.value.done; errs += o.value.errors; } else errs++; }
+  return json({ ok: true, scanned: rows.length, enriched, errors: errs });
+}
+
 async function gitState(env: Env, slug: string): Promise<Response> {
   await schema(env.DB);
   const state = await env.DB.prepare("SELECT * FROM git_state WHERE repo_slug = ?").bind(slug).first();
@@ -680,6 +799,7 @@ export default {
     if (url.pathname === "/collection_info") return collectionInfo(env);
     if (url.pathname === "/search" && request.method === "POST") return search(env, request);
     if (url.pathname === "/search-active" && request.method === "POST") return searchActive(env, request);
+    if (url.pathname === "/hyde-enrich" && request.method === "POST") return hydeEnrich(env, request);
     const gm = url.pathname.match(/^\/git-state\/([^/]+)$/);
     if (gm) return gitState(env, gm[1]);
     const dm = url.pathname.match(/^\/chunks\/([^/]+)\/deactivate$/);
