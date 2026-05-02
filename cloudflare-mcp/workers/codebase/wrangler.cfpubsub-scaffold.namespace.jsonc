@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-codebase-cfpubsub-scaffold",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-cfpubsub-scaffold-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-cfpubsub-scaffold", "database_id": "cef3cb71-9df8-49c5-9bae-468d3dfd256c" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-cfpubsub-scaffold" }],
+  "durable_objects": {
+    "bindings": [
+      { "name": "INDEXING_SHARD_DO", "class_name": "IndexingShardDO" },
+      { "name": "HYDE_SHARD_DO", "class_name": "HydeShardDO" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["IndexingShardDO", "HydeShardDO"] }
+  ],
+  "vars": {
+    "SHARD_COUNT": "4",
+    "BATCH_SIZE": "100",
+    "NUM_SAS": "2"
+  },
+  "queues": {
+    "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-cfpubsub-scaffold-work" }]
+  }
+}
