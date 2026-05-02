@@ -300,6 +300,24 @@ async function cmdList() {
   }
 }
 
+async function cmdSearchActive(repoPath, flags) {
+  const abs = path.resolve(repoPath);
+  const slug = repoSlugFromPath(abs);
+  const all = await gatewayList();
+  const reg = all.find(c => c.slug === slug);
+  if (!reg) { log(`Not registered: ${slug}`); return; }
+  const filePath = flags.file || flags.path;
+  const res = await proxyToCodebase(slug, "/search-active", {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify(filePath ? { repo_slug: slug, file_path: filePath } : { repo_slug: slug }),
+  });
+  if (!res?.ok) { log(`search-active failed: ${res?.error || JSON.stringify(res)}`); return; }
+  const rows = res.matches || [];
+  if (!rows.length) { log("No active chunks"); return; }
+  for (const r of rows) log(`  ${r.chunk_id}  ${r.file_path}`);
+  log(`${rows.length} active chunks`);
+}
+
 async function cmdResources() {
   const WORKER_DIR = path.resolve(__dirname, "../workers/codebase");
   
@@ -380,6 +398,7 @@ Usage:
   cfcode index <repo-path> [--fast] [--shards N] [--batch N]   Full-index a codebase
   cfcode reindex <repo-path> [--base R] [--target R]  Diff reindex
   cfcode search <repo-path> "query" [--topK N]     Semantic code search
+  cfcode search-active <repo-path> [--file <path>]  List active D1 chunks
   cfcode status [<repo-path>]                       Show indexed state
   cfcode list                                       List registered codebases
   cfcode resources                                  List deployed CF resources
@@ -404,6 +423,7 @@ async function main() {
     case "index":     if (!positional[0]) throw new Error("repo-path required"); return cmdIndex(positional[0], flags);
     case "reindex":   if (!positional[0]) throw new Error("repo-path required"); return cmdReindex(positional[0], flags);
     case "search":    if (!positional[0] || !positional[1]) throw new Error("repo-path and query required"); return cmdSearch(positional[0], positional[1], flags);
+    case "search-active": if (!positional[0]) throw new Error("repo-path required"); return cmdSearchActive(positional[0], flags);
     case "status":    return cmdStatus(positional[0]);
     case "list":      return cmdList();
     case "resources": return cmdResources();
