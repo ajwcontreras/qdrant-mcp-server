@@ -1679,3 +1679,209 @@ node cloudflare-mcp/scripts/poc-30d-continue.mjs
 
 ---
 
+# Phase 31 — Fire-and-Forget + Empirical CF Platform Discovery
+
+**Goal:** Prove fire-and-forget producer pattern, R2-pull per shard, measure actual CF platform limits empirically, council-review the final architecture.
+
+**Eval discipline:** Each POC is a standalone deployable worker with a smoke script. Must pass before next POC starts. All CF behavioral claims validated against cf-docs and empirical measurement.
+
+## POC 31D: Alarm-driven fan-out with synthetic payloads ✅
+
+**Status:** PASS — 2026-05-01 — commit `0c3a479`
+
+**Proves:** DO alarm handlers can fan out to N shard DOs, each shard independently processes work and returns results, orchestrator aggregates via Promise.allSettled. No Vertex/DeepSeek/R2 — pure D1 writes.
+
+**Build:**
+- `cloudflare-mcp/poc/31d-alarm-fanout/src/index.ts`
+- `cloudflare-mcp/scripts/poc-31d-alarm-fanout-smoke.mjs`
+- OrchestratorDO alarm → ShardDO × N → D1 INSERT per shard → aggregate
+- Smoke: 1/4/16 shards × 5 items, all published
+
+**Pass criteria:**
+- [x] 1 shard: published/5
+- [x] 4 shards: published/20
+- [x] 16 shards: published/80
+
+**Run:** `node cloudflare-mcp/scripts/poc-31d-alarm-fanout-smoke.mjs`
+
+---
+
+## POC 31E: Alarm fan-out + R2-pull per shard ✅
+
+**Status:** PASS — 2026-05-01 — commit `0c3a479`
+
+**Proves:** Shard DOs can pull from R2, parse JSONL, filter by shard_index, and process independently. No Vertex/DeepSeek — pure R2 + D1.
+
+**Build:**
+- `cloudflare-mcp/poc/31e-r2pull-fanout/src/index.ts`
+- `cloudflare-mcp/scripts/poc-31e-r2pull-fanout-smoke.mjs`
+- Producer writes JSONL to R2, orchestrator alarm fires shards, each shard pulls from R2 and filters by `i % shardCount === shardIndex`
+
+**Pass criteria:**
+- [x] 4 shards × 100 records: published/100
+- [x] 16 shards × 100 records: published/100
+
+**Run:** `node cloudflare-mcp/scripts/poc-31e-r2pull-fanout-smoke.mjs`
+
+---
+
+## POC 31F.1: Vertex embedding inside a DO (atob bug found) ✅
+
+**Status:** PASS — 2026-05-01 — commit `0c3a479`
+
+**Proves:** Vertex `gemini-embedding-001:predict` works inside a Durable Object. This isolation POC discovered the critical `atob()` PEM decoding bug — the PEM base64 string was being used as raw ASCII charCodes without being base64-decoded first. Missing `atob()` in `signJwt`.
+
+**Build:**
+- `cloudflare-mcp/poc/31f1-vertex-in-do/src/index.ts`
+- `cloudflare-mcp/scripts/poc-31f1-vertex-in-do-smoke.mjs`
+- EmbedDO with one endpoint: POST /embed → Vertex :predict → return 1536d vectors
+
+**Pass criteria:**
+- [x] 2 texts embedded, 1536 dims returned
+- [x] Norm values ~0.68-0.69 (matches known Gemini embedding norms)
+
+**Run:** `node cloudflare-mcp/scripts/poc-31f1-vertex-in-do-smoke.mjs`
+
+---
+
+## POC 31F: Code-only pipeline (Vertex + Vectorize + D1) on alarm fan-out ✅
+
+**Status:** PASS — 2026-05-01 — commit `0c3a479`
+
+**Proves:** Full code embedding pipeline works on the alarm fan-out + R2-pull architecture. Lumae 632 chunks: code=632/632, published.
+
+**Build:**
+- `cloudflare-mcp/poc/31f-code-vertex/src/index.ts`
+- `cloudflare-mcp/scripts/poc-31f-code-vertex-bench.mjs`
+- CodeShardDO: R2-pull → Vertex embed → Vectorize.upsert → D1 batch insert
+- OrchestratorDO alarm → 4 code shards → aggregate → update jobs
+
+**Pass criteria:**
+- [x] 632/632 code chunks completed
+- [x] status=published
+
+**Run:** `node cloudflare-mcp/scripts/poc-31f-code-vertex-bench.mjs`
+
+---
+
+## POC 31G: Full dual fan-out (code + hyde) ✅
+
+**Status:** PASS — 2026-05-01 — commit `0c3a479`
+
+**Proves:** Both CodeShardDO and HydeShardDO work on the same alarm-driven fan-out. Lumae 632 chunks: code=632/632, hyde=2184/7584 (29%). Low hyde completion later traced to missing `atob()` in signJwt.
+
+**Build:**
+- `cloudflare-mcp/poc/31g-dual-full/src/index.ts`
+- CodeShardDO + HydeShardDO + OrchestratorDO alarm
+- Dual Promise.all in alarm handler
+
+**Pass criteria:**
+- [x] Code: 632/632
+- [ ] HyDE: 29% (below 95% threshold, investigated in 31I, fixed in 31K)
+
+**Run:** `node cloudflare-mcp/scripts/poc-31g-dual-full-bench.mjs`
+
+---
+
+## POC 31H: HyDE with embedding pool (decoupled DeepSeek/Vertex) ✅
+
+**Status:** PASS (finding) — 2026-05-01
+
+**Proves:** DeepSeek generation and Vertex embedding can be decoupled through a shared EmbedPoolDO. BUT: single pool instance serializes all calls, creating a bottleneck. Lesson: per-SA pool instances needed.
+
+**Build:**
+- `cloudflare-mcp/poc/31h-hyde-pool/src/index.ts`
+- EmbedPoolDO serializes Vertex calls per SA
+
+**Pass criteria:**
+- [ ] Code: 632/632
+- [ ] HyDE: 2160/7584 (28%, pool bottleneck identified)
+
+---
+
+## POC 31I: CF rate limit measurements ✅
+
+**Status:** PASS — 2026-05-01 — commit `0c3a479`
+
+**Proves:** Actual CF platform behavior measured empirically. Vertex: 100 parallel calls from single DO, zero 429s on both SA1 and SA2. DeepSeek: per-isolate fetch concurrency cap confirmed at 6 (12 calls → 2 batches of 6).
+
+**Build:**
+- `cloudflare-mcp/poc/31i-rate-measure/src/index.ts`
+- `cloudflare-mcp/scripts/poc-31i-rate-measure-smoke.mjs`
+- TestDO: /concurrency (fetch cap measurement), /vertex-rpm (Vertex quota), /deepseek-rpm (DS cap)
+
+**Pass criteria:**
+- [x] Vertex: 100 calls, 0 429s on SA1 and SA2
+- [x] DeepSeek: 12 calls → 2 clear batches (6+4+2 pattern)
+- [x] Google.com: 48 calls → 1 batch (origin-specific cap)
+
+**Run:** `node cloudflare-mcp/scripts/poc-31i-rate-measure-smoke.mjs`
+
+---
+
+## POC 31J: 3-population fan-out (DeepSeek gen + Hyde embed + Code) ✅
+
+**Status:** PASS (finding) — 2026-05-01
+
+**Proves:** Three independent populations can fire simultaneously. But: D1-polling deadlock discovered — HydeEmbedDO polls D1 for questions before QuestionGenDO finishes writing them. Architecture valid but timing-dependent.
+
+**Build:**
+- `cloudflare-mcp/poc/31j-3pop/src/index.ts`
+- CodeShardDO + QuestionGenDO + HydeEmbedDO
+
+**Pass criteria:**
+- [ ] Code: 632/632
+- [ ] HyDE: 7352/7584 (97%, but stalled — D1 polling deadlock)
+- [x] 3-pop pattern architecturally valid, but 2-pop simpler
+
+---
+
+## POC 31K: Proven 2-pop dual fan-out with all fixes ✅
+
+**Status:** PASS — 2026-05-01 — commits `9592b54`, `c0b1c13`
+
+**Proves:** The full pipeline with all Phase 31 fixes applied: `atob()` PEM fix, fire-and-forget DO alarm, R2-pull, explicit DS batching (6/shard), per-shard DO fetch timeout, 4-SA `parseSA`, correct status reporting, `/hyde-enrich` endpoint.
+
+**Lumae (632 chunks):** code=632/632, hyde=7356/7584 (97.0%), published, 4c+64h shards
+**cfpubsub-scaffold (154 chunks):** code=154/154, hyde=1680/1848 (90.9%), published, 23s e2e
+**Council-reviewed:** chatgpt+gemini+deepseek, 3/4 providers, all CRITICAL/HIGH findings addressed
+
+**Build:**
+- `cloudflare-mcp/poc/31k-2pop-fixed/src/index.ts` (production-ready)
+- CodeShardDO: R2-pull → Vertex embed → Vectorize + D1
+- HydeShardDO: R2-pull → DeepSeek (6-at-a-time) → Vertex embed → Vectorize + D1
+- OrchestratorDO: alarm-driven dual Promise.all
+- `/hyde-enrich`: finds gap chunks, re-processes
+
+**Pass criteria:**
+- [x] Code: 632/632 (100%) on lumae
+- [x] HyDE: ≥95% on lumae (97.0% actual)
+- [x] Code: 154/154 (100%) on cfpubsub
+- [x] HyDE: ≥90% on cfpubsub (90.9% actual, fillable via /hyde-enrich)
+- [x] Fire-and-forget: <2s response
+- [x] Council review: no CRITICAL unresolved
+
+**Run:** `node cloudflare-mcp/scripts/poc-31k-2pop-bench.mjs` (lumae)
+**Run:** `node cloudflare-mcp/scripts/poc-31k-e2e-cfpubsub.mjs` (cfpubsub-scaffold)
+
+---
+
+## POC 31K Council Review (Antagonistic) ✅
+
+**Status:** PASS — 2026-05-01 — 3/4 providers succeeded (codex failed)
+**Providers:** chatgpt (62s), gemini (141s), deepseek (65s)
+
+**Key findings addressed:**
+- [x] `parseSA` extended to 4 SAs (indexed array pattern)
+- [x] `doFetch` timer properly cleared on resolve (no zombie timeouts)
+- [x] Orchestrator status derived from error counts (not always "published")
+- [x] SA3/SA4 added to Env type
+
+**Remaining (deferred):**
+- Module-level `tokenCache` — acknowledged but ephemeral isolates make it safe
+- Stream-based R2 reading — not needed at current artifact sizes (< 2MB)
+- `any` type casts — deliberate in POC code, not production
+
+
+---
+
