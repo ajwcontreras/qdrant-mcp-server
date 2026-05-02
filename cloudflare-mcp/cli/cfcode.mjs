@@ -29,6 +29,7 @@ const {
   r2BucketForSlug, d1NameForSlug, vectorizeIndexForSlug, queueNameForSlug, dlqNameForSlug,
 } = await import(`${LIB}/env.mjs`);
 const { fetchJson, fetchJsonOptional, pollPublished } = await import(`${LIB}/http.mjs`);
+const { run } = await import(`${LIB}/exec.mjs`);
 const {
   buildFullChunks, buildDiffManifest, buildIncrementalArtifact,
   fullChunksToJsonl, artifactToJsonl, resolveCommit,
@@ -277,6 +278,16 @@ async function cmdSearch(repoPath, query, flags) {
   log(`${matches.length} results (${searchRes.vectorize_returned} returned, ${searchRes.d1_filtered} filtered)`);
 }
 
+async function cmdLogs(repoPath, flags) {
+  const abs = path.resolve(repoPath);
+  const slug = repoSlugFromPath(abs);
+  const configPath = configPathFor(slug);
+  if (!fs.existsSync(configPath)) throw new Error(`not indexed: ${slug}. Run cfcode index first.`);
+  const args = ["wrangler", "tail", "--config", configPath];
+  if (flags.errors) args.push("--search", "error");
+  run("npx", args, { cwd: path.resolve(__dirname, "../workers/codebase") });
+}
+
 async function cmdList() {
   const repos = await gatewayList();
   if (!repos.length) {
@@ -317,6 +328,7 @@ Usage:
   cfcode search <repo-path> "query" [--topK N]     Semantic code search
   cfcode status [<repo-path>]                       Show indexed state
   cfcode list                                       List registered codebases
+  cfcode logs <repo-path> [--errors]                 Tail worker logs (live stream)
   cfcode uninstall <repo-path>                      Remove + delete resources
   cfcode mcp-url                                    Print the single MCP URL
 
@@ -339,6 +351,7 @@ async function main() {
     case "search":    if (!positional[0] || !positional[1]) throw new Error("repo-path and query required"); return cmdSearch(positional[0], positional[1], flags);
     case "status":    return cmdStatus(positional[0]);
     case "list":      return cmdList();
+    case "logs":     if (!positional[0]) throw new Error("repo-path required"); return cmdLogs(positional[0], flags);
     case "uninstall": if (!positional[0]) throw new Error("repo-path required"); return cmdUninstall(positional[0]);
     case "mcp-url":   return cmdMcpUrl();
     case "help": case "-h": case "--help": console.log(HELP); return;
