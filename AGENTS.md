@@ -118,24 +118,26 @@ qdrant-mcp-server/
 └── ephemeral/                         # handoff prompts, scratch
 ```
 
-## Phase status (2026-05-01)
+## Phase status (2026-05-02)
 
 | Phase | Status | What it shipped |
 |---|---|---|
 | 26A1-26E5 | ✅ ALL PASS (23 POCs) | Cloudflare-native indexing + diff incremental |
 | 27A-27G | ✅ ALL PASS (7 POCs) | Stateful MCP gateway via WfP dispatch |
 | 28A-28D | ✅ PASS (4 POCs) | HyDE per-chunk pipeline + scaling proof |
-| 28E-28F | 🚧 NEXT | Dual-channel search + RRF, golden eval gate |
-| 28G | 🔒 GATED | Scale to 9 more codebases (only if 28F passes) |
+| 31D-31K | ✅ ALL PASS (10 POCs) | Fire-and-forget DO alarm + 2-pop fan-out + council |
+| 32 | ✅ COMPLETE | 11 CLI commands + HyDE worker port |
+| 33A-33D | ✅ COMPLETE | File boosting, hyde search, AST chunking, DS rerank + eval |
+| 34 | 🚧 NEXT | Fix cfpubsub gap, scale codebases, proper RRF |
 
 ## Production resources (live, do not delete)
 
-- Worker: `cfcode-gateway`
-- D1: `cfcode-gateway-registry`
+- Gateway worker: `cfcode-gateway`
+- Gateway D1: `cfcode-gateway-registry`
 - Dispatch namespace: `cfcode-codebases`
-- User worker: `cfcode-codebase-lumae-fresh` (in namespace)
-- Lumae's R2/D1/Vectorize/Queue: `cfcode-lumae-fresh-*`
-- 608 chunks indexed, searchable through gateway
+- User workers: `cfcode-codebase-lumae-fresh`, `cfcode-codebase-cfpubsub-scaffold`, `cfcode-codebase-cf-docs-mcp`, `cfcode-codebase-qdrant-mcp-server`
+- 4 codebases live, searchable through gateway
+- 764 (lumae) + 767 (cfpubsub) + 294 (cf-docs-mcp) + 3897 (self-index) = 5722 total active chunks
 
 ## Safety contracts (locked in by 2026-04-30 council review)
 

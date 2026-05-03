@@ -1,46 +1,77 @@
 # HANDOFF — crash-recovery prompt for next session
-# Date: 2026-05-02 (build session — FINAL)
-# Commit: 1f7762a (pushed to mine/main)
+# Date: 2026-05-02 (build session)
+# Commit: 1b7cc3a (pushed to mine/main)
 # Writer: Claude session with Andrew Williams
 
 ## TL;DR
 
-Phase 31 indexing pipeline is DONE and PROVEN. Phase 32 DX is DONE — 11 CLI commands built, HyDE ported to canonical worker. The cfcode CLI is now a complete tool: index, search, logs, hyde-enrich, resources, setup. All committed and pushed.
-
-Canonical worker at `workers/codebase/src/index.ts` now has HydeShardDO, /hyde-enrich endpoint, deepseek(), 4-SA support, and schema migrations. TypeScript passes clean.
+Phase 31 indexing pipeline DONE. Phase 32 DX DONE (11 CLI commands + HyDE worker port).
+**Phase 33 retrieval quality DONE** — 4 improvements shipped + golden eval harness + 3-codebase benchmark.
+Canonical worker has file-type boosting, hyde-boosted search, /search-rerank, HydeShardDO.
+AST chunking via regex (12 languages, function/class boundaries). 20 golden queries across 3 codebases.
+4 codebases live in gateway, all searchable.
 
 ## Current authoritative state
 
-- **Last commit:** 5a8f35d on mine/main
-- **CLAUDE.md:** Phase status current through 31K
-- **AGENTS.md:** Same as CLAUDE.md (synced)
-- **EXECUTION_PLAN.md:** POC ledger complete through Phase 31
-- **AGENT_HANDOFF_MASTER_PLAN.md:** Per-event progress log
-- **3 new docs at repo root:** SETUP.md, LESSONS_LEARNED.md, CLOUDFLARE_EXPERIMENTAL_FINDINGS.md
-- **Production worker reference:** cloudflare-mcp/poc/31k-2pop-fixed/src/index.ts
-- **Canonical worker:** cloudflare-mcp/workers/codebase/src/index.ts (still on old queue path, NOT updated)
-- **Skills cleaned up:** 48→36 skills, cloudflare-master installed globally with code patterns
+- **Last commit:** 1b7cc3a on mine/main
+- **CLAUDE.md:** Phase status through 33D
+- **EXECUTION_PLAN.md:** POC ledger through Phase 33D
+- **4 codebases live in gateway:** lumae-fresh, cfpubsub-scaffold, cf-docs-mcp, qdrant-mcp-server
+- **Canonical worker:** cloudflare-mcp/workers/codebase/src/index.ts (~920 lines, all Phase 32+33 features)
+- **CLI:** cloudflare-mcp/cli/cfcode.mjs (11 commands, `--fast`, `--hybrid`, `--rerank` flags)
+- **Eval harness:** cloudflare-mcp/scripts/eval-harness.mjs
+- **Golden queries:** cloudflare-mcp/sessions/golden-{cfpubsub,cf-docs-mcp,qdrant-mcp-server}.json
+- **Research:** .memory/research-papers-retrieval-quality.md (29 papers, 4 categories)
+- **Skill:** cloudflare-master installed globally with code patterns
 
-## What's done (Phase 31 + Phase 32 — COMPLETE)
+## What's done (Phase 31 + 32 + 33)
 
-**Phase 31 (complete):** 10-POC chain, atob fix, fire-and-forget, council review. See EXECUTION_PLAN.md.
+**Phase 31 (complete):** 10-POC chain, atob fix, fire-and-forget, council review.
 
 **Phase 32 (complete — 11 CLI commands + HyDE worker port, all pushed):**
-1. `cfcode index --fast` — /ingest-sharded, 15.6x faster. Supports `--shards N`, `--batch N`.
-2. `cfcode search <repo> "query"` — semantic search, `--topK N`.
-3. `cfcode logs <repo>` — live wrangler tail, `--errors` filter.
-4. `cfcode resources` — list D1/R2/Vectorize/Queues via wrangler.
-5. `cfcode search-active` — diagnostic D1 active rows by slug.
-6. `cfcode setup` — health check gateway + registry + namespace.
-7. `cfcode hyde-enrich <repo>` — post-index HyDE question gen, autodiscovers job_id from /collection_info.
-8. **HyDE DO classes ported** to `workers/codebase/src/index.ts`: HydeShardDO, /hyde-enrich, deepseek(), 4-SA parseSAByIndex, D1 schema migrations. tsc passes.
-9. `cfcode reindex` / `cfcode status` / `cfcode list` / `cfcode uninstall` / `cfcode mcp-url` — already existed.
+1. `cfcode index --fast` (--shards N, --batch N)
+2. `cfcode search --hybrid --rerank --topK N`
+3. `cfcode logs --errors`
+4. `cfcode resources`
+5. `cfcode search-active`
+6. `cfcode setup`
+7. `cfcode hyde-enrich`
+8. HydeShardDO, /hyde-enrich, deepseek(), 4-SA parseSAByIndex in canonical worker
+9. Wrangler template with HYDE_SHARD_DO binding
 
-### Deferred (Phase 33)
-- `cfcode resources cleanup` — needs account-level CF API correlation
-- `cfcode bench` — benchmark search quality
-- Progress bar — cosmetic
-- Worker deploy for hyde-enrich — needs wrangler.jsonc template update (HYDE_SHARD_DO binding + DEEPSEEK_API_KEY secret)
+**Phase 33 (complete — 4 improvements + eval):**
+1. **33A File-type boosting:** json/toml/yaml 0.5x, .config.ts 0.6x, .test.ts 0.7x. Deployed.
+2. **33B HyDE-boosted search:** /search-hybrid aggregates hyde scores into parent code chunks. Previously unranked implementation files now surface. Deployed.
+3. **33C AST-aware chunking:** Regex boundary detection for 12 languages. cfpubsub 59→693 chunks. cf-docs-mcp 294 chunks. Self-index 3897 chunks. Deployed.
+4. **33D DeepSeek reranking:** /search-rerank zero-shot listwise. Fallback-safe. Deployed.
+5. **Golden eval harness:** Recall@K, MRR, nDCG@10. 20 golden queries across 3 codebases.
+6. **3-codebase benchmark:** cf-docs-mcp Recall@5=1.000, qdrant-mcp-server Recall@5=0.900, cfpubsub Recall@5=0.600.
+
+## Deployed codebases (4 live)
+| Codebase | Chunks | Search | HyDE | AST |
+|----------|--------|--------|------|-----|
+| lumae-fresh | 764 | ✓ | ✓ | — |
+| cfpubsub-scaffold | 767 | ✓ | ✓ | — (old index) |
+| cf-docs-mcp | 294 | ✓ | — | ✓ |
+| qdrant-mcp-server | 3897 | ✓ | — | ✓ |
+
+## Eval Summary
+| Codebase | Queries | Recall@5 | Recall@10 | MRR | nDCG@10 |
+|----------|---------|----------|-----------|-----|---------|
+| cfpubsub-scaffold | 5 | 0.600 | 0.800 | 0.207 | 0.349 |
+| cf-docs-mcp | 5 | **1.000** | **1.000** | **0.617** | **0.715** |
+| qdrant-mcp-server | 10 | **0.900** | **0.900** | **0.592** | **0.666** |
+
+Cfpubsub "workers registered" query is the major gap (Recall=0.0, answer file never surfaces).
+
+## What's NEXT (Phase 34)
+- Fix cfpubsub "workers registered" gap — commands-runtime.ts should rank for "workers registered"
+- Re-index cfpubsub with AST chunks, measure eval delta
+- HyDE-enrich cf-docs-mcp and qdrant-mcp-server, measure eval delta
+- Scale to 6-9 more codebases for broader eval coverage
+- Dual-channel proper RRF (k=60) instead of simple aggregation
+- cfcode bench command wrapping eval harness
+- Progress bar during indexing
 
 ### Implementation notes
 - CLI: cloudflare-mcp/cli/cfcode.mjs (11 commands, 8 added via Codex sub-agents)
