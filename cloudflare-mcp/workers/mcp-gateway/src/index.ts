@@ -21,6 +21,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 const USER_WORKER_PREFIX = "cfcode-codebase-";
+const GATEWAY_ORIGIN = "https://cfcode-gateway.frosty-butterfly-d821.workers.dev";
 
 type Fetcher = { fetch(req: Request): Promise<Response> };
 type DispatchNamespace = { get(name: string): Fetcher };
@@ -114,13 +115,14 @@ export class CfcodeGateway extends McpAgent<Env, State> {
         if (!slug) {
           return { content: [{ type: "text", text: "ERROR: no codebase selected. Call select_codebase first." }] };
         }
-        const userWorker = this.env.DISPATCHER.get(`${USER_WORKER_PREFIX}${slug}`);
         try {
-          const res = await userWorker.fetch(new Request("https://internal/search", {
+          // Dispatch works from the default Worker handler; from inside the McpAgent DO
+          // Cloudflare attempts to resolve the DO class as a user-worker entrypoint.
+          const res = await fetch(`${GATEWAY_ORIGIN}/admin/codebases/${encodeURIComponent(slug)}/search`, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ query, topK: topK || 10, repo_slug: slug }),
-          }));
+          });
           const body = await res.json() as {
             ok: boolean;
             matches?: Array<{ chunk?: { file_path?: string; snippet?: string }; score?: number; id?: string }>;

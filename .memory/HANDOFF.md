@@ -1,6 +1,6 @@
 # HANDOFF — crash-recovery prompt for next session
 # Date: 2026-05-02 (build session)
-# Commit: 1b7cc3a (pushed to mine/main)
+# Commit: pending handoff verification commit after 4ffc315
 # Writer: Claude session with Andrew Williams
 
 ## TL;DR
@@ -13,7 +13,8 @@ AST chunking via regex (12 languages, function/class boundaries). 20 golden quer
 
 ## Current authoritative state
 
-- **Last commit:** 1b7cc3a on mine/main
+- **Last pushed commit:** 4ffc315 on mine/main
+- **MCP gateway fix:** `cloudflare-mcp/workers/mcp-gateway/src/index.ts` changed MCP `search` to use the proven gateway admin proxy; deployed to `cfcode-gateway` and SDK-smoked PASS.
 - **CLAUDE.md:** Phase status through 33D
 - **EXECUTION_PLAN.md:** POC ledger through Phase 33D
 - **4 codebases live in gateway:** lumae-fresh, cfpubsub-scaffold, cf-docs-mcp, qdrant-mcp-server
@@ -22,7 +23,9 @@ AST chunking via regex (12 languages, function/class boundaries). 20 golden quer
 - **Eval harness:** cloudflare-mcp/scripts/eval-harness.mjs
 - **Golden queries:** cloudflare-mcp/sessions/golden-{cfpubsub,cf-docs-mcp,qdrant-mcp-server}.json
 - **Research:** .memory/research-papers-retrieval-quality.md (29 papers, 4 categories)
-- **Skill:** cloudflare-master installed globally with code patterns
+- **MCP install status:** Claude (`~/.claude.json`), Codex (`~/.codex/config.toml` + legacy `config.json`), and OpenCode (`~/.config/opencode/opencode.json`) point at `https://cfcode-gateway.frosty-butterfly-d821.workers.dev/mcp`.
+- **Skill install status:** `cloudflare-master`, `cloudflare-codebase-mcp-indexing`, and `poc-driven-development` are symlinked from canonical `~/.agents/skills` into Claude, Codex, and both OpenCode skill dirs.
+- **Live MCP smoke:** `node cloudflare-mcp/poc/27h-mcp-client-debug/connect.mjs` connects, lists tools, lists 4 codebases, selects `qdrant-mcp-server`, and runs `search` successfully.
 
 ## What's done (Phase 31 + 32 + 33)
 
