@@ -76,3 +76,5 @@ cloudflare-mcp/sessions/index-codebase/*/embeddings/
 *.tgz
 package-lock.json
 yarn.lock
+.claude/
+.memory/
