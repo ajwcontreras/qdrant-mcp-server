@@ -45,6 +45,8 @@ type Env = {
   INDEXING_SHARD_DO?: DONamespaceLike;
   GEMINI_SERVICE_ACCOUNT_B64?: string;
   GEMINI_SERVICE_ACCOUNT_B64_2?: string;
+  GEMINI_SERVICE_ACCOUNT_B64_3?: string;
+  GEMINI_SERVICE_ACCOUNT_B64_4?: string;
   SHARD_COUNT?: string;
   BATCH_SIZE?: string;
   NUM_SAS?: string;
@@ -259,7 +261,7 @@ async function embed(env: Env, content: string, taskType: "RETRIEVAL_DOCUMENT" |
 // Per-isolate token cache keyed by SA email so multiple SAs (round-robin) coexist.
 const tokenCacheBySA: Map<string, { token: string; expiresAt: number }> = new Map();
 function parseSAByIndex(env: Env, saIndex: number): GoogleSA {
-  const keys = [env.GEMINI_SERVICE_ACCOUNT_B64, env.GEMINI_SERVICE_ACCOUNT_B64_2, undefined as string | undefined, undefined as string | undefined];
+  const keys = [env.GEMINI_SERVICE_ACCOUNT_B64, env.GEMINI_SERVICE_ACCOUNT_B64_2, env.GEMINI_SERVICE_ACCOUNT_B64_3, env.GEMINI_SERVICE_ACCOUNT_B64_4];
   const b64 = keys[saIndex] || env.GEMINI_SERVICE_ACCOUNT_B64;
   if (!b64) throw new Error(`SA secret for index ${saIndex} missing`);
   const a = JSON.parse(atob(b64)) as Partial<GoogleSA>;
@@ -488,7 +490,7 @@ export class HydeShardDO extends DurableObject<Env> {
   }
 }
 
-type IngestShardedReq = IngestReq & { shard_count?: number; batch_size?: number };
+type IngestShardedReq = IngestReq & { shard_count?: number; batch_size?: number; num_sas?: string };
 
 async function ingestSharded(env: Env, input: IngestShardedReq): Promise<Response> {
   await schema(env.DB);
@@ -509,7 +511,7 @@ async function ingestSharded(env: Env, input: IngestShardedReq): Promise<Respons
 
   const SHARD_COUNT = Math.max(1, input.shard_count ?? intEnv(env.SHARD_COUNT, 4));
   const BATCH_SIZE = Math.max(1, input.batch_size ?? intEnv(env.BATCH_SIZE, 100));
-  const NUM_SAS = Math.max(1, intEnv(env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1));
+  const NUM_SAS = Math.max(1, intEnv(input.num_sas ?? env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1));
 
   await env.ARTIFACTS.put(artifact_key, artifact_text, {
     httpMetadata: { contentType: "application/jsonl" },
@@ -604,7 +606,97 @@ async function ingest(env: Env, input: IngestReq): Promise<Response> {
   return json({ ok: true, job_id: input.job_id, queued: records.length });
 }
 
-// ── Incremental ingest ──
+// ── Incremental ingest (fast path: DO fan-out) ──
+async function incrementalIngestSharded(env: Env, input: IncrementalReq & { shard_count?: number; batch_size?: number; num_sas?: string }): Promise<Response> {
+  await schema(env.DB);
+  if (!env.INDEXING_SHARD_DO) return json({ ok: false, error: "INDEXING_SHARD_DO binding required" }, 501);
+  for (const k of ["job_id", "repo_slug", "manifest_id", "base_commit", "target_commit", "artifact_key", "artifact_text"] as const) {
+    if (!input[k]) return json({ ok: false, error: `${k} required` }, 400);
+  }
+  const { records, tombstones } = parseArtifact(input.artifact_text);
+  if (records.length === 0 && tombstones.length === 0) return json({ ok: false, error: "no records or tombstones" }, 400);
+
+  await env.ARTIFACTS.put(input.artifact_key, input.artifact_text, {
+    httpMetadata: { contentType: "application/jsonl" },
+    customMetadata: { repo_slug: input.repo_slug, job_id: input.job_id, manifest_id: input.manifest_id },
+  });
+
+  const deactivatePaths = new Set<string>();
+  for (const t of tombstones) deactivatePaths.add(t.file_path);
+  for (const r of records) {
+    deactivatePaths.add(r.file_path);
+    if (r.previous_path) deactivatePaths.add(r.previous_path);
+  }
+  let deactivatedCount = 0;
+  for (const fp of deactivatePaths) {
+    const result = await env.DB.prepare(`UPDATE chunks SET active = 0 WHERE repo_slug = ? AND file_path = ? AND active = 1`)
+      .bind(input.repo_slug, fp).run() as { meta?: { changes?: number } };
+    deactivatedCount += result?.meta?.changes || 0;
+  }
+
+  const SHARD_COUNT = Math.max(1, input.shard_count ?? intEnv(env.SHARD_COUNT, 4));
+  const BATCH_SIZE = Math.max(1, input.batch_size ?? intEnv(env.BATCH_SIZE, 100));
+  const NUM_SAS = Math.max(1, intEnv(input.num_sas ?? env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1));
+
+  const created = new Date().toISOString();
+  const job = await env.DB.prepare(`INSERT OR REPLACE INTO jobs
+    (job_id, repo_slug, indexed_path, active_commit, artifact_key, job_type,
+     manifest_id, base_commit, target_commit,
+     manifest_files, changed_files, deleted_files,
+     total, queued, completed, failed, status, created_at)
+    VALUES (?, ?, ?, ?, ?, 'incremental', ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 'running', ?)`)
+    .bind(input.job_id, input.repo_slug, "/incremental", input.target_commit, input.artifact_key,
+      input.manifest_id, input.base_commit, input.target_commit,
+      records.length + tombstones.length, records.length, tombstones.length,
+      records.length, records.length, created).run();
+
+  if (records.length === 0) {
+    await env.DB.prepare(`INSERT OR REPLACE INTO git_state (repo_slug, active_commit, last_manifest_id, updated_at) VALUES (?, ?, ?, ?)`)
+      .bind(input.repo_slug, input.target_commit, input.manifest_id, created).run();
+    return json({ ok: true, job_id: input.job_id, manifest_files: tombstones.length, changed_files: 0, deleted_files: tombstones.length, queued: 0, deactivated: deactivatedCount, git_advanced: true });
+  }
+
+  const shards: SourceRecord[][] = Array.from({ length: SHARD_COUNT }, () => []);
+  for (let i = 0; i < records.length; i++) shards[i % SHARD_COUNT].push(records[i]);
+
+  const tStart = Date.now();
+  const doNs = env.INDEXING_SHARD_DO!;
+  const responses = await Promise.allSettled(shards.map(async (recs, idx) => {
+    if (!recs.length) return { shard_index: idx, sa_index: idx % NUM_SAS, chunks_done: 0, vertex_calls: 0, vertex_ms: 0, vectorize_ms: 0, d1_ms: 0, errors: 0 } as ShardResult;
+    const stub = doNs.get(doNs.idFromName(`cfcode:shard:${idx}`));
+    const r = await stub.fetch("https://shard.internal/process-batch", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ job_id: input.job_id, repo_slug: input.repo_slug, shard_index: idx, sa_index: idx % NUM_SAS, batch_size: BATCH_SIZE, records: recs } satisfies ShardBatchReq),
+    });
+    if (!r.ok) throw new Error(`shard ${idx} returned ${r.status}`);
+    return await r.json() as ShardResult;
+  }));
+
+  let totalDone = 0, totalErr = 0;
+  for (const r of responses) {
+    if (r.status === "fulfilled") { totalDone += r.value.chunks_done; totalErr += r.value.errors; }
+    else totalErr += 1;
+  }
+
+  const status = totalErr === 0 ? "published" : (totalDone > 0 ? "partial" : "failed");
+  await env.DB.prepare(`UPDATE jobs SET completed = ?, failed = ?, status = ? WHERE job_id = ?`)
+    .bind(totalDone, totalErr, status, input.job_id).run();
+
+  if (totalErr === 0) {
+    await env.DB.prepare(`INSERT OR REPLACE INTO git_state (repo_slug, active_commit, last_manifest_id, updated_at) VALUES (?, ?, ?, ?)`)
+      .bind(input.repo_slug, input.target_commit, input.manifest_id, created).run();
+  }
+
+  const wallMs = Date.now() - tStart;
+  return json({
+    ok: totalErr === 0, job_id: input.job_id,
+    chunks: records.length, completed: totalDone, failed: totalErr,
+    wall_ms: wallMs, shard_count: SHARD_COUNT, batch_size: BATCH_SIZE, num_sas: NUM_SAS,
+    deactivated: deactivatedCount, status,
+  });
+}
+
+// ── Incremental ingest (legacy queue path) ──
 async function incrementalIngest(env: Env, input: IncrementalReq): Promise<Response> {
   await schema(env.DB);
   for (const k of ["job_id", "repo_slug", "manifest_id", "base_commit", "target_commit", "artifact_key", "artifact_text"] as const) {
@@ -916,6 +1008,7 @@ export default {
     if (url.pathname === "/ingest" && request.method === "POST") return ingest(env, await request.json().catch(() => ({})) as IngestReq);
     if (url.pathname === "/ingest-sharded" && request.method === "POST") return ingestSharded(env, await request.json().catch(() => ({})) as IngestShardedReq);
     if (url.pathname === "/incremental-ingest" && request.method === "POST") return incrementalIngest(env, await request.json().catch(() => ({})) as IncrementalReq);
+    if (url.pathname === "/incremental-ingest-sharded" && request.method === "POST") return incrementalIngestSharded(env, await request.json().catch(() => ({})) as IncrementalReq & { shard_count?: number; batch_size?: number; num_sas?: string });
     const sm = url.pathname.match(/^\/jobs\/([^/]+)\/status$/);
     if (sm) return jobStatus(env, sm[1]);
     if (url.pathname === "/collection_info") return collectionInfo(env);

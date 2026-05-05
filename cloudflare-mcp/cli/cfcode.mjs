@@ -22,7 +22,23 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LIB = path.join(__dirname, "../lib");
-const SA_PATH = "/Users/awilliamspcsevents/Downloads/team (1).json";
+
+function resolveSAFile() {
+  const home = process.env.HOME || process.env.USERPROFILE || "/tmp";
+  const primary = path.join(home, ".config/cfcode/sas/team (1).json");
+  if (fs.existsSync(primary)) return primary;
+  const fallback = "/Users/awilliamspcsevents/Downloads/team (1).json";
+  if (fs.existsSync(fallback)) return fallback;
+  throw new Error("No Vertex service account found. Place SA key at ~/.config/cfcode/sas/team (1).json");
+}
+function resolveSAFiles() {
+  const home = process.env.HOME || process.env.USERPROFILE || "/tmp";
+  const dir = path.join(home, ".config/cfcode/sas");
+  if (!fs.existsSync(dir)) return [resolveSAFile()];
+  const files = fs.readdirSync(dir).filter(f => f.endsWith(".json")).sort();
+  if (files.length === 0) return [resolveSAFile()];
+  return files.map(f => path.join(dir, f));
+}
 
 const {
   loadCfEnv, repoSlugFromPath,
@@ -36,8 +52,9 @@ const {
 } = await import(`${LIB}/files.mjs`);
 const {
   provisionResources, writeNamespaceWranglerConfig, deployToNamespace,
-  setNamespaceVertexSecret, teardownResources,
+  teardownResources,
 } = await import(`${LIB}/cf.mjs`);
+const { setNamespaceWorkerSecret } = await import(`${LIB}/wfp-secret.mjs`);
 const {
   GATEWAY_URL, NAMESPACE_NAME, userWorkerNameFor,
   listCodebases: gatewayList, registerCodebase, unregisterCodebase, proxyToCodebase,
@@ -80,30 +97,63 @@ function parseArgs(argv) {
 async function cmdIndex(repoPath, flags) {
   const abs = path.resolve(repoPath);
   if (!fs.existsSync(path.join(abs, ".git"))) throw new Error(`${abs} is not a git repo`);
-  if (!fs.existsSync(SA_PATH)) throw new Error(`Vertex service account not found at ${SA_PATH}`);
 
   const slug = repoSlugFromPath(abs);
+
+  // If already registered and not explicitly --full, delegate to incremental reindex
+  const all = await gatewayList();
+  const reg = all.find(c => c.slug === slug);
+  if (reg && !flags.full) {
+    log(`ℹ ${slug} already registered — running incremental reindex\n   (use --full for complete reindex)`);
+    return cmdReindex(repoPath, flags);
+  }
   const names = namesForSlug(slug);
   log(`\n📦 cfcode index ${abs}`);
   log(`   slug:   ${slug}`);
   log(`   worker: ${names.workerName} (in ${NAMESPACE_NAME})\n`);
 
-  log("→ Provisioning Cloudflare resources (idempotent)...");
-  const { d1Id } = provisionResources(names, { log: m => log(`  ${m}`) });
+  const env = loadCfEnv();
+  const saFiles = resolveSAFiles();
+  log(`   ${saFiles.length} Vertex service account(s) found`);
 
-  log("→ Writing wrangler config...");
-  const configPath = configPathFor(slug);
-  writeNamespaceWranglerConfig(configPath, { ...names, d1Id });
+  const shouldDeploy = !!flags.deploy;
+  const firstTime = !shouldDeploy; // skip provision for re-index unless --deploy
 
-  log("→ Deploying user worker into dispatch namespace...");
-  deployToNamespace(configPath, NAMESPACE_NAME);
+  if (shouldDeploy) {
+    log("→ Provisioning Cloudflare resources (idempotent)...");
+    const { d1Id } = provisionResources(names, { log: m => log(`  ${m}`) });
+    log("→ Writing wrangler config...");
+    const configPath = configPathFor(slug);
+    writeNamespaceWranglerConfig(configPath, { ...names, d1Id });
+    log("→ Deploying user worker into dispatch namespace...");
+    deployToNamespace(configPath, NAMESPACE_NAME);
+  }
 
-  log("→ Setting Vertex SA secret (multipart API)...");
-  const saB64 = Buffer.from(fs.readFileSync(SA_PATH, "utf8")).toString("base64");
-  await setNamespaceVertexSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, saB64 });
+  if (shouldDeploy || firstTime) {
+    // Set SA secrets via multipart upload API
+    log("→ Setting Vertex SA secrets...");
+    for (let i = 0; i < saFiles.length && i < 4; i++) {
+      const saB64 = Buffer.from(fs.readFileSync(saFiles[i], "utf8")).toString("base64");
+      const suffix = i === 0 ? "" : `_${i + 1}`; // _2, _3, _4 for indices 1,2,3
+      const secretName = `GEMINI_SERVICE_ACCOUNT_B64${suffix}`;
+      try {
+        await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName, secretValue: saB64 });
+        log(`   ${secretName}: OK`);
+      } catch (e) { log(`   ${secretName} FAILED: ${e.message}`); }
+    }
+    // Set DeepSeek key
+    if (env.DEEPSEEK_API_KEY) {
+      try {
+        await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName: "DEEPSEEK_API_KEY", secretValue: env.DEEPSEEK_API_KEY });
+        log("   DEEPSEEK_API_KEY: OK");
+      } catch (e) { log(`   DEEPSEEK_API_KEY FAILED: ${e.message}`); }
+    }
+  }
 
-  log("→ Registering with gateway...");
-  await registerCodebase(slug, abs);
+  if (shouldDeploy) {
+    log("→ Registering with gateway...");
+    await registerCodebase(slug, abs);
+  }
 
   log("→ Building chunks from repo...");
   const chunks = await buildFullChunks(abs, slug);
@@ -116,46 +166,51 @@ async function cmdIndex(repoPath, flags) {
   const artifactText = fullChunksToJsonl(chunks);
   const shards = typeof flags?.shards === "string" ? Number(flags.shards) : NaN;
   const batchSize = typeof flags?.batch === "string" ? Number(flags.batch) : NaN;
-  const ingestPath = flags?.fast ? "/ingest-sharded" : "/ingest";
+  const useQueue = flags?.queue === true;
+  const ingestPath = useQueue ? "/ingest" : "/ingest-sharded";
   const body = {
     job_id: jobId, repo_slug: slug, indexed_path: abs,
     active_commit: activeCommit, artifact_key: artifactKey, artifact_text: artifactText,
+    deepseek_api_key: env.DEEPSEEK_API_KEY || "",
+    num_sas: String(saFiles.length),
   };
   if (Number.isFinite(shards) && shards > 0) body.shard_count = shards;
   if (Number.isFinite(batchSize) && batchSize > 0) body.batch_size = batchSize;
 
-  log(`→ POST ${ingestPath} via gateway proxy${flags?.fast ? " (fast path)" : ""}...`);
+  log(`→ POST ${ingestPath} via gateway proxy...`);
   const ingestRes = await proxyToCodebase(slug, ingestPath, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!ingestRes.ok) throw new Error(`ingest failed: ${JSON.stringify(ingestRes)}`);
-  log(`   queued: ${ingestRes.queued}`);
+  if (!ingestRes.ok && ingestRes.status !== "partial") throw new Error(`ingest failed: ${JSON.stringify(ingestRes)}`);
+  log(`   completed=${ingestRes.completed || ingestRes.queued || "?"}/${ingestRes.chunks || "?"} (failed=${ingestRes.failed || 0})`);
 
-  log("→ Polling job until published...");
-  // Note: pollPublished hits the worker URL directly; we proxy via gateway.
-  // Inline a slimmer poll loop here.
-  const deadline = Date.now() + 600_000;
-  let lastJob;
-  while (Date.now() < deadline) {
-    const statusRes = await proxyToCodebase(slug, `/jobs/${jobId}/status`).catch(() => null);
-    if (statusRes?.ok) {
-      lastJob = statusRes.job;
-      process.stdout.write(`\r   ${lastJob.completed}/${lastJob.total} (failed=${lastJob.failed})    `);
-      if (lastJob.status === "published") break;
-      if (lastJob.failed > 0 && lastJob.completed + lastJob.failed >= lastJob.total) {
-        process.stdout.write("\n");
-        throw new Error(`job has ${lastJob.failed} failures: ${JSON.stringify(lastJob)}`);
+  if (ingestRes.status === "published") {
+    log(`\n✅ Indexed ${slug}`);
+    log(`   MCP URL: ${GATEWAY_URL}/mcp`);
+  } else {
+    log("\n→ Polling job until published...");
+    const deadline = Date.now() + 600_000;
+    let lastJob;
+    while (Date.now() < deadline) {
+      const statusRes = await proxyToCodebase(slug, `/jobs/${jobId}/status`).catch(() => null);
+      if (statusRes?.ok) {
+        lastJob = statusRes.job;
+        process.stdout.write(`\r   ${lastJob.completed}/${lastJob.total} (failed=${lastJob.failed})    `);
+        if (lastJob.status === "published") break;
+        if (lastJob.failed > 0 && lastJob.completed + lastJob.failed >= lastJob.total) {
+          process.stdout.write("\n");
+          throw new Error(`job has ${lastJob.failed} failures: ${JSON.stringify(lastJob)}`);
+        }
       }
+      await new Promise(r => setTimeout(r, 3000));
     }
-    await new Promise(r => setTimeout(r, 3000));
+    process.stdout.write("\n");
+    if (lastJob?.status !== "published") throw new Error(`job did not publish: ${JSON.stringify(lastJob)}`);
+    log(`   status=${lastJob.status}, completed=${lastJob.completed}/${lastJob.total}`);
+    log(`\n✅ Indexed ${slug}`);
+    log(`   MCP URL: ${GATEWAY_URL}/mcp`);
   }
-  process.stdout.write("\n");
-  if (lastJob?.status !== "published") throw new Error(`job did not publish: ${JSON.stringify(lastJob)}`);
-  log(`   status=${lastJob.status}, completed=${lastJob.completed}/${lastJob.total}`);
-
-  log(`\n✅ Indexed ${slug}`);
-  log(`   MCP URL: ${GATEWAY_URL}/mcp`);
   log(`   In Claude Code, call select_codebase("${slug}"), then search.`);
 }
 
@@ -163,18 +218,37 @@ async function cmdReindex(repoPath, flags) {
   const abs = path.resolve(repoPath);
   const slug = repoSlugFromPath(abs);
 
-  // Check the codebase is registered
   const all = await gatewayList();
   const reg = all.find(c => c.slug === slug);
-  if (!reg) throw new Error(`${slug} not registered with gateway. Run 'cfcode index ${abs}' first.`);
+  if (!reg) throw new Error(`${slug} not registered with gateway. Run 'cfcode index ${abs} --deploy' first.`);
+
+  // Always refresh secrets in case of re-deployments
+  const env = loadCfEnv();
+  const names = namesForSlug(slug);
+  const saFiles = resolveSAFiles();
+  log(`\n🔁 cfcode reindex ${abs}`);
+  log(`   slug:   ${slug}`);
+  log(`   ${saFiles.length} SA(s) found`);
+  log("→ Refreshing Vertex SA + DeepSeek secrets...");
+  for (let i = 0; i < saFiles.length && i < 4; i++) {
+    const saB64 = Buffer.from(fs.readFileSync(saFiles[i], "utf8")).toString("base64");
+    const suffix = i === 0 ? "" : `_${i + 1}`;
+    const secretName = `GEMINI_SERVICE_ACCOUNT_B64${suffix}`;
+    try { await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName, secretValue: saB64 }); }
+    catch (e) { log(`   ${secretName} FAILED: ${e.message}`); }
+  }
+  if (env.DEEPSEEK_API_KEY) {
+    try { await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName: "DEEPSEEK_API_KEY", secretValue: env.DEEPSEEK_API_KEY }); }
+    catch (e) { log(`   DEEPSEEK_API_KEY FAILED: ${e.message}`); }
+  }
+  log("   OK");
 
   // Find the active_commit from gateway git_state (proxied)
   const gs = await proxyToCodebase(slug, `/git-state/${slug}`).catch(() => null);
   const baseRef = flags.base || gs?.state?.active_commit || "HEAD~1";
   const targetRef = flags.target || "HEAD";
-  log(`\n🔁 cfcode reindex ${abs}`);
   log(`   base:   ${baseRef}`);
-  log(`   target: ${targetRef}\n`);
+  log(`   target: ${targetRef}`);
 
   log("→ Building diff manifest...");
   const manifest = buildDiffManifest(abs, slug, baseRef, targetRef);
@@ -192,17 +266,19 @@ async function cmdReindex(repoPath, flags) {
   log(`   records: ${records.length}, tombstones: ${tombstones.length}`);
 
   const jobId = `inc-${slug}-${Date.now().toString(36)}`;
-  log("→ POST /incremental-ingest via gateway proxy...");
-  const res = await proxyToCodebase(slug, "/incremental-ingest", {
+  log(`→ POST /incremental-ingest-sharded via gateway proxy...`);
+  const res = await proxyToCodebase(slug, "/incremental-ingest-sharded", {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({
       job_id: jobId, repo_slug: slug, manifest_id: manifest.manifest_id,
       base_commit: manifest.base_commit, target_commit: manifest.target_commit,
       artifact_key: `incremental/${manifest.manifest_id}.jsonl`, artifact_text: artifactText,
+      deepseek_api_key: env.DEEPSEEK_API_KEY || "",
+      num_sas: String(resolveSAFiles().length),
     }),
   });
   if (!res.ok) throw new Error(`incremental-ingest failed: ${JSON.stringify(res)}`);
-  log(`   queued=${res.queued}, deactivated=${res.deactivated}, git_advanced=${res.git_advanced}`);
+  log(`   completed=${res.completed}/${res.chunks || res.queued || "?"} (failed=${res.failed || 0}, deactivated=${res.deactivated || 0})`);
 
   if (records.length > 0) {
     log("→ Polling job until published...");
