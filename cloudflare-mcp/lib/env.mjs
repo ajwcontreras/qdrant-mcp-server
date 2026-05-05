@@ -17,6 +17,7 @@ export function loadCfEnv() {
     if (k.trim() === "CF_GLOBAL_API_KEY") env.CLOUDFLARE_API_KEY = v;
     if (k.trim() === "CF_EMAIL") env.CLOUDFLARE_EMAIL = v;
     if (k.trim() === "CF_ACCOUNT_ID") env.CLOUDFLARE_ACCOUNT_ID = v;
+    if (k.trim() === "DEEPSEEK_API_KEY") env.DEEPSEEK_API_KEY = v;
   }
   return env;
 }

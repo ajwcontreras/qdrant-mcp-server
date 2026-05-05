@@ -367,9 +367,11 @@ async function cmdHydeEnrich(repoPath) {
   log(`   job_id: ${jobId}`);
 
   log("→ Generating HyDE questions + embedding...");
+  const env = loadCfEnv();
+  const dsKey = env.DEEPSEEK_API_KEY || "";
   const res = await proxyToCodebase(slug, "/hyde-enrich", {
     method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ job_id: jobId, repo_slug: slug }),
+    body: JSON.stringify({ job_id: jobId, repo_slug: slug, deepseek_api_key: dsKey }),
   });
   if (!res?.ok) { log(`hyde-enrich failed: ${res?.error || JSON.stringify(res)}`); return; }
   log(`   scanned=${res.scanned}, enriched=${res.enriched}, errors=${res.errors || 0}`);

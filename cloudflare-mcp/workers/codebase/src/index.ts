@@ -289,34 +289,54 @@ async function embedBatch(env: Env, sa: GoogleSA, texts: string[]): Promise<{ va
   const location = env.GOOGLE_LOCATION || "us-central1";
   const model = env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
   const dims = intEnv(env.GOOGLE_EMBEDDING_DIMENSIONS, 1536);
-  const token = await tokenForSA(sa);
   const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:predict`;
-  const res = await fetch(url, {
-    method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify({
-      instances: texts.map(t => ({ content: t, task_type: "RETRIEVAL_DOCUMENT" })),
-      parameters: { autoTruncate: true, outputDimensionality: dims },
-    }),
-  });
-  const raw = await res.text();
-  if (!res.ok) throw new Error(`Vertex embed failed ${res.status}: ${raw.slice(0, 500)}`);
-  const d = JSON.parse(raw) as { predictions?: Array<{ embeddings?: { values?: unknown } }> };
-  const preds = d.predictions || [];
-  if (preds.length !== texts.length) throw new Error(`Vertex returned ${preds.length} preds for ${texts.length} inputs`);
-  return preds.map(p => {
-    const values = p.embeddings?.values;
-    if (!Array.isArray(values) || !values.every(v => typeof v === "number")) throw new Error("bad Vertex response");
-    const norm = Math.sqrt(values.reduce((s: number, v: number) => s + v * v, 0));
-    return { values: values as number[], norm };
-  });
+
+  let lastErr: Error | undefined;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const token = await tokenForSA(sa);
+      const res = await fetch(url, {
+        method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          instances: texts.map(t => ({ content: t, task_type: "RETRIEVAL_DOCUMENT" })),
+          parameters: { autoTruncate: true, outputDimensionality: dims },
+        }),
+      });
+      const raw = await res.text();
+      if (!res.ok) {
+        if (res.status >= 500 || res.status === 429) {
+          lastErr = new Error(`Vertex embed failed ${res.status} (retryable)`);
+          await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+          continue;
+        }
+        throw new Error(`Vertex embed failed ${res.status}: ${raw.slice(0, 500)}`);
+      }
+      const d = JSON.parse(raw) as { predictions?: Array<{ embeddings?: { values?: unknown } }> };
+      const preds = d.predictions || [];
+      if (preds.length !== texts.length) throw new Error(`Vertex returned ${preds.length} preds for ${texts.length} inputs`);
+      return preds.map(p => {
+        const values = p.embeddings?.values;
+        if (!Array.isArray(values) || !values.every(v => typeof v === "number")) throw new Error("bad Vertex response");
+        const norm = Math.sqrt(values.reduce((s: number, v: number) => s + v * v, 0));
+        return { values: values as number[], norm };
+      });
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e));
+      const msg = lastErr.message;
+      if (msg.includes("400") || msg.includes("401") || msg.includes("403") || msg.includes("404")) throw lastErr;
+      await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+    }
+  }
+  throw lastErr || new Error("Vertex embed retries exhausted");
 }
 
 const HYDE_SYS = "You are a code search assistant. Given a code snippet, generate exactly 12 distinct natural-language questions that a developer might ask whose answer would be this snippet. Output ONLY a JSON object: {\"questions\": [\"q1\", ..., \"q12\"]}. No prose, no markdown.";
 
-async function deepseek(env: Env, text: string): Promise<string[]> {
-  if (!env.DEEPSEEK_API_KEY) throw new Error("DS key missing");
+async function deepseek(env: Env, text: string, apiKeyOverride?: string): Promise<string[]> {
+  const key = apiKeyOverride || env.DEEPSEEK_API_KEY;
+  if (!key) throw new Error("DS key missing");
   for (let a = 0; a < 4; a++) {
-    const r = await fetch("https://api.deepseek.com/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${env.DEEPSEEK_API_KEY}` }, body: JSON.stringify({ model: env.HYDE_MODEL || "deepseek-v4-flash", messages: [{ role: "system", content: HYDE_SYS }, { role: "user", content: text }], response_format: { type: "json_object" }, temperature: 0.4, max_tokens: 1500 }) });
+    const r = await fetch("https://api.deepseek.com/chat/completions", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` }, body: JSON.stringify({ model: env.HYDE_MODEL || "deepseek-v4-flash", messages: [{ role: "system", content: HYDE_SYS }, { role: "user", content: text }], response_format: { type: "json_object" }, temperature: 0.4, max_tokens: 1500 }) });
     const raw = await r.text(); if (r.ok) {
       const j = JSON.parse(raw) as { choices?: Array<{ message?: { content?: string } }> };
       const c = j.choices?.[0]?.message?.content; if (!c) throw new Error("DS empty");
@@ -332,6 +352,7 @@ async function deepseek(env: Env, text: string): Promise<string[]> {
 type ShardBatchReq = {
   job_id: string; repo_slug: string; shard_index: number; sa_index: number; batch_size: number;
   records?: SourceRecord[];
+  deepseek_api_key?: string;
 };
 type ShardResult = {
   shard_index: number; sa_index: number; chunks_done: number; vertex_calls: number;
@@ -435,7 +456,7 @@ export class HydeShardDO extends DurableObject<Env> {
     const collected: { record: SourceRecord; questions: string[] }[] = [];
     for (let i = 0; i < records.length; i += 6) {
       const batch = records.slice(i, i + 6);
-      const outcomes = await Promise.allSettled(batch.map(async r => ({ record: r, questions: await deepseek(this.env, r.text) })));
+      const outcomes = await Promise.allSettled(batch.map(async r => ({ record: r, questions: await deepseek(this.env, r.text, req.deepseek_api_key) })));
       for (const o of outcomes) { if (o.status === "fulfilled") collected.push(o.value); else errs++; }
     }
     if (!collected.length) return { done, errors: errs };
@@ -836,8 +857,9 @@ async function searchRerank(env: Env, request: Request): Promise<Response> {
 async function hydeEnrich(env: Env, request: Request): Promise<Response> {
   await schema(env.DB);
   if (!env.HYDE_SHARD_DO) return json({ ok: false, error: "HYDE_SHARD_DO binding missing" }, 501);
-  if (!env.DEEPSEEK_API_KEY) return json({ ok: false, error: "DEEPSEEK_API_KEY missing" }, 501);
-  const inp = await request.json() as { job_id?: string; repo_slug?: string; batch_size?: number };
+  const inp = await request.json() as { job_id?: string; repo_slug?: string; batch_size?: number; deepseek_api_key?: string };
+  const dsKey = inp.deepseek_api_key || env.DEEPSEEK_API_KEY;
+  if (!dsKey) return json({ ok: false, error: "DEEPSEEK_API_KEY missing" }, 501);
   if (!inp.job_id) return json({ ok: false, error: "job_id required" }, 400);
   const jobId = inp.job_id;
 
@@ -854,7 +876,7 @@ async function hydeEnrich(env: Env, request: Request): Promise<Response> {
   const outcomes = await Promise.allSettled(buckets.map((bucket, idx) => {
     if (!bucket.length) return Promise.resolve({ done: 0, errors: 0 });
     const stub = env.HYDE_SHARD_DO!.get(env.HYDE_SHARD_DO!.idFromName(`h-enrich:${jobId}:${idx}`));
-    return doFetch(stub, "https://s/process-batch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, repo_slug: inp.repo_slug || "", shard_index: idx, shard_count: numShards, sa_index: idx % sas, batch_size: bs, records: bucket }) }, 300_000).then(r => r.json() as Promise<{ done: number; errors: number }>);
+    return doFetch(stub, "https://s/process-batch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, repo_slug: inp.repo_slug || "", shard_index: idx, shard_count: numShards, sa_index: idx % sas, batch_size: bs, records: bucket, deepseek_api_key: dsKey }) }, 300_000).then(r => r.json() as Promise<{ done: number; errors: number }>);
   }));
 
   let enriched = 0, errs = 0;
