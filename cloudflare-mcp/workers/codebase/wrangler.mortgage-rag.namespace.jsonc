@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-codebase-mortgage-rag",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-mortgage-rag-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-mortgage-rag", "database_id": "822d115d-99ed-4b66-91c3-e35383b22ba9" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-mortgage-rag" }],
+  "durable_objects": {
+    "bindings": [
+      { "name": "INDEXING_SHARD_DO", "class_name": "IndexingShardDO" },
+      { "name": "HYDE_SHARD_DO", "class_name": "HydeShardDO" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["IndexingShardDO", "HydeShardDO"] }
+  ],
+  "vars": {
+    "SHARD_COUNT": "4",
+    "BATCH_SIZE": "100",
+    "NUM_SAS": "2"
+  },
+  "queues": {
+    "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-mortgage-rag-work" }]
+  }
+}

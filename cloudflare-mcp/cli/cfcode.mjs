@@ -1,578 +1,322 @@
 #!/usr/bin/env node
-/**
- * cfcode — global CLI for Cloudflare per-codebase MCP indexing.
- *
- * v2 architecture: per-codebase Workers live in the `cfcode-codebases`
- * dispatch namespace. A single stateful gateway (`cfcode-gateway`) routes
- * by slug. Agent puts ONE URL in settings:
- *   https://cfcode-gateway.frosty-butterfly-d821.workers.dev/mcp
- *
- * Commands:
- *   cfcode index <repo-path>           Full-index a codebase
- *   cfcode reindex <repo-path>          Diff reindex (base = stored active_commit)
- *     [--base <ref>] [--target <ref>]
- *   cfcode status [<repo-path>]         Show indexed state
- *   cfcode list                          List registered codebases (from gateway)
- *   cfcode uninstall <repo-path>         Remove from namespace + registry + delete resources
- *   cfcode mcp-url                       Print the single MCP URL
- */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LIB = path.join(__dirname, "../lib");
+const POLL_INTERVAL = 3000;
+const POLL_DEADLINE = 600_000;
 
-function resolveSAFile() {
-  const home = process.env.HOME || process.env.USERPROFILE || "/tmp";
-  const primary = path.join(home, ".config/cfcode/sas/team (1).json");
-  if (fs.existsSync(primary)) return primary;
-  const fallback = "/Users/awilliamspcsevents/Downloads/team (1).json";
-  if (fs.existsSync(fallback)) return fallback;
-  throw new Error("No Vertex service account found. Place SA key at ~/.config/cfcode/sas/team (1).json");
-}
+// ── SA file resolution ──
+function saDir() { return path.join(process.env.HOME || "/tmp", ".config/cfcode/sas"); }
 function resolveSAFiles() {
-  const home = process.env.HOME || process.env.USERPROFILE || "/tmp";
-  const dir = path.join(home, ".config/cfcode/sas");
-  if (!fs.existsSync(dir)) return [resolveSAFile()];
+  const dir = saDir();
+  if (!fs.existsSync(dir)) return [];
   const files = fs.readdirSync(dir).filter(f => f.endsWith(".json")).sort();
-  if (files.length === 0) return [resolveSAFile()];
-  return files.map(f => path.join(dir, f));
+  return files.length ? files.map(f => path.join(dir, f)) : [];
 }
 
-const {
-  loadCfEnv, repoSlugFromPath,
-  r2BucketForSlug, d1NameForSlug, vectorizeIndexForSlug, queueNameForSlug, dlqNameForSlug,
-} = await import(`${LIB}/env.mjs`);
-const { fetchJson, fetchJsonOptional, pollPublished } = await import(`${LIB}/http.mjs`);
-const { run } = await import(`${LIB}/exec.mjs`);
-const {
-  buildFullChunks, buildDiffManifest, buildIncrementalArtifact,
-  fullChunksToJsonl, artifactToJsonl, resolveCommit,
-} = await import(`${LIB}/files.mjs`);
-const {
-  provisionResources, writeNamespaceWranglerConfig, deployToNamespace,
-  teardownResources,
-} = await import(`${LIB}/cf.mjs`);
+// ── Imports ──
+const { loadCfEnv, repoSlugFromPath, r2BucketForSlug, d1NameForSlug, vectorizeIndexForSlug, queueNameForSlug, dlqNameForSlug } = await import(`${LIB}/env.mjs`);
+const { buildFullChunks, buildDiffManifest, buildIncrementalArtifact, fullChunksToJsonl, artifactToJsonl, resolveCommit } = await import(`${LIB}/files.mjs`);
+const { provisionResources, writeNamespaceWranglerConfig, deployToNamespace, teardownResources } = await import(`${LIB}/cf.mjs`);
 const { setNamespaceWorkerSecret } = await import(`${LIB}/wfp-secret.mjs`);
-const {
-  GATEWAY_URL, NAMESPACE_NAME, userWorkerNameFor,
-  listCodebases: gatewayList, registerCodebase, unregisterCodebase, proxyToCodebase,
-} = await import(`${LIB}/gateway.mjs`);
+const { GATEWAY_URL, NAMESPACE_NAME, userWorkerNameFor, listCodebases: gatewayList, registerCodebase, unregisterCodebase, proxyToCodebase } = await import(`${LIB}/gateway.mjs`);
 
-function namesForSlug(slug) {
-  return {
-    workerName: userWorkerNameFor(slug),
-    namespaceName: NAMESPACE_NAME,
-    r2Bucket: r2BucketForSlug(slug),
-    d1Name: d1NameForSlug(slug),
-    vectorizeIndex: vectorizeIndexForSlug(slug),
-    queueName: queueNameForSlug(slug),
-    dlqName: dlqNameForSlug(slug),
-  };
-}
-
-function configPathFor(slug) {
-  return path.resolve(__dirname, `../workers/codebase/wrangler.${slug}.namespace.jsonc`);
-}
-
-function log(msg) { console.log(msg); }
-function err(msg) { console.error(msg); }
+function log(m) { console.log(m); }
+function namesForSlug(slug) { return { workerName: userWorkerNameFor(slug), namespaceName: NAMESPACE_NAME, r2Bucket: r2BucketForSlug(slug), d1Name: d1NameForSlug(slug), vectorizeIndex: vectorizeIndexForSlug(slug), queueName: queueNameForSlug(slug), dlqName: dlqNameForSlug(slug) }; }
+function configPathFor(slug) { return path.resolve(__dirname, `../workers/codebase/wrangler.${slug}.namespace.jsonc`); }
 
 function parseArgs(argv) {
-  const flags = {};
-  const positional = [];
+  const flags = {}; const positional = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a.startsWith("--")) {
-      const key = a.slice(2);
-      const next = argv[i + 1];
-      if (!next || next.startsWith("--")) flags[key] = true;
-      else { flags[key] = next; i++; }
-    } else positional.push(a);
+    if (a.startsWith("--")) { const key = a.slice(2); const next = argv[i + 1]; flags[key] = (!next || next.startsWith("--")) ? true : (i++, next); }
+    else positional.push(a);
   }
   return { positional, flags };
 }
 
-async function cmdIndex(repoPath, flags) {
-  const abs = path.resolve(repoPath);
-  if (!fs.existsSync(path.join(abs, ".git"))) throw new Error(`${abs} is not a git repo`);
+// ── Shared helpers ──
 
-  const slug = repoSlugFromPath(abs);
-
-  // If already registered and not explicitly --full, delegate to incremental reindex
-  const all = await gatewayList();
-  const reg = all.find(c => c.slug === slug);
-  if (reg && !flags.full) {
-    log(`ℹ ${slug} already registered — running incremental reindex\n   (use --full for complete reindex)`);
-    return cmdReindex(repoPath, flags);
-  }
-  const names = namesForSlug(slug);
-  log(`\n📦 cfcode index ${abs}`);
-  log(`   slug:   ${slug}`);
-  log(`   worker: ${names.workerName} (in ${NAMESPACE_NAME})\n`);
-
-  const env = loadCfEnv();
-  const saFiles = resolveSAFiles();
-  log(`   ${saFiles.length} Vertex service account(s) found`);
-
-  const shouldDeploy = !!flags.deploy;
-  const firstTime = !shouldDeploy; // skip provision for re-index unless --deploy
-
-  if (shouldDeploy) {
-    log("→ Provisioning Cloudflare resources (idempotent)...");
-    const { d1Id } = provisionResources(names, { log: m => log(`  ${m}`) });
-    log("→ Writing wrangler config...");
-    const configPath = configPathFor(slug);
-    writeNamespaceWranglerConfig(configPath, { ...names, d1Id });
-    log("→ Deploying user worker into dispatch namespace...");
-    deployToNamespace(configPath, NAMESPACE_NAME);
-  }
-
-  if (shouldDeploy || firstTime) {
-    // Set SA secrets via multipart upload API
-    log("→ Setting Vertex SA secrets...");
-    for (let i = 0; i < saFiles.length && i < 4; i++) {
-      const saB64 = Buffer.from(fs.readFileSync(saFiles[i], "utf8")).toString("base64");
-      const suffix = i === 0 ? "" : `_${i + 1}`; // _2, _3, _4 for indices 1,2,3
-      const secretName = `GEMINI_SERVICE_ACCOUNT_B64${suffix}`;
-      try {
-        await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName, secretValue: saB64 });
-        log(`   ${secretName}: OK`);
-      } catch (e) { log(`   ${secretName} FAILED: ${e.message}`); }
-    }
-    // Set DeepSeek key
-    if (env.DEEPSEEK_API_KEY) {
-      try {
-        await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName: "DEEPSEEK_API_KEY", secretValue: env.DEEPSEEK_API_KEY });
-        log("   DEEPSEEK_API_KEY: OK");
-      } catch (e) { log(`   DEEPSEEK_API_KEY FAILED: ${e.message}`); }
-    }
-  }
-
-  if (shouldDeploy) {
-    log("→ Registering with gateway...");
-    await registerCodebase(slug, abs);
-  }
-
-  log("→ Building chunks from repo...");
-  const chunks = await buildFullChunks(abs, slug);
-  log(`   ${chunks.length} chunks`);
-  if (!chunks.length) throw new Error("no source files found");
-
-  const activeCommit = resolveCommit(abs, "HEAD");
-  const jobId = `job-${slug}-${Date.now().toString(36)}`;
-  const artifactKey = `full/${jobId}.jsonl`;
-  const artifactText = fullChunksToJsonl(chunks);
-  const shards = typeof flags?.shards === "string" ? Number(flags.shards) : NaN;
-  const batchSize = typeof flags?.batch === "string" ? Number(flags.batch) : NaN;
-  const useQueue = flags?.queue === true;
-  const ingestPath = useQueue ? "/ingest" : "/ingest-sharded";
-  const body = {
-    job_id: jobId, repo_slug: slug, indexed_path: abs,
-    active_commit: activeCommit, artifact_key: artifactKey, artifact_text: artifactText,
-    deepseek_api_key: env.DEEPSEEK_API_KEY || "",
-    num_sas: String(saFiles.length),
-  };
-  if (Number.isFinite(shards) && shards > 0) body.shard_count = shards;
-  if (Number.isFinite(batchSize) && batchSize > 0) body.batch_size = batchSize;
-
-  log(`→ POST ${ingestPath} via gateway proxy...`);
-  const ingestRes = await proxyToCodebase(slug, ingestPath, {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!ingestRes.ok && ingestRes.status !== "partial") throw new Error(`ingest failed: ${JSON.stringify(ingestRes)}`);
-  log(`   completed=${ingestRes.completed || ingestRes.queued || "?"}/${ingestRes.chunks || "?"} (failed=${ingestRes.failed || 0})`);
-
-  if (ingestRes.status === "published") {
-    log(`\n✅ Indexed ${slug}`);
-    log(`   MCP URL: ${GATEWAY_URL}/mcp`);
-  } else {
-    log("\n→ Polling job until published...");
-    const deadline = Date.now() + 600_000;
-    let lastJob;
-    while (Date.now() < deadline) {
-      const statusRes = await proxyToCodebase(slug, `/jobs/${jobId}/status`).catch(() => null);
-      if (statusRes?.ok) {
-        lastJob = statusRes.job;
-        process.stdout.write(`\r   ${lastJob.completed}/${lastJob.total} (failed=${lastJob.failed})    `);
-        if (lastJob.status === "published") break;
-        if (lastJob.failed > 0 && lastJob.completed + lastJob.failed >= lastJob.total) {
-          process.stdout.write("\n");
-          throw new Error(`job has ${lastJob.failed} failures: ${JSON.stringify(lastJob)}`);
-        }
-      }
-      await new Promise(r => setTimeout(r, 3000));
-    }
-    process.stdout.write("\n");
-    if (lastJob?.status !== "published") throw new Error(`job did not publish: ${JSON.stringify(lastJob)}`);
-    log(`   status=${lastJob.status}, completed=${lastJob.completed}/${lastJob.total}`);
-    log(`\n✅ Indexed ${slug}`);
-    log(`   MCP URL: ${GATEWAY_URL}/mcp`);
-  }
-  log(`   In Claude Code, call select_codebase("${slug}"), then search.`);
-}
-
-async function cmdReindex(repoPath, flags) {
-  const abs = path.resolve(repoPath);
-  const slug = repoSlugFromPath(abs);
-
-  const all = await gatewayList();
-  const reg = all.find(c => c.slug === slug);
-  if (!reg) throw new Error(`${slug} not registered with gateway. Run 'cfcode index ${abs} --deploy' first.`);
-
-  // Always refresh secrets in case of re-deployments
-  const env = loadCfEnv();
-  const names = namesForSlug(slug);
-  const saFiles = resolveSAFiles();
-  log(`\n🔁 cfcode reindex ${abs}`);
-  log(`   slug:   ${slug}`);
-  log(`   ${saFiles.length} SA(s) found`);
-  log("→ Refreshing Vertex SA + DeepSeek secrets...");
+async function setupSecrets(names, saFiles, env) {
+  log("→ Refreshing secrets...");
   for (let i = 0; i < saFiles.length && i < 4; i++) {
-    const saB64 = Buffer.from(fs.readFileSync(saFiles[i], "utf8")).toString("base64");
-    const suffix = i === 0 ? "" : `_${i + 1}`;
-    const secretName = `GEMINI_SERVICE_ACCOUNT_B64${suffix}`;
-    try { await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName, secretValue: saB64 }); }
-    catch (e) { log(`   ${secretName} FAILED: ${e.message}`); }
+    const b64 = Buffer.from(fs.readFileSync(saFiles[i], "utf8")).toString("base64");
+    const name = `GEMINI_SERVICE_ACCOUNT_B64${i === 0 ? "" : `_${i + 1}`}`;
+    try { await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName: name, secretValue: b64 }); }
+    catch (e) { log(`   ${name} FAILED: ${e.message}`); }
   }
   if (env.DEEPSEEK_API_KEY) {
     try { await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName: "DEEPSEEK_API_KEY", secretValue: env.DEEPSEEK_API_KEY }); }
     catch (e) { log(`   DEEPSEEK_API_KEY FAILED: ${e.message}`); }
   }
   log("   OK");
+}
 
-  // Find the active_commit from gateway git_state (proxied)
+async function pollJob(slug, jobId) {
+  const deadline = Date.now() + POLL_DEADLINE;
+  let last;
+  while (Date.now() < deadline) {
+    const r = await proxyToCodebase(slug, `/jobs/${jobId}/status`).catch(() => null);
+    if (r?.ok) {
+      last = r.job;
+      process.stdout.write(`\r   ${last.completed}/${last.total} (failed=${last.failed})    `);
+      if (last.status === "published") break;
+      if (last.failed > 0 && last.completed + last.failed >= last.total) { process.stdout.write("\n"); throw new Error(`job has ${last.failed} failures: ${JSON.stringify(last)}`); }
+    }
+    await new Promise(r => setTimeout(r, POLL_INTERVAL));
+  }
+  process.stdout.write("\n");
+  if (!last || last.status !== "published") throw new Error(`job did not publish: ${JSON.stringify(last)}`);
+}
+
+// ── Commands ──
+
+async function cmdIndex(repoPath, flags) {
+  const abs = path.resolve(repoPath);
+  if (!fs.existsSync(path.join(abs, ".git"))) throw new Error(`not a git repo: ${abs}`);
+  const slug = repoSlugFromPath(abs);
+
+  // Already registered? Delegate to incremental.
+  const reg = (await gatewayList()).find(c => c.slug === slug);
+  if (reg && !flags.full) {
+    log(`ℹ ${slug} already registered — using incremental (--full to force)`);
+    return cmdReindex(repoPath, flags);
+  }
+
+  const names = namesForSlug(slug);
+  const saFiles = resolveSAFiles();
+  const env = loadCfEnv();
+  log(`\n📦 cfcode index ${abs}\n   slug: ${slug}   sa: ${saFiles.length}   worker: ${names.workerName}`);
+
+  if (flags.deploy) {
+    log("→ Provisioning + deploying...");
+    const { d1Id } = provisionResources(names, { log: m => log(`  ${m}`) });
+    writeNamespaceWranglerConfig(configPathFor(slug), { ...names, d1Id });
+    deployToNamespace(configPathFor(slug), NAMESPACE_NAME);
+    await setupSecrets(names, saFiles, env);
+    log("→ Registering with gateway...");
+    await registerCodebase(slug, abs);
+  } else {
+    await setupSecrets(names, saFiles, env);
+  }
+
+  log("→ Building chunks...");
+  const chunks = await buildFullChunks(abs, slug);
+  if (!chunks.length) throw new Error("no source files found");
+  log(`   ${chunks.length} chunks`);
+
+  const body = {
+    job_id: `job-${slug}-${Date.now().toString(36)}`, repo_slug: slug, indexed_path: abs,
+    active_commit: resolveCommit(abs, "HEAD"), artifact_key: `full/${Date.now().toString(36)}.jsonl`,
+    artifact_text: fullChunksToJsonl(chunks),
+    deepseek_api_key: env.DEEPSEEK_API_KEY || "", num_sas: String(saFiles.length),
+  };
+  if (flags.shards) body.shard_count = Number(flags.shards);
+  if (flags.batch) body.batch_size = Number(flags.batch);
+
+  const endpoint = flags.queue ? "/ingest" : "/ingest-sharded";
+  log(`→ POST ${endpoint}`);
+  const res = await proxyToCodebase(slug, endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok && res.status !== "partial") throw new Error(`ingest failed: ${JSON.stringify(res)}`);
+
+  if (res.status === "published") { log(`✅ Indexed ${slug} — ${res.completed}/${res.chunks}`); }
+  else { log("→ Polling..."); await pollJob(slug, body.job_id); log(`✅ Indexed ${slug}`); }
+  log(`   MCP URL: ${GATEWAY_URL}/mcp`);
+}
+
+async function cmdReindex(repoPath, flags) {
+  const abs = path.resolve(repoPath);
+  const slug = repoSlugFromPath(abs);
+  const reg = (await gatewayList()).find(c => c.slug === slug);
+  if (!reg) throw new Error(`${slug} not registered. Run \`cfcode index ${abs} --deploy\` first.`);
+
+  const names = namesForSlug(slug);
+  const saFiles = resolveSAFiles();
+  const env = loadCfEnv();
+  await setupSecrets(names, saFiles, env);
+
   const gs = await proxyToCodebase(slug, `/git-state/${slug}`).catch(() => null);
   const baseRef = flags.base || gs?.state?.active_commit || "HEAD~1";
   const targetRef = flags.target || "HEAD";
-  log(`   base:   ${baseRef}`);
-  log(`   target: ${targetRef}`);
+  log(`\n🔁 cfcode reindex ${slug}\n   base: ${baseRef}   target: ${targetRef}`);
 
-  log("→ Building diff manifest...");
+  log("→ Building diff...");
   const manifest = buildDiffManifest(abs, slug, baseRef, targetRef);
-  log(`   manifest_id: ${manifest.manifest_id}`);
-  log(`   files: ${manifest.summary.total} (added=${manifest.summary.added}, modified=${manifest.summary.modified}, deleted=${manifest.summary.deleted}, renamed=${manifest.summary.renamed})`);
+  log(`   ${manifest.summary.total} files (+${manifest.summary.added} ~${manifest.summary.modified} -${manifest.summary.deleted} ≫${manifest.summary.renamed})`);
+  if (!manifest.summary.total) { log("→ No changes. Nothing to do."); return; }
 
-  if (manifest.summary.total === 0) {
-    log("→ No changes between base and target. Nothing to do.");
-    return;
-  }
-
-  log("→ Packaging incremental artifact...");
   const { records, tombstones } = buildIncrementalArtifact(abs, manifest);
   const artifactText = artifactToJsonl({ records, tombstones });
-  log(`   records: ${records.length}, tombstones: ${tombstones.length}`);
+  log(`   ${records.length} records, ${tombstones.length} tombstones`);
 
   const jobId = `inc-${slug}-${Date.now().toString(36)}`;
-  log(`→ POST /incremental-ingest-sharded via gateway proxy...`);
+  log("→ POST /incremental-ingest-sharded");
   const res = await proxyToCodebase(slug, "/incremental-ingest-sharded", {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({
       job_id: jobId, repo_slug: slug, manifest_id: manifest.manifest_id,
       base_commit: manifest.base_commit, target_commit: manifest.target_commit,
       artifact_key: `incremental/${manifest.manifest_id}.jsonl`, artifact_text: artifactText,
-      deepseek_api_key: env.DEEPSEEK_API_KEY || "",
-      num_sas: String(resolveSAFiles().length),
+      deepseek_api_key: env.DEEPSEEK_API_KEY || "", num_sas: String(saFiles.length),
     }),
   });
   if (!res.ok) throw new Error(`incremental-ingest failed: ${JSON.stringify(res)}`);
-  log(`   completed=${res.completed}/${res.chunks || res.queued || "?"} (failed=${res.failed || 0}, deactivated=${res.deactivated || 0})`);
+  log(`   ${res.completed}/${res.chunks || "?"} (deactivated ${res.deactivated || 0})`);
 
-  if (records.length > 0) {
-    log("→ Polling job until published...");
-    const deadline = Date.now() + 600_000;
-    let lastJob;
-    while (Date.now() < deadline) {
-      const sr = await proxyToCodebase(slug, `/jobs/${jobId}/status`).catch(() => null);
-      if (sr?.ok) {
-        lastJob = sr.job;
-        process.stdout.write(`\r   ${lastJob.completed}/${lastJob.total} (failed=${lastJob.failed})    `);
-        if (lastJob.status === "published") break;
-      }
-      await new Promise(r => setTimeout(r, 3000));
-    }
-    process.stdout.write("\n");
-    log(`   status=${lastJob?.status}`);
-  }
-
-  log(`\n✅ Reindex complete`);
+  if (records.length) { log("→ Polling..."); await pollJob(slug, jobId); }
+  log(`✅ Reindex complete`);
 }
 
 async function cmdStatus(repoPath) {
   const slug = repoSlugFromPath(repoPath || process.cwd());
-  const all = await gatewayList();
-  const reg = all.find(c => c.slug === slug);
-  if (!reg) {
-    log(`Not registered: ${slug}`);
-    return;
-  }
-  log(`\n📊 ${slug}`);
-  log(`   indexed path:   ${reg.indexed_path}`);
-  log(`   registered at:  ${reg.registered_at}`);
-  log(`   MCP URL:        ${GATEWAY_URL}/mcp`);
-
-  log("\n→ Live worker state (via gateway proxy):");
+  const reg = (await gatewayList()).find(c => c.slug === slug);
+  if (!reg) { log(`Not registered: ${slug}`); return; }
+  log(`\n📊 ${slug}\n   indexed: ${reg.indexed_path}\n   registered: ${reg.registered_at}\n   MCP: ${GATEWAY_URL}/mcp`);
   const ci = await proxyToCodebase(slug, "/collection_info").catch(() => null);
-  log(`   collection_info: ${ci ? JSON.stringify(ci.active) : "(unreachable)"}`);
+  log(`   collection: ${ci ? JSON.stringify(ci.active) : "(unreachable)"}`);
   const gs = await proxyToCodebase(slug, `/git-state/${slug}`).catch(() => null);
-  log(`   git_state:       ${gs?.state ? `active=${gs.state.active_commit?.slice(0, 8)}, manifest=${gs.state.last_manifest_id}` : "(none)"}`);
+  if (gs?.state) log(`   git: ${gs.state.active_commit?.slice(0, 8)}, manifest=${gs.state.last_manifest_id}`);
 }
 
 async function cmdSearch(repoPath, query, flags) {
-  const abs = path.resolve(repoPath);
-  const slug = repoSlugFromPath(abs);
-
-  const all = await gatewayList();
-  const reg = all.find(c => c.slug === slug);
-  if (!reg) {
-    log(`Not registered: ${slug}`);
-    return;
-  }
-
+  const slug = repoSlugFromPath(path.resolve(repoPath));
+  if (!(await gatewayList()).find(c => c.slug === slug)) { log(`Not registered: ${slug}`); return; }
   const topK = Number(flags.topK || flags.top) || 10;
-  const hybrid = flags.hybrid === true;
-  const rerank = flags.rerank === true;
-  const endpoint = rerank ? "/search-rerank" : hybrid ? "/search-hybrid" : "/search";
-  const searchRes = await proxyToCodebase(slug, endpoint, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ query, repo_slug: slug, topK }),
-  });
-  if (!searchRes?.ok) {
-    log(`search failed: ${searchRes?.error || JSON.stringify(searchRes)}`);
-    return;
-  }
-
-  const matches = Array.isArray(searchRes.matches) ? searchRes.matches : [];
-  if (!matches.length) {
-    log("No results");
-    return;
-  }
-
-  for (const m of matches) {
-    const boost = typeof m.hyde_boost === "number" && m.hyde_boost > 0 ? ` +${m.hyde_boost.toFixed(3)}h` : "";
-    log(`  ${m.score}${boost} ${m.chunk?.file_path || ""}`);
-  }
-  const hybridNote = rerank ? ` (reranked)` : hybrid ? ` (hybrid)` : "";
-  log(`${matches.length} results${hybridNote} (${searchRes.vectorize_returned} returned, ${searchRes.d1_filtered} filtered)`);
-}
-
-async function cmdLogs(repoPath, flags) {
-  const abs = path.resolve(repoPath);
-  const slug = repoSlugFromPath(abs);
-  const configPath = configPathFor(slug);
-  if (!fs.existsSync(configPath)) throw new Error(`not indexed: ${slug}. Run cfcode index first.`);
-  const args = ["wrangler", "tail", "--config", configPath];
-  if (flags.errors) args.push("--search", "error");
-  run("npx", args, { cwd: path.resolve(__dirname, "../workers/codebase") });
-}
-
-async function cmdSetup() {
-  log("\n⚙️  cfcode setup\n");
-
-  log("→ Gateway health...");
-  const gw = await fetchJson(`${GATEWAY_URL}/health`).catch(() => null);
-  if (gw?.ok) {
-    log(`   ${GATEWAY_URL} ✓`);
-  } else {
-    log(`   ${GATEWAY_URL} ✗ (unreachable)`);
-    throw new Error("gateway not reachable. Deploy it first: cd cloudflare-mcp/workers/mcp-gateway && npx wrangler deploy");
-  }
-
-  log("→ Gateway D1 registry...");
-  try {
-    const repos = await gatewayList();
-    log(`   ${repos.length} codebase(s) registered`);
-  } catch {
-    log("   D1 unreachable through gateway");
-  }
-
-  log("→ Dispatch namespace...");
-  log(`   ${NAMESPACE_NAME}`);
-
-  log("→ MCP URL (for agent config)...");
-  log(`   ${GATEWAY_URL}/mcp`);
-
-  log("\n✅ Setup complete. Ready to cfcode index <repo>.");
-}
-
-async function cmdList() {
-  const repos = await gatewayList();
-  if (!repos.length) {
-    log("No codebases registered with the gateway.");
-    log(`Run: cfcode index <repo-path>`);
-    return;
-  }
-  for (const r of repos) {
-    log(`${r.slug}\t${r.indexed_path}`);
-  }
+  const endpoint = flags.rerank ? "/search-rerank" : flags.hybrid ? "/search-hybrid" : "/search";
+  const res = await proxyToCodebase(slug, endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ query, repo_slug: slug, topK }) });
+  if (!res?.ok) { log(`search failed: ${res?.error || JSON.stringify(res)}`); return; }
+  const matches = res.matches || [];
+  if (!matches.length) { log("No results"); return; }
+  for (const m of matches) log(`  ${m.score.toFixed(3)}  ${m.chunk?.file_path || ""}`);
+  log(`${matches.length} results (${res.vectorize_returned} returned, ${res.d1_filtered} filtered)`);
 }
 
 async function cmdSearchActive(repoPath, flags) {
-  const abs = path.resolve(repoPath);
-  const slug = repoSlugFromPath(abs);
-  const all = await gatewayList();
-  const reg = all.find(c => c.slug === slug);
-  if (!reg) { log(`Not registered: ${slug}`); return; }
-  const filePath = flags.file || flags.path;
-  const res = await proxyToCodebase(slug, "/search-active", {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify(filePath ? { repo_slug: slug, file_path: filePath } : { repo_slug: slug }),
-  });
-  if (!res?.ok) { log(`search-active failed: ${res?.error || JSON.stringify(res)}`); return; }
-  const rows = res.matches || [];
-  if (!rows.length) { log("No active chunks"); return; }
+  const slug = repoSlugFromPath(path.resolve(repoPath));
+  if (!(await gatewayList()).find(c => c.slug === slug)) { log(`Not registered: ${slug}`); return; }
+  const res = await proxyToCodebase(slug, "/search-active", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ repo_slug: slug, file_path: flags.file || flags.path || undefined }) });
+  if (!res?.ok) { log(`failed: ${res?.error}`); return; }
+  const rows = res.matches || []; if (!rows.length) { log("No active chunks"); return; }
   for (const r of rows) log(`  ${r.chunk_id}  ${r.file_path}`);
   log(`${rows.length} active chunks`);
 }
 
 async function cmdHydeEnrich(repoPath) {
-  const abs = path.resolve(repoPath);
-  const slug = repoSlugFromPath(abs);
-  const all = await gatewayList();
-  const reg = all.find(c => c.slug === slug);
-  if (!reg) { log(`Not registered: ${slug}`); return; }
-
+  const slug = repoSlugFromPath(path.resolve(repoPath));
+  if (!(await gatewayList()).find(c => c.slug === slug)) { log(`Not registered: ${slug}`); return; }
   const ci = await proxyToCodebase(slug, "/collection_info").catch(() => null);
   const jobId = ci?.active?.job_id;
-  if (!jobId) { log("No active publication found — index first with cfcode index"); return; }
+  if (!jobId) { log("No active publication — index first"); return; }
+  log(`\n🧠 hyde-enrich ${slug}   job: ${jobId}`);
+  const dsKey = loadCfEnv().DEEPSEEK_API_KEY || "";
+  const res = await proxyToCodebase(slug, "/hyde-enrich", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, repo_slug: slug, deepseek_api_key: dsKey }) });
+  if (!res?.ok) { log(`failed: ${res?.error || JSON.stringify(res)}`); return; }
+  log(`   ${res.scanned} scanned, ${res.enriched} enriched, ${res.errors || 0} errors\n✅ HyDE complete`);
+}
 
-  log(`\n🧠 cfcode hyde-enrich ${slug}`);
-  log(`   job_id: ${jobId}`);
+async function cmdSetup() {
+  log("\n⚙️  cfcode setup");
+  const gw = await fetch(`${GATEWAY_URL}/health`).then(r => r.json()).catch(() => null);
+  log(`   gateway: ${gw?.ok ? "✓" : "✗"}`);
+  if (!gw?.ok) throw new Error(`gateway unreachable. Deploy it first.`);
+  const repos = await gatewayList().catch(() => []);
+  log(`   registry: ${repos.length} codebases`);
+  log(`   namespace: ${NAMESPACE_NAME}`);
+  log(`   MCP: ${GATEWAY_URL}/mcp`);
+  log("✅ Ready");
+}
 
-  log("→ Generating HyDE questions + embedding...");
-  const env = loadCfEnv();
-  const dsKey = env.DEEPSEEK_API_KEY || "";
-  const res = await proxyToCodebase(slug, "/hyde-enrich", {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ job_id: jobId, repo_slug: slug, deepseek_api_key: dsKey }),
-  });
-  if (!res?.ok) { log(`hyde-enrich failed: ${res?.error || JSON.stringify(res)}`); return; }
-  log(`   scanned=${res.scanned}, enriched=${res.enriched}, errors=${res.errors || 0}`);
-  log(`✅ HyDE enrichment complete`);
+async function cmdList() {
+  const repos = await gatewayList();
+  if (!repos.length) { log("No codebases registered."); return; }
+  for (const r of repos) log(`${r.slug}\t${r.indexed_path}`);
 }
 
 async function cmdResources() {
-  const WORKER_DIR = path.resolve(__dirname, "../workers/codebase");
-  
-  log("\n📦 cfcode deployed resources\n");
-
-  log("=== D1 databases ===");
-  const d1 = run("npx", ["wrangler", "d1", "list", "--json"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
-  try {
-    const dbs = JSON.parse(d1.stdout || "[]");
-    for (const db of dbs) {
-      if (db.name?.startsWith("cfcode-")) log(`  ${db.name}  ${db.uuid || ""}`);
-    }
-  } catch {
-    log("  (parse error)");
-  }
-
-  log("\n=== R2 buckets ===");
-  const r2 = run("npx", ["wrangler", "r2", "bucket", "list", "--json"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
-  try {
-    const buckets = JSON.parse(r2.stdout || "[]");
-    for (const b of buckets) {
-      if (b.name?.startsWith("cfcode-")) log(`  ${b.name}`);
-    }
-  } catch {
-    log("  (parse error)");
-  }
-
-  log("\n=== Vectorize indexes ===");
-  const viz = run("npx", ["wrangler", "vectorize", "list-indexes", "--json"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
-  try {
-    const indexes = JSON.parse(viz.stdout || "[]");
-    for (const ix of indexes) {
-      if (ix.name?.startsWith("cfcode-")) log(`  ${ix.name}  dims=${ix.config?.dimensions || "?"}`);
-    }
-  } catch {
-    log("  (parse error)");
-  }
-
-  log("\n=== Queues ===");
-  const q = run("npx", ["wrangler", "queues", "list", "--json"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
-  try {
-    const queues = JSON.parse(q.stdout || "[]");
-    for (const qu of queues) {
-      if (qu.queue_name?.startsWith("cfcode-")) log(`  ${qu.queue_name}`);
-    }
-  } catch {
-    log("  (parse error)");
-  }
-
-  log("\n=== Gateway ===");
-  log(`  ${GATEWAY_URL}`);
-  log(`  Namespace: ${NAMESPACE_NAME}`);
+  const d = path.resolve(__dirname, "../workers/codebase");
+  const { run } = await import(`${LIB}/exec.mjs`);
+  const j = cmd => { try { return JSON.parse(run("npx", cmd, { cwd: d, capture: true, allowFailure: true }).stdout || "[]"); } catch { return []; } };
+  log("\n📦 cfcode resources");
+  log("── D1 ──"); j(["wrangler", "d1", "list", "--json"]).forEach(b => b.name?.startsWith("cfcode-") && log(`  ${b.name}`));
+  log("── R2 ──"); j(["wrangler", "r2", "bucket", "list", "--json"]).forEach(b => b.name?.startsWith("cfcode-") && log(`  ${b.name}`));
+  log("── Vectorize ──"); j(["wrangler", "vectorize", "list", "--json"]).forEach(i => i.name?.startsWith("cfcode-") && log(`  ${i.name}`));
+  log("── Queues ──"); j(["wrangler", "queues", "list", "--json"]).forEach(q => q.queue_name?.startsWith("cfcode-") && log(`  ${q.queue_name}`));
+  log(`── Gateway ──\n  ${GATEWAY_URL}  (${NAMESPACE_NAME})`);
 }
 
 async function cmdUninstall(repoPath) {
-  const abs = path.resolve(repoPath);
-  const slug = repoSlugFromPath(abs);
-  log(`\n🗑  cfcode uninstall ${slug}`);
+  const slug = repoSlugFromPath(path.resolve(repoPath));
+  log(`\n🗑  uninstall ${slug}`);
+  await unregisterCodebase(slug).catch(() => {});
   const names = namesForSlug(slug);
-  log("→ Unregistering from gateway...");
-  await unregisterCodebase(slug).catch(() => log("  (already not registered)"));
   log("→ Tearing down resources...");
   teardownResources(names, { log: m => log(`  ${m}`) });
-  // Remove the per-slug wrangler config
-  const configPath = configPathFor(slug);
-  if (fs.existsSync(configPath)) fs.unlinkSync(configPath);
-  log(`✅ Uninstalled ${slug}`);
+  const cp = configPathFor(slug);
+  if (fs.existsSync(cp)) fs.unlinkSync(cp);
+  log("✅ Done");
+}
+
+async function cmdLogs(repoPath, flags) {
+  const slug = repoSlugFromPath(path.resolve(repoPath));
+  const cp = configPathFor(slug);
+  if (!fs.existsSync(cp)) throw new Error(`not indexed: ${slug}`);
+  const { run } = await import(`${LIB}/exec.mjs`);
+  const args = ["wrangler", "tail", "--config", cp];
+  if (flags.errors) args.push("--search", "error");
+  run("npx", args, { cwd: path.resolve(__dirname, "../workers/codebase") });
 }
 
 function cmdMcpUrl() { console.log(`${GATEWAY_URL}/mcp`); }
 
+// ── Main ──
+
 const HELP = `cfcode — Cloudflare per-codebase MCP code search
 
 ONE MCP URL: ${GATEWAY_URL}/mcp
-(drop into ~/.claude/settings.json once, never edit again)
 
 Usage:
-  cfcode setup                                     Verify gateway + namespace health
-  cfcode index <repo-path> [--fast] [--shards N] [--batch N]   Full-index a codebase
-  cfcode reindex <repo-path> [--base R] [--target R]  Diff reindex
-  cfcode search <repo-path> "query" [--topK N] [--hybrid] [--rerank]  Semantic code search
-  cfcode search-active <repo-path> [--file <path>]  List active D1 chunks
-  cfcode hyde-enrich <repo-path>                     Generate HyDE questions post-index
-  cfcode status [<repo-path>]                       Show indexed state
-  cfcode list                                       List registered codebases
-  cfcode resources                                  List deployed CF resources
-  cfcode logs <repo-path> [--errors]                 Tail worker logs (live stream)
-  cfcode uninstall <repo-path>                      Remove + delete resources
-  cfcode mcp-url                                    Print the single MCP URL
+  cfcode index <repo-path> [--deploy] [--full] [--queue] [--shards N] [--batch N]
+      Smart: auto-delegates to incremental if registered. --deploy for first-time setup.
+      --full forces complete re-index. --queue uses legacy path.
+  cfcode reindex <repo-path> [--base <ref>] [--target <ref>]
+      Incremental: git diff since last indexed commit.
+  cfcode search <repo-path> "query" [--topK N] [--hybrid] [--rerank]
+  cfcode search-active <repo-path> [--file <path>]
+  cfcode hyde-enrich <repo-path>
+  cfcode status [<repo-path>]
+  cfcode list
+  cfcode resources
+  cfcode logs <repo-path> [--errors]
+  cfcode uninstall <repo-path>
+  cfcode mcp-url
 
-In Claude Code:
-  list_codebases                — discover available codebases
-  select_codebase("slug")       — bind this session to one
-  search("query", topK?)        — semantic code search`;
+MCP tools in agent: list_codebases, select_codebase("slug"), search("query", topK?)`;
 
 async function main() {
   const argv = process.argv.slice(2);
   if (!argv.length || argv[0] === "-h" || argv[0] === "--help") { console.log(HELP); return; }
-  const cmd = argv[0];
-  const { positional, flags } = parseArgs(argv.slice(1));
-
+  const cmd = argv[0]; const { positional: p, flags: f } = parseArgs(argv.slice(1));
   Object.assign(process.env, loadCfEnv());
 
   switch (cmd) {
-    case "index":     if (!positional[0]) throw new Error("repo-path required"); return cmdIndex(positional[0], flags);
-    case "reindex":   if (!positional[0]) throw new Error("repo-path required"); return cmdReindex(positional[0], flags);
-    case "search":    if (!positional[0] || !positional[1]) throw new Error("repo-path and query required"); return cmdSearch(positional[0], positional[1], flags);
-    case "search-active": if (!positional[0]) throw new Error("repo-path required"); return cmdSearchActive(positional[0], flags);
-    case "hyde-enrich": if (!positional[0]) throw new Error("repo-path required"); return cmdHydeEnrich(positional[0]);
-    case "status":    return cmdStatus(positional[0]);
-    case "list":      return cmdList();
-    case "resources": return cmdResources();
-    case "logs":     if (!positional[0]) throw new Error("repo-path required"); return cmdLogs(positional[0], flags);
-    case "uninstall": if (!positional[0]) throw new Error("repo-path required"); return cmdUninstall(positional[0]);
-    case "setup":     return cmdSetup();
-    case "mcp-url":   return cmdMcpUrl();
-    case "help": case "-h": case "--help": console.log(HELP); return;
+    case "index":         if (!p[0]) throw new Error("repo-path required"); await cmdIndex(p[0], f); break;
+    case "reindex":       if (!p[0]) throw new Error("repo-path required"); await cmdReindex(p[0], f); break;
+    case "search":        if (!p[0] || !p[1]) throw new Error("repo-path and query required"); await cmdSearch(p[0], p[1], f); break;
+    case "search-active": if (!p[0]) throw new Error("repo-path required"); await cmdSearchActive(p[0], f); break;
+    case "hyde-enrich":   if (!p[0]) throw new Error("repo-path required"); await cmdHydeEnrich(p[0]); break;
+    case "status":        await cmdStatus(p[0]); break;
+    case "list":          await cmdList(); break;
+    case "resources":     await cmdResources(); break;
+    case "logs":          if (!p[0]) throw new Error("repo-path required"); await cmdLogs(p[0], f); break;
+    case "uninstall":     if (!p[0]) throw new Error("repo-path required"); await cmdUninstall(p[0]); break;
+    case "setup":         await cmdSetup(); break;
+    case "mcp-url":       cmdMcpUrl(); break;
+    case "help": case "-h": case "--help": console.log(HELP); break;
     default: throw new Error(`Unknown command: ${cmd}\n\n${HELP}`);
   }
 }
 
-main().catch(e => { err(e instanceof Error ? e.message : String(e)); process.exit(1); });
+main().catch(e => { console.error(e instanceof Error ? e.message : String(e)); process.exit(1); });

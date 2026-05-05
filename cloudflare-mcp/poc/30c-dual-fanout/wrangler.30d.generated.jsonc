@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-poc-30d-multirepo",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-poc-30d-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-poc-30d-multirepo", "database_id": "fb613408-d3c5-4c8c-9ae1-cedafbb7ee43" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-poc-30d-vec" }],
+  "durable_objects": {
+    "bindings": [
+      { "name": "CODE_SHARD_DO", "class_name": "CodeShardDO" },
+      { "name": "HYDE_SHARD_DO", "class_name": "HydeShardDO" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["CodeShardDO", "HydeShardDO"] }
+  ],
+  "vars": {
+    "CODE_SHARD_COUNT": "4",
+    "HYDE_SHARD_COUNT": "16",
+    "CODE_BATCH_SIZE": "100",
+    "HYDE_BATCH_SIZE": "100",
+    "NUM_SAS": "2",
+    "HYDE_QUESTIONS": "12",
+    "HYDE_MODEL": "deepseek-v4-flash",
+    "HYDE_VERSION": "v1"
+  }
+}

@@ -1,80 +1,70 @@
-# Secrets — NEVER commit
-.cfapikeys
-.deepseekkey
-.env.local
-*.pem
-*.key
 
-# Dependencies
-node_modules/
-*.pyc
 __pycache__/
-.Python
-env/
-venv/
-ENV/
-.venv
-
-# Build outputs
-dist/
-build/
-*.egg-info/
-.eggs/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Environment
-.env
-.env.local
-.env.*.local
+.cache/
+.cfapikeys
+.claude/
+.coverage
+.deepseekkey
 .dev.vars
 .dev.vars.*
-
-# Testing
-coverage/
-.coverage
-htmlcov/
-.pytest_cache/
+.DS_Store
+.eggs/
+.env
+.env.*.local
+.env.local
+.idea/
 .jest/
-
-# Temporary files
-*.tmp
+.memory/
+.pytest_cache/
+.Python
+.venv
+.vscode/
+*.egg-info/
+*.key
+*.log
+*.pem
+*.pyc
+*.swo
+*.swp
 *.temp
-.cache/
-
-# Qdrant data
-qdrant_data/
-qdrant_storage/
-
+*.tgz
+*.tmp
+*~
+# Build outputs
+# Dependencies
+# Environment
+# IDE
 # Large reproducible POC session artifacts
+# Logs
+# OS
+# Package files
+# Qdrant data
+# Secrets — NEVER commit
+# Temporary files
+# Testing
+build/
+cloudflare-mcp/sessions/index-codebase/*/chunks/
+cloudflare-mcp/sessions/index-codebase/*/embeddings/
+cloudflare-mcp/sessions/index-codebase/*/hyde/
 cloudflare-mcp/sessions/poc-08/chunks/
 cloudflare-mcp/sessions/poc-10/runs/*/vectors/
 cloudflare-mcp/sessions/poc-16/chunks/
-cloudflare-mcp/sessions/poc-16/hyde/
 cloudflare-mcp/sessions/poc-16/embeddings/
-cloudflare-mcp/sessions/index-codebase/*/chunks/
-cloudflare-mcp/sessions/index-codebase/*/hyde/
-cloudflare-mcp/sessions/index-codebase/*/embeddings/
-
-# Package files
-*.tgz
+cloudflare-mcp/sessions/poc-16/hyde/
+coverage/
+dist/
+env/
+ENV/
+htmlcov/
+logs/
+node_modules/
+npm-debug.log*
 package-lock.json
+qdrant_data/
+qdrant_storage/
+Thumbs.db
+venv
+venv/
+yarn-debug.log*
+yarn-error.log*
 yarn.lock
-.claude/
-.memory/
