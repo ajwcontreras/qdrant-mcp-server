@@ -19,7 +19,8 @@
     "test": "jest",
     "lint": "eslint src/**/*.js",
     "format": "prettier --write .",
-    "diagrams": "for f in docs/architecture/*.d2; do d2 --layout=elk \"$f\" \"${f%.d2}.svg\"; done"
+    "diagrams": "for f in docs/architecture/*.d2; do d2 --layout=elk \"$f\" \"${f%.d2}.svg\"; done",
+    "diagrams:serve": "PORT=${PORT:-8089}; while lsof -i:$PORT >/dev/null 2>&1; do PORT=$((PORT+1)); done; echo Serving on http://localhost:$PORT; python3 -m http.server -d docs/architecture $PORT"
   },
   "keywords": [
     "mcp",
