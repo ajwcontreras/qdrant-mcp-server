@@ -1,0 +1,43 @@
+direction: right
+
+cli: cfcode CLI { shape: rectangle }
+
+gateway: cfcode-gateway { shape: rectangle }
+
+Codebase_R2: Artifact Bucket { shape: cylinder }
+Codebase_D1: SQLite Database { shape: cylinder }
+Codebase_Vectorize: Embedding Index { shape: cylinder }
+
+user_worker: cfcode-codebase-<slug> { shape: rectangle }
+
+do_indexing: IndexingShardDO { shape: rectangle }
+do_hyde: HydeShardDO { shape: rectangle }
+
+vertex: Google Vertex AI { shape: cloud }
+deepseek: DeepSeek API { shape: cloud }
+
+# Stage 1: Build & Artifact upload
+cli -> Codebase_R2: 1. Upload .jsonl Artifact
+cli -> gateway: 2. POST /ingest-sharded
+gateway -> user_worker: 3. Proxy to dispatch namespace
+
+# Stage 2: Code Fan-out (Fast Path)
+user_worker -> Codebase_D1: 4. Insert Job
+user_worker -> do_indexing: 5. Fan-out to Shards (Promise.allSettled)
+do_indexing -> Codebase_R2: 6. Pull Artifact slice (records.slice)
+do_indexing <-> vertex: 7. Embed Code Chunks
+do_indexing -> Codebase_Vectorize: 8. Upsert Vectors
+do_indexing -> Codebase_D1: 9. Insert to chunks table
+do_indexing -> user_worker: 10. Shard Completion
+user_worker -> Codebase_D1: 11. Update Job Status
+
+# Stage 3: HyDE Enrichment (Async)
+cli -> gateway: 12. POST /hyde-enrich
+gateway -> user_worker: 13. Proxy
+user_worker -> Codebase_D1: 14. Find chunks missing HyDE
+user_worker -> do_hyde: 15. Fan-out to Shards
+do_hyde <-> deepseek: 16. Generate 12 Questions per chunk
+do_hyde <-> vertex: 17. Embed Questions
+do_hyde -> Codebase_Vectorize: 18. Upsert Vectors (kind=hyde)
+do_hyde -> Codebase_D1: 19. Insert chunks
+do_hyde -> user_worker: 20. Shard Completion

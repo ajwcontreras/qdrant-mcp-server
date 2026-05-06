@@ -1,0 +1,109 @@
+direction: right
+
+Gateway_D1: cfcode-gateway-registry {
+  shape: cylinder
+  
+  codebase_registry: {
+    shape: sql_table
+    slug: string { constraint: primary_key }
+    indexed_path: string
+    registered_at: timestamp
+  }
+}
+
+Codebase_D1: cfcode-<slug> {
+  shape: cylinder
+
+  jobs: {
+    shape: sql_table
+    job_id: string { constraint: primary_key }
+    repo_slug: string
+    indexed_path: string
+    active_commit: string
+    artifact_key: string
+    job_type: string
+    manifest_id: string
+    base_commit: string
+    target_commit: string
+    manifest_files: int
+    changed_files: int
+    deleted_files: int
+    total: int
+    queued: int
+    completed: int
+    failed: int
+    status: string
+    created_at: timestamp
+    code_status: string
+    hyde_status: string
+    hyde_completed: int
+  }
+
+  chunks: {
+    shape: sql_table
+    chunk_id: string { constraint: primary_key }
+    job_id: string { constraint: foreign_key }
+    repo_slug: string
+    file_path: string
+    source_sha256: string
+    snippet: string
+    active: int
+    model: string
+    dimensions: int
+    norm: float
+    published_at: timestamp
+    kind: string
+    parent_chunk_id: string
+    hyde_version: string
+    hyde_model: string
+  }
+
+  active_publication: {
+    shape: sql_table
+    repo_slug: string { constraint: primary_key }
+    indexed_path: string
+    job_id: string
+    active_commit: string
+    vectorize_index: string
+    active_at: timestamp
+  }
+
+  git_state: {
+    shape: sql_table
+    repo_slug: string { constraint: primary_key }
+    active_commit: string
+    last_manifest_id: string
+    updated_at: timestamp
+  }
+  
+  metrics: {
+    shape: sql_table
+    key: string { constraint: primary_key }
+    value: int
+  }
+  
+  jobs.job_id -> chunks.job_id
+}
+
+Codebase_Vectorize: cfcode-<slug> {
+  shape: cylinder
+  
+  index: {
+    shape: class
+    id: string
+    values: "float[]"
+    metadata: json
+  }
+}
+
+Codebase_R2: cfcode-<slug>-artifacts {
+  shape: cylinder
+  
+  bucket: {
+    shape: class
+    artifact_key: string
+    content: jsonl
+  }
+}
+
+Codebase_D1 -> Codebase_Vectorize: Eventually Consistent Pair

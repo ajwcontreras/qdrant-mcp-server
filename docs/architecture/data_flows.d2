@@ -1,0 +1,36 @@
+direction: right
+
+client: MCP Client (Claude Code) { shape: person }
+
+gateway: cfcode-gateway Worker {
+  shape: rectangle
+  mcp_endpoint: /mcp
+  dispatch: env.DISPATCHER.get()
+}
+
+codebase_worker: cfcode-codebase-<slug> {
+  shape: rectangle
+  search_endpoint: /search
+  search_hybrid_endpoint: /search-hybrid
+  search_rerank_endpoint: /search-rerank
+}
+
+ai_vertex: Google Vertex AI { shape: cloud }
+ai_deepseek: DeepSeek API { shape: cloud }
+
+Codebase_Vectorize: Vectorize Index { shape: cylinder }
+Codebase_D1: D1 Database { shape: cylinder }
+
+client -> gateway.mcp_endpoint: 1. tool calls (select_codebase, search)
+gateway.dispatch -> codebase_worker.search_endpoint: 2. Proxies search request
+codebase_worker.search_endpoint <-> ai_vertex: 3. Embed Query
+codebase_worker.search_endpoint -> Codebase_Vectorize: 4. ANN Query (topK)
+Codebase_Vectorize -> codebase_worker.search_endpoint: 5. Return chunk IDs
+codebase_worker.search_endpoint -> Codebase_D1: 6. Hydrate & Filter (active=1)
+Codebase_D1 -> codebase_worker.search_endpoint: 7. Return Snippets
+codebase_worker.search_endpoint -> gateway.dispatch: 8. Return final results
+gateway.mcp_endpoint -> client: 9. Formatted MCP Response
+
+# Reranking flow
+codebase_worker.search_rerank_endpoint -> codebase_worker.search_hybrid_endpoint: Call hybrid search
+codebase_worker.search_rerank_endpoint <-> ai_deepseek: Rerank results (Zero-shot listwise)

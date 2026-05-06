@@ -18,7 +18,8 @@
     "project": "node scripts/qdrant-project.cjs",
     "test": "jest",
     "lint": "eslint src/**/*.js",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "diagrams": "for f in docs/architecture/*.d2; do d2 --layout=elk \"$f\" \"${f%.d2}.svg\"; done"
   },
   "keywords": [
     "mcp",
