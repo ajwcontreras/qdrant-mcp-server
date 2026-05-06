@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { git } from "./exec.mjs";
 
-const SKIP_PATTERN = /^(\.|node_modules|venv|__pycache__|dist|build|\.agents|\.github|\.cursor|\.venv|\.claude)/;
+const SKIP_PATTERN = /^(\.|node_modules|venv|__pycache__|dist|build|ephemeral|\.agents|\.github|\.cursor|\.venv|\.claude)/;
 const SKIP_EXT = /\.(lock|map|min\.js|min\.css|woff2?|ttf|eot|ico|png|jpg|jpeg|gif|svg|pdf|zip|tar|gz|pyc)$/i;
 const MAX_CHUNK_CHARS = 4000;
 const MAX_FILE_BYTES = 1_000_000; // 1MB hard cap per file
