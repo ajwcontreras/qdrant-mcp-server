@@ -16,6 +16,7 @@ function resolveSAFiles() {
   const files = fs.readdirSync(dir).filter(f => f.endsWith(".json")).sort();
   return files.length ? files.map(f => path.join(dir, f)) : [];
 }
+function saFilesB64(files) { return files.map(f => fs.readFileSync(f, "utf8")); }
 
 // ── Imports ──
 const { loadCfEnv, repoSlugFromPath, r2BucketForSlug, d1NameForSlug, vectorizeIndexForSlug, queueNameForSlug, dlqNameForSlug } = await import(`${LIB}/env.mjs`);
@@ -112,7 +113,7 @@ async function cmdIndex(repoPath, flags) {
     job_id: `job-${slug}-${Date.now().toString(36)}`, repo_slug: slug, indexed_path: abs,
     active_commit: resolveCommit(abs, "HEAD"), artifact_key: `full/${Date.now().toString(36)}.jsonl`,
     artifact_text: fullChunksToJsonl(chunks),
-    deepseek_api_key: env.DEEPSEEK_API_KEY || "", num_sas: String(saFiles.length),
+    deepseek_api_key: env.DEEPSEEK_API_KEY || "", gemini_sas: saFilesB64(saFiles), num_sas: String(saFiles.length),
   };
   if (flags.shards) body.shard_count = Number(flags.shards);
   if (flags.batch) body.batch_size = Number(flags.batch);
@@ -133,11 +134,6 @@ async function cmdReindex(repoPath, flags) {
   const reg = (await gatewayList()).find(c => c.slug === slug);
   if (!reg) throw new Error(`${slug} not registered. Run \`cfcode index ${abs} --deploy\` first.`);
 
-  const names = namesForSlug(slug);
-  const saFiles = resolveSAFiles();
-  const env = loadCfEnv();
-  await setupSecrets(names, saFiles, env);
-
   const gs = await proxyToCodebase(slug, `/git-state/${slug}`).catch(() => null);
   const baseRef = flags.base || gs?.state?.active_commit || "HEAD~1";
   const targetRef = flags.target || "HEAD";
@@ -147,6 +143,11 @@ async function cmdReindex(repoPath, flags) {
   const manifest = buildDiffManifest(abs, slug, baseRef, targetRef);
   log(`   ${manifest.summary.total} files (+${manifest.summary.added} ~${manifest.summary.modified} -${manifest.summary.deleted} ≫${manifest.summary.renamed})`);
   if (!manifest.summary.total) { log("→ No changes. Nothing to do."); return; }
+
+  const names = namesForSlug(slug);
+  const saFiles = resolveSAFiles();
+  const env = loadCfEnv();
+  await setupSecrets(names, saFiles, env);
 
   const { records, tombstones } = buildIncrementalArtifact(abs, manifest);
   const artifactText = artifactToJsonl({ records, tombstones });
@@ -212,7 +213,9 @@ async function cmdHydeEnrich(repoPath) {
   if (!jobId) { log("No active publication — index first"); return; }
   log(`\n🧠 hyde-enrich ${slug}   job: ${jobId}`);
   const dsKey = loadCfEnv().DEEPSEEK_API_KEY || "";
-  const res = await proxyToCodebase(slug, "/hyde-enrich", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, repo_slug: slug, deepseek_api_key: dsKey }) });
+  const saFiles = resolveSAFiles();
+  const saRaw = saFilesB64(saFiles);
+  const res = await proxyToCodebase(slug, "/hyde-enrich", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, repo_slug: slug, deepseek_api_key: dsKey, gemini_sas: saRaw, num_sas: String(saFiles.length) }) });
   if (!res?.ok) { log(`failed: ${res?.error || JSON.stringify(res)}`); return; }
   log(`   ${res.scanned} scanned, ${res.enriched} enriched, ${res.errors || 0} errors\n✅ HyDE complete`);
 }

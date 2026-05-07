@@ -236,25 +236,38 @@ async function googleToken(env: Env): Promise<string> {
 
 // ── Vertex embedding ──
 async function embed(env: Env, content: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<{ values: number[]; model: string; dimensions: number; norm: number }> {
-  const sa = parseSA(env);
-  const project = env.GOOGLE_PROJECT_ID || sa.project_id;
+  const saCount = Math.max(1, intEnv(env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1));
+  const defaultSA = parseSAByIndex(env, 0);
+  const project = env.GOOGLE_PROJECT_ID || defaultSA.project_id;
   if (!project) throw new Error("GOOGLE_PROJECT_ID required");
   const location = env.GOOGLE_LOCATION || "us-central1";
   const model = env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
   const dims = intEnv(env.GOOGLE_EMBEDDING_DIMENSIONS, 1536);
-  const token = await googleToken(env);
   const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:predict`;
-  const res = await fetch(url, {
-    method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-    body: JSON.stringify({ instances: [{ content, task_type: taskType }], parameters: { autoTruncate: true, outputDimensionality: dims } }),
-  });
-  const raw = await res.text();
-  if (!res.ok) throw new Error(`Vertex embed failed ${res.status}: ${raw.slice(0, 500)}`);
-  const d = JSON.parse(raw) as { predictions?: Array<{ embeddings?: { values?: unknown } }> };
-  const values = d.predictions?.[0]?.embeddings?.values;
-  if (!Array.isArray(values) || !values.every(v => typeof v === "number")) throw new Error("bad Vertex response");
-  const norm = Math.sqrt(values.reduce((s: number, v: number) => s + v * v, 0));
-  return { values, model, dimensions: values.length, norm };
+  let lastErr: Error | undefined;
+  for (let attempt = 0; attempt < saCount * 2; attempt++) {
+    const sa = parseSAByIndex(env, attempt % saCount);
+    const token = await tokenForSA(sa);
+    const res = await fetch(url, {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ instances: [{ content, task_type: taskType }], parameters: { autoTruncate: true, outputDimensionality: dims } }),
+    });
+    const raw = await res.text();
+    if (!res.ok) {
+      lastErr = new Error(`Vertex embed failed ${res.status}: ${raw.slice(0, 500)}`);
+      if (res.status === 429 || res.status >= 500) {
+        await new Promise(r => setTimeout(r, Math.min(10_000, 500 * 2 ** attempt)));
+        continue;
+      }
+      throw lastErr;
+    }
+    const d = JSON.parse(raw) as { predictions?: Array<{ embeddings?: { values?: unknown } }> };
+    const values = d.predictions?.[0]?.embeddings?.values;
+    if (!Array.isArray(values) || !values.every(v => typeof v === "number")) throw new Error("bad Vertex response");
+    const norm = Math.sqrt(values.reduce((s: number, v: number) => s + v * v, 0));
+    return { values, model, dimensions: values.length, norm };
+  }
+  throw lastErr || new Error("Vertex embed retries exhausted");
 }
 
 // ── Sharded fan-out: per-SA OAuth + batched Vertex embed (29D/29E pattern) ──
@@ -264,8 +277,18 @@ function parseSAByIndex(env: Env, saIndex: number): GoogleSA {
   const keys = [env.GEMINI_SERVICE_ACCOUNT_B64, env.GEMINI_SERVICE_ACCOUNT_B64_2, env.GEMINI_SERVICE_ACCOUNT_B64_3, env.GEMINI_SERVICE_ACCOUNT_B64_4];
   const b64 = keys[saIndex] || env.GEMINI_SERVICE_ACCOUNT_B64;
   if (!b64) throw new Error(`SA secret for index ${saIndex} missing`);
+  return parseSAB64(b64);
+}
+function parseSAB64(b64: string): GoogleSA {
   const a = JSON.parse(atob(b64)) as Partial<GoogleSA>;
   if (!a.client_email || !a.private_key) throw new Error("invalid service account");
+  return { client_email: a.client_email, private_key: a.private_key, project_id: a.project_id, token_uri: a.token_uri };
+}
+function saFromArray(sas: string[], saIndex: number): GoogleSA {
+  const raw = sas[saIndex % sas.length];
+  if (!raw) throw new Error(`SA index ${saIndex} not in passed array`);
+  const a = JSON.parse(raw) as Partial<GoogleSA>;
+  if (!a.client_email || !a.private_key) throw new Error("invalid service account in passed array");
   return { client_email: a.client_email, private_key: a.private_key, project_id: a.project_id, token_uri: a.token_uri };
 }
 async function tokenForSA(sa: GoogleSA): Promise<string> {
@@ -294,7 +317,7 @@ async function embedBatch(env: Env, sa: GoogleSA, texts: string[]): Promise<{ va
   const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:predict`;
 
   let lastErr: Error | undefined;
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     try {
       const token = await tokenForSA(sa);
       const res = await fetch(url, {
@@ -308,7 +331,7 @@ async function embedBatch(env: Env, sa: GoogleSA, texts: string[]): Promise<{ va
       if (!res.ok) {
         if (res.status >= 500 || res.status === 429) {
           lastErr = new Error(`Vertex embed failed ${res.status} (retryable)`);
-          await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+          await new Promise(r => setTimeout(r, Math.min(30_000, 2000 * 2 ** attempt)));
           continue;
         }
         throw new Error(`Vertex embed failed ${res.status}: ${raw.slice(0, 500)}`);
@@ -326,7 +349,7 @@ async function embedBatch(env: Env, sa: GoogleSA, texts: string[]): Promise<{ va
       lastErr = e instanceof Error ? e : new Error(String(e));
       const msg = lastErr.message;
       if (msg.includes("400") || msg.includes("401") || msg.includes("403") || msg.includes("404")) throw lastErr;
-      await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
+      await new Promise(r => setTimeout(r, Math.min(30_000, 2000 * 2 ** attempt)));
     }
   }
   throw lastErr || new Error("Vertex embed retries exhausted");
@@ -355,10 +378,12 @@ type ShardBatchReq = {
   job_id: string; repo_slug: string; shard_index: number; sa_index: number; batch_size: number;
   records?: SourceRecord[];
   deepseek_api_key?: string;
+  gemini_sas?: string[]; // raw SA JSONs (bypass secret mechanism)
 };
 type ShardResult = {
   shard_index: number; sa_index: number; chunks_done: number; vertex_calls: number;
   vertex_ms: number; vectorize_ms: number; d1_ms: number; errors: number;
+  embed_errors?: number; vectorize_errors?: number; d1_errors?: number; first_error?: string;
 };
 
 export class IndexingShardDO extends DurableObject<Env> {
@@ -366,9 +391,10 @@ export class IndexingShardDO extends DurableObject<Env> {
     const result: ShardResult = {
       shard_index: req.shard_index, sa_index: req.sa_index,
       chunks_done: 0, vertex_calls: 0, vertex_ms: 0, vectorize_ms: 0, d1_ms: 0, errors: 0,
+      embed_errors: 0, vectorize_errors: 0, d1_errors: 0,
     };
     if (!req.records?.length) return result;
-    const sa = parseSAByIndex(this.env, req.sa_index);
+    const sa = req.gemini_sas ? saFromArray(req.gemini_sas, req.sa_index) : parseSAByIndex(this.env, req.sa_index);
     const model = this.env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
     const dims = intEnv(this.env.GOOGLE_EMBEDDING_DIMENSIONS, 1536);
 
@@ -386,7 +412,10 @@ export class IndexingShardDO extends DurableObject<Env> {
         result.vertex_calls += 1;
         result.vertex_ms += Date.now() - tV;
       } catch (e) {
-        console.error(`shard ${req.shard_index} sa ${req.sa_index} embed failed:`, e instanceof Error ? e.message : e);
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(`shard ${req.shard_index} sa ${req.sa_index} embed failed:`, msg);
+        result.first_error ||= `embed: ${msg}`;
+        result.embed_errors! += group.length;
         result.errors += group.length;
         continue;
       }
@@ -406,7 +435,10 @@ export class IndexingShardDO extends DurableObject<Env> {
         await this.env.VECTORIZE.upsert(entries);
         result.vectorize_ms += Date.now() - tVec;
       } catch (e) {
-        console.error(`shard ${req.shard_index} vectorize failed:`, e instanceof Error ? e.message : e);
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(`shard ${req.shard_index} vectorize failed:`, msg);
+        result.first_error ||= `vectorize: ${msg}`;
+        result.vectorize_errors! += group.length;
         result.errors += group.length;
         continue;
       }
@@ -426,7 +458,10 @@ export class IndexingShardDO extends DurableObject<Env> {
         result.d1_ms += Date.now() - tD;
         result.chunks_done += group.length;
       } catch (e) {
-        console.error(`shard ${req.shard_index} d1 batch failed:`, e instanceof Error ? e.message : e);
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(`shard ${req.shard_index} d1 batch failed:`, msg);
+        result.first_error ||= `d1: ${msg}`;
+        result.d1_errors! += group.length;
         result.errors += group.length;
       }
     }
@@ -449,7 +484,7 @@ export class HydeShardDO extends DurableObject<Env> {
     let done = 0, errs = 0;
     const records = req.records || [];
     if (!records.length) return { done, errors: errs };
-    const sa = parseSAByIndex(this.env, req.sa_index);
+    const sa = req.gemini_sas ? saFromArray(req.gemini_sas, req.sa_index) : parseSAByIndex(this.env, req.sa_index);
     const model = this.env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
     const dims = intEnv(this.env.GOOGLE_EMBEDDING_DIMENSIONS, 1536);
     const hydeVer = this.env.HYDE_VERSION || "v1", hydeMdl = this.env.HYDE_MODEL || "deepseek-v4-flash";
@@ -490,7 +525,7 @@ export class HydeShardDO extends DurableObject<Env> {
   }
 }
 
-type IngestShardedReq = IngestReq & { shard_count?: number; batch_size?: number; num_sas?: string };
+type IngestShardedReq = IngestReq & { shard_count?: number; batch_size?: number; num_sas?: string; gemini_sas?: string[] };
 
 async function ingestSharded(env: Env, input: IngestShardedReq): Promise<Response> {
   await schema(env.DB);
@@ -512,6 +547,7 @@ async function ingestSharded(env: Env, input: IngestShardedReq): Promise<Respons
   const SHARD_COUNT = Math.max(1, input.shard_count ?? intEnv(env.SHARD_COUNT, 4));
   const BATCH_SIZE = Math.max(1, input.batch_size ?? intEnv(env.BATCH_SIZE, 100));
   const NUM_SAS = Math.max(1, intEnv(input.num_sas ?? env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1));
+  const sasPassed = input.gemini_sas && input.gemini_sas.length > 0 ? input.gemini_sas : undefined;
 
   await env.ARTIFACTS.put(artifact_key, artifact_text, {
     httpMetadata: { contentType: "application/jsonl" },
@@ -542,7 +578,7 @@ async function ingestSharded(env: Env, input: IngestShardedReq): Promise<Respons
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({
         job_id, repo_slug,
-        shard_index: idx, sa_index: idx % NUM_SAS, batch_size: BATCH_SIZE, records: recs,
+        shard_index: idx, sa_index: idx % NUM_SAS, batch_size: BATCH_SIZE, records: recs, gemini_sas: sasPassed,
       } satisfies ShardBatchReq),
     });
     if (!r.ok) throw new Error(`shard ${idx} returned ${r.status}: ${(await r.text()).slice(0, 200)}`);
@@ -949,7 +985,7 @@ async function searchRerank(env: Env, request: Request): Promise<Response> {
 async function hydeEnrich(env: Env, request: Request): Promise<Response> {
   await schema(env.DB);
   if (!env.HYDE_SHARD_DO) return json({ ok: false, error: "HYDE_SHARD_DO binding missing" }, 501);
-  const inp = await request.json() as { job_id?: string; repo_slug?: string; batch_size?: number; deepseek_api_key?: string };
+  const inp = await request.json() as { job_id?: string; repo_slug?: string; batch_size?: number; deepseek_api_key?: string; gemini_sas?: string[]; num_sas?: string };
   const dsKey = inp.deepseek_api_key || env.DEEPSEEK_API_KEY;
   if (!dsKey) return json({ ok: false, error: "DEEPSEEK_API_KEY missing" }, 501);
   if (!inp.job_id) return json({ ok: false, error: "job_id required" }, 400);
@@ -959,7 +995,8 @@ async function hydeEnrich(env: Env, request: Request): Promise<Response> {
   if (!missing.length) return json({ ok: true, enriched: 0, message: "nothing to enrich" });
 
   const rows = missing.map((r: any) => ({ chunk_id: r.chunk_id as string, text: r.snippet as string, repo_slug: inp.repo_slug as string || "", file_path: r.chunk_id as string, source_sha256: "" }));
-  const sas = intEnv(env.NUM_SAS, 2);
+  const sasNum = intEnv(inp.num_sas ?? env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1);
+  const sasPassed = inp.gemini_sas && inp.gemini_sas.length > 0 ? inp.gemini_sas : undefined;
   const bs = inp.batch_size || intEnv(env.BATCH_SIZE, 500);
   const numShards = Math.min(64, Math.max(1, Math.ceil(rows.length / Math.max(1, bs))));
   const buckets: SourceRecord[][] = Array.from({ length: numShards }, () => []);
@@ -968,7 +1005,7 @@ async function hydeEnrich(env: Env, request: Request): Promise<Response> {
   const outcomes = await Promise.allSettled(buckets.map((bucket, idx) => {
     if (!bucket.length) return Promise.resolve({ done: 0, errors: 0 });
     const stub = env.HYDE_SHARD_DO!.get(env.HYDE_SHARD_DO!.idFromName(`h-enrich:${jobId}:${idx}`));
-    return doFetch(stub, "https://s/process-batch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, repo_slug: inp.repo_slug || "", shard_index: idx, shard_count: numShards, sa_index: idx % sas, batch_size: bs, records: bucket, deepseek_api_key: dsKey }) }, 300_000).then(r => r.json() as Promise<{ done: number; errors: number }>);
+    return doFetch(stub, "https://s/process-batch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, repo_slug: inp.repo_slug || "", shard_index: idx, shard_count: numShards, sa_index: idx % sasNum, batch_size: bs, records: bucket, deepseek_api_key: dsKey, gemini_sas: sasPassed }) }, 300_000).then(r => r.json() as Promise<{ done: number; errors: number }>);
   }));
 
   let enriched = 0, errs = 0;
