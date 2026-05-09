@@ -13,8 +13,10 @@ function saDir() { return path.join(process.env.HOME || "/tmp", ".config/cfcode/
 function resolveSAFiles() {
   const dir = saDir();
   if (!fs.existsSync(dir)) return [];
-  const files = fs.readdirSync(dir).filter(f => f.endsWith(".json")).sort();
-  return files.length ? files.map(f => path.join(dir, f)) : [];
+  const preferred = "embedding-code-495015-2fa24eece6fa.json";
+  const preferredPath = path.join(dir, preferred);
+  if (fs.existsSync(preferredPath)) return [preferredPath];
+  return [];
 }
 function saFilesB64(files) { return files.map(f => fs.readFileSync(f, "utf8")); }
 
@@ -154,14 +156,17 @@ async function cmdReindex(repoPath, flags) {
   log(`   ${records.length} records, ${tombstones.length} tombstones`);
 
   const jobId = `inc-${slug}-${Date.now().toString(36)}`;
-  log("→ POST /incremental-ingest-sharded");
-  const res = await proxyToCodebase(slug, "/incremental-ingest-sharded", {
+  const endpoint = flags.queue ? "/incremental-ingest" : "/incremental-ingest-sharded";
+  log(`→ POST ${endpoint}`);
+  const res = await proxyToCodebase(slug, endpoint, {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({
       job_id: jobId, repo_slug: slug, manifest_id: manifest.manifest_id,
       base_commit: manifest.base_commit, target_commit: manifest.target_commit,
       artifact_key: `incremental/${manifest.manifest_id}.jsonl`, artifact_text: artifactText,
       deepseek_api_key: env.DEEPSEEK_API_KEY || "", num_sas: String(saFiles.length),
+      shard_count: flags.shards ? Number(flags.shards) : undefined,
+      batch_size: flags.batch ? Number(flags.batch) : undefined,
     }),
   });
   if (!res.ok) throw new Error(`incremental-ingest failed: ${JSON.stringify(res)}`);

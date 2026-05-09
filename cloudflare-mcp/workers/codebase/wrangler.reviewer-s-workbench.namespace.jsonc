@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-reviewer-s-workbench-artifacts" }],
-  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-reviewer-s-workbench", "database_id": "5894e091-a805-4a0a-8754-bfa4a23f033f" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-reviewer-s-workbench", "database_id": "6d585093-2419-4d3c-988f-fea8e6e9f63a" }],
   "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-reviewer-s-workbench" }],
   "durable_objects": {
     "bindings": [
@@ -20,7 +20,7 @@
   "vars": {
     "SHARD_COUNT": "4",
     "BATCH_SIZE": "100",
-    "NUM_SAS": "2"
+    "NUM_SAS": "1"
   },
   "queues": {
     "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-reviewer-s-workbench-work" }]

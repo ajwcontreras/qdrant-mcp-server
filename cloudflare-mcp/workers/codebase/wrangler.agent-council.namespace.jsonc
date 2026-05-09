@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-agent-council-artifacts" }],
-  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-agent-council", "database_id": "695bf670-874a-450a-af00-e5a668acc1a8" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-agent-council", "database_id": "587f12b2-fd16-4128-9a3e-4b1773e81f56" }],
   "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-agent-council" }],
   "durable_objects": {
     "bindings": [
@@ -20,7 +20,7 @@
   "vars": {
     "SHARD_COUNT": "4",
     "BATCH_SIZE": "100",
-    "NUM_SAS": "2"
+    "NUM_SAS": "1"
   },
   "queues": {
     "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-agent-council-work" }]

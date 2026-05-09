@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-lumae-upload-api-artifacts" }],
-  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-lumae-upload-api", "database_id": "72703149-9c86-46de-b180-2f8294b40406" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-lumae-upload-api", "database_id": "b4268296-4cd1-4492-84e0-258eefef55cf" }],
   "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-lumae-upload-api" }],
   "durable_objects": {
     "bindings": [
@@ -20,7 +20,7 @@
   "vars": {
     "SHARD_COUNT": "4",
     "BATCH_SIZE": "100",
-    "NUM_SAS": "2"
+    "NUM_SAS": "1"
   },
   "queues": {
     "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-lumae-upload-api-work" }]

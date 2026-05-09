@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-income-scout-bun-artifacts" }],
-  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-income-scout-bun", "database_id": "3fec2324-eec2-49c0-891a-4b72ab52641a" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-income-scout-bun", "database_id": "293940ca-3987-4906-a663-a6f3d2d74b0d" }],
   "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-income-scout-bun" }],
   "durable_objects": {
     "bindings": [
@@ -20,7 +20,7 @@
   "vars": {
     "SHARD_COUNT": "4",
     "BATCH_SIZE": "100",
-    "NUM_SAS": "2"
+    "NUM_SAS": "1"
   },
   "queues": {
     "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-income-scout-bun-work" }]

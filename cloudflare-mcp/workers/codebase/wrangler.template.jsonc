@@ -18,7 +18,7 @@
   "vars": {
     "SHARD_COUNT": "4",
     "BATCH_SIZE": "100",
-    "NUM_SAS": "2"
+    "NUM_SAS": "1"
   },
   "queues": {
     "producers": [{ "binding": "WORK_QUEUE", "queue": "__QUEUE_NAME__" }],

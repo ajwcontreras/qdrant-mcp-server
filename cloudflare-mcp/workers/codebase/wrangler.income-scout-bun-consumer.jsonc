@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-income-scout-bun-consumer",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-income-scout-bun-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-income-scout-bun" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-income-scout-bun" }],
+  "vars": {
+    "NUM_SAS": "1"
+  },
+  "queues": {
+    "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-income-scout-bun-work" }],
+    "consumers": [{ "queue": "cfcode-income-scout-bun-work", "max_batch_size": 1, "max_concurrency": 1 }]
+  }
+}

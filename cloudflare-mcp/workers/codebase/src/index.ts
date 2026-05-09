@@ -859,7 +859,8 @@ async function search(env: Env, request: Request): Promise<Response> {
   } else {
     return json({ ok: false, error: "query (text) or values (vector) required" }, 400);
   }
-  const result = await env.VECTORIZE.query(queryValues, { topK: input.topK || 10, returnMetadata: "all" });
+  const topK = input.topK || 10;
+  const result = await env.VECTORIZE.query(queryValues, { topK: Math.max(topK * 4, topK), returnMetadata: "all" });
   const matches = [];
   for (const m of result.matches || []) {
     const stmt = input.repo_slug
@@ -867,6 +868,7 @@ async function search(env: Env, request: Request): Promise<Response> {
       : env.DB.prepare("SELECT * FROM chunks WHERE chunk_id = ? AND active = 1").bind(m.id);
     const chunk = await stmt.first();
     if (chunk) {
+      if (chunk.kind === "hyde") continue;
       let score = m.score;
       const fp = (chunk.file_path as string || "").toLowerCase();
       if (/\.json$/.test(fp) || /\.toml$/.test(fp) || /\.yaml$/.test(fp) || /\.yml$/.test(fp)) score *= 0.5;
@@ -875,6 +877,7 @@ async function search(env: Env, request: Request): Promise<Response> {
       else if (/\.css$/.test(fp) || /\.html$/.test(fp) || /\.svg$/.test(fp)) score *= 0.6;
       else if (/\.lock$/.test(fp) || /\.gitignore$/.test(fp)) score *= 0.3;
       matches.push({ ...m, score, chunk });
+      if (matches.length >= topK) break;
     }
   }
   return json({ ok: true, matches, vectorize_returned: (result.matches || []).length, d1_filtered: matches.length });

@@ -6,7 +6,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-mortgage-rag-artifacts" }],
-  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-mortgage-rag", "database_id": "822d115d-99ed-4b66-91c3-e35383b22ba9" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-mortgage-rag", "database_id": "ed31a6dd-c97e-416e-94b6-83123b3a5613" }],
   "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-mortgage-rag" }],
   "durable_objects": {
     "bindings": [
@@ -20,7 +20,7 @@
   "vars": {
     "SHARD_COUNT": "4",
     "BATCH_SIZE": "100",
-    "NUM_SAS": "2"
+    "NUM_SAS": "1"
   },
   "queues": {
     "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-mortgage-rag-work" }]

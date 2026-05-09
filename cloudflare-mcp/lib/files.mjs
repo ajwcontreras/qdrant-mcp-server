@@ -10,6 +10,10 @@ const SKIP_EXT = /\.(lock|map|min\.js|min\.css|woff2?|ttf|eot|ico|png|jpg|jpeg|g
 const MAX_CHUNK_CHARS = 4000;
 const MAX_FILE_BYTES = 1_000_000; // 1MB hard cap per file
 
+function isSourcePath(f) {
+  return f && !SKIP_PATTERN.test(f) && !SKIP_EXT.test(f) && !f.includes("node_modules") && !f.includes("__pycache__");
+}
+
 export function sha256(v) { return crypto.createHash("sha256").update(v).digest("hex"); }
 export function chunkIdFor(filePath, chunkIndex = 0) {
   return `chunk-${sha256(`${filePath}:${chunkIndex}`).slice(0, 16)}`;
@@ -18,9 +22,7 @@ export function chunkIdFor(filePath, chunkIndex = 0) {
 // Filter git-tracked files to source files only.
 export function listSourceFiles(repoPath) {
   const r = git(repoPath, ["ls-files"]);
-  return r.stdout.trim().split("\n").filter(f =>
-    f && !SKIP_PATTERN.test(f) && !SKIP_EXT.test(f) && !f.includes("node_modules") && !f.includes("__pycache__")
-  );
+  return r.stdout.trim().split("\n").filter(isSourcePath);
 }
 
 // Read file safely; return null if unreadable, too large, or a directory.
@@ -92,15 +94,16 @@ export function buildDiffManifest(repoPath, repoSlug, baseRef, targetRef) {
     const code = parts[0];
     if (code === "A") {
       const p = parts[1];
-      if (!isDir(repoPath, p)) { files.push({ action: "added", file_path: p }); added++; }
+      if (isSourcePath(p) && !isDir(repoPath, p)) { files.push({ action: "added", file_path: p }); added++; }
     } else if (code === "M") {
       const p = parts[1];
-      if (!isDir(repoPath, p)) { files.push({ action: "modified", file_path: p }); modified++; }
+      if (isSourcePath(p) && !isDir(repoPath, p)) { files.push({ action: "modified", file_path: p }); modified++; }
     } else if (code === "D") {
-      files.push({ action: "deleted", file_path: parts[1] }); deleted++;
+      const p = parts[1];
+      if (isSourcePath(p)) { files.push({ action: "deleted", file_path: p }); deleted++; }
     } else if (code.startsWith("R")) {
       const oldP = parts[1], newP = parts[2];
-      if (!isDir(repoPath, newP)) { files.push({ action: "renamed", file_path: newP, previous_path: oldP }); renamed++; }
+      if (isSourcePath(newP) && !isDir(repoPath, newP)) { files.push({ action: "renamed", file_path: newP, previous_path: isSourcePath(oldP) ? oldP : null }); renamed++; }
     }
   }
   const summary = { total: files.length, added, modified, deleted, renamed };
