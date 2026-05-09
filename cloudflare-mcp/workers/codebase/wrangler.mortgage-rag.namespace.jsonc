@@ -3,26 +3,66 @@
   "name": "cfcode-codebase-mortgage-rag",
   "main": "src/index.ts",
   "compatibility_date": "2026-04-30",
-  "compatibility_flags": ["nodejs_compat"],
-  "observability": { "enabled": true, "head_sampling_rate": 1 },
-  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-mortgage-rag-artifacts" }],
-  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-mortgage-rag", "database_id": "ed31a6dd-c97e-416e-94b6-83123b3a5613" }],
-  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-mortgage-rag" }],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "r2_buckets": [
+    {
+      "binding": "ARTIFACTS",
+      "bucket_name": "cfcode-mortgage-rag-artifacts"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cfcode-mortgage-rag",
+      "database_id": "fc453a96-2424-4bd4-8d74-8213ddbec3ce"
+    }
+  ],
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "cfcode-mortgage-rag"
+    }
+  ],
   "durable_objects": {
     "bindings": [
-      { "name": "INDEXING_SHARD_DO", "class_name": "IndexingShardDO" },
-      { "name": "HYDE_SHARD_DO", "class_name": "HydeShardDO" }
+      {
+        "name": "INDEXING_SHARD_V2",
+        "class_name": "IndexingShardV2"
+      },
+      {
+        "name": "HYDE_SHARD_V2",
+        "class_name": "HydeShardV2"
+      }
     ]
   },
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["IndexingShardDO", "HydeShardDO"] }
+    {
+      "tag": "v2",
+      "new_sqlite_classes": [
+        "IndexingShardV2",
+        "HydeShardV2"
+      ]
+    }
   ],
   "vars": {
     "SHARD_COUNT": "4",
-    "BATCH_SIZE": "100",
-    "NUM_SAS": "1"
+    "BATCH_SIZE": "100"
+  },
+  "ai": {
+    "binding": "AI"
   },
   "queues": {
-    "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-mortgage-rag-work" }]
+    "producers": [
+      {
+        "binding": "WORK_QUEUE",
+        "queue": "cfcode-mortgage-rag-work"
+      }
+    ]
   }
 }

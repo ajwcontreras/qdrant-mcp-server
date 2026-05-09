@@ -6,22 +6,23 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-cfpubsub-scaffold-artifacts" }],
-  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-cfpubsub-scaffold", "database_id": "cef3cb71-9df8-49c5-9bae-468d3dfd256c" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-cfpubsub-scaffold", "database_id": "98fd1a37-9a09-45d6-850e-6c975b0deef5" }],
   "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-cfpubsub-scaffold" }],
   "durable_objects": {
     "bindings": [
-      { "name": "INDEXING_SHARD_DO", "class_name": "IndexingShardDO" },
-      { "name": "HYDE_SHARD_DO", "class_name": "HydeShardDO" }
+      { "name": "INDEXING_SHARD_V2", "class_name": "IndexingShardV2" },
+      { "name": "HYDE_SHARD_V2", "class_name": "HydeShardV2" }
     ]
   },
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["IndexingShardDO", "HydeShardDO"] }
+    { "tag": "v1", "new_sqlite_classes": ["IndexingShardDO", "HydeShardDO"] },
+    { "tag": "v2", "new_sqlite_classes": ["IndexingShardV2", "HydeShardV2"] }
   ],
   "vars": {
     "SHARD_COUNT": "4",
-    "BATCH_SIZE": "100",
-    "NUM_SAS": "2"
+    "BATCH_SIZE": "100"
   },
+  "ai": { "binding": "AI" },
   "queues": {
     "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-cfpubsub-scaffold-work" }]
   }

@@ -27,7 +27,7 @@ export function provisionResources({ workerName, r2Bucket, d1Name, vectorizeInde
   log("Creating R2 bucket...");
   run("npx", ["wrangler", "r2", "bucket", "create", r2Bucket], { cwd: WORKER_DIR, capture: true, allowFailure: true });
   log("Creating Vectorize index...");
-  run("npx", ["wrangler", "vectorize", "create", vectorizeIndex, "--dimensions=1536", "--metric=cosine"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
+  run("npx", ["wrangler", "vectorize", "create", vectorizeIndex, "--dimensions=1024", "--metric=cosine"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
   for (const prop of ["repo_slug", "file_path", "active_commit"]) {
     run("npx", ["wrangler", "vectorize", "create-metadata-index", vectorizeIndex, "--property-name", prop, "--type=string"], { cwd: WORKER_DIR, capture: true, allowFailure: true });
   }

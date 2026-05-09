@@ -29,10 +29,6 @@ type VecLike = {
   upsert(v: VecEntry[]): Promise<unknown>;
   query(v: number[], opts?: { topK?: number; returnMetadata?: "none" | "indexed" | "all" }): Promise<{ matches?: Array<{ id: string; score: number; metadata?: Record<string, unknown> }> }>;
 };
-type KVLike = {
-  get(key: string, opts?: { type?: "text" | "json" }): Promise<string | null | Record<string, unknown>>;
-  put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
-};
 type DOStubLike = { fetch(input: string | Request, init?: RequestInit): Promise<Response> };
 type DONamespaceLike = {
   idFromName(name: string): unknown;
@@ -41,24 +37,16 @@ type DONamespaceLike = {
 
 type Env = {
   ARTIFACTS: R2Like; DB: D1Like; VECTORIZE: VecLike; WORK_QUEUE: QueueLike;
-  VERTEX_TOKEN_CACHE?: KVLike;
-  INDEXING_SHARD_DO?: DONamespaceLike;
-  GEMINI_SERVICE_ACCOUNT_B64?: string;
-  GEMINI_SERVICE_ACCOUNT_B64_2?: string;
-  GEMINI_SERVICE_ACCOUNT_B64_3?: string;
-  GEMINI_SERVICE_ACCOUNT_B64_4?: string;
+  CF_API_KEY?: string;
+  CF_EMAIL?: string;
+  INDEXING_SHARD_V2?: DONamespaceLike;
   SHARD_COUNT?: string;
   BATCH_SIZE?: string;
-  NUM_SAS?: string;
   DEEPSEEK_API_KEY?: string;
-  HYDE_SHARD_DO?: DONamespaceLike;
+  HYDE_SHARD_V2?: DONamespaceLike;
   HYDE_MODEL?: string;
   HYDE_VERSION?: string;
   HYDE_QUESTIONS?: string;
-  GOOGLE_PROJECT_ID?: string;
-  GOOGLE_LOCATION?: string;
-  GOOGLE_EMBEDDING_MODEL?: string;
-  GOOGLE_EMBEDDING_DIMENSIONS?: string;
 };
 
 // ── Domain types ──
@@ -72,8 +60,6 @@ type IncrementalReq = {
   artifact_key: string; artifact_text: string;
 };
 type QueueMsg = { job_id: string; chunk_id: string; artifact_key: string; ordinal: number; target_commit?: string; repo_slug?: string };
-type GoogleSA = { client_email: string; private_key: string; project_id?: string; token_uri?: string };
-
 function json(v: unknown, s = 200) { return Response.json(v, { status: s, headers: { "content-type": "application/json" } }); }
 function intEnv(v: string | undefined, d: number) { const n = Number.parseInt(v || "", 10); return Number.isFinite(n) ? n : d; }
 async function doFetch(s: DOStubLike, url: string, init: RequestInit, ms = 120_000): Promise<Response> {
@@ -162,197 +148,42 @@ function parseArtifact(text: string): { records: IncrementalRecord[]; tombstones
   return { records, tombstones };
 }
 
-// ── Google OAuth ──
-let tokenCache: { token: string; expiresAt: number } | undefined;
-function parseSA(env: Env): GoogleSA {
-  if (!env.GEMINI_SERVICE_ACCOUNT_B64) throw new Error("GEMINI_SERVICE_ACCOUNT_B64 required");
-  const a = JSON.parse(atob(env.GEMINI_SERVICE_ACCOUNT_B64)) as Partial<GoogleSA>;
-  if (!a.client_email || !a.private_key) throw new Error("invalid service account");
-  return { client_email: a.client_email, private_key: a.private_key, project_id: a.project_id, token_uri: a.token_uri };
-}
-function pemToAB(pem: string): ArrayBuffer {
-  const b64 = pem.replace(/-----BEGIN PRIVATE KEY-----|-----END PRIVATE KEY-----|\s/g, "");
-  const bin = atob(b64); const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes.buffer;
-}
-function b64url(v: string | ArrayBuffer): string {
-  const bytes = typeof v === "string" ? new TextEncoder().encode(v) : new Uint8Array(v);
-  let bin = ""; for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-}
-async function signJwt(sa: GoogleSA, claims: Record<string, string | number>): Promise<string> {
-  const input = `${b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }))}.${b64url(JSON.stringify(claims))}`;
-  const key = await crypto.subtle.importKey("pkcs8", pemToAB(sa.private_key), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
-  const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(input));
-  return `${input}.${b64url(sig)}`;
-}
-async function bumpMetric(env: Env, key: string) {
-  try {
-    await env.DB.prepare(`CREATE TABLE IF NOT EXISTS metrics (key TEXT PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0)`).run();
-    await env.DB.prepare(`INSERT INTO metrics (key, value) VALUES (?, 1) ON CONFLICT(key) DO UPDATE SET value = value + 1`).bind(key).run();
-  } catch { /* metrics are best-effort */ }
-}
-async function googleToken(env: Env): Promise<string> {
-  const now = Date.now();
-  // Fast path: per-isolate cache
-  if (tokenCache && tokenCache.expiresAt - 60_000 > now) return tokenCache.token;
-  const sa = parseSA(env);
-  const cacheKey = `vertex_token:${sa.client_email}`;
-  // KV path: shared across isolates if binding present
-  if (env.VERTEX_TOKEN_CACHE) {
-    try {
-      const cached = await env.VERTEX_TOKEN_CACHE.get(cacheKey, { type: "json" }) as { token?: string; expiresAt?: number } | null;
-      if (cached && cached.token && typeof cached.expiresAt === "number" && cached.expiresAt - 60_000 > now) {
-        tokenCache = { token: cached.token, expiresAt: cached.expiresAt };
-        await bumpMetric(env, "oauth_kv_hit");
-        return cached.token;
-      }
-    } catch { /* fall through to refresh */ }
-  }
-  // Slow path: full JWT exchange
-  const iat = Math.floor(now / 1000);
-  const assertion = await signJwt(sa, { iss: sa.client_email, scope: "https://www.googleapis.com/auth/cloud-platform", aud: sa.token_uri || "https://oauth2.googleapis.com/token", iat, exp: iat + 3600 });
-  const res = await fetch(sa.token_uri || "https://oauth2.googleapis.com/token", {
-    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
+// ── Workers AI embedding (REST API, works everywhere including DOs) ──
+const EMBED_MODEL = "@cf/baai/bge-large-en-v1.5";
+const ACCOUNT_ID = "6bce4120096fa9f12ecda6efff1862d0";
+
+async function aiEmbed(env: Env, texts: string[]) {
+  const key = env.CF_API_KEY;
+  const email = env.CF_EMAIL || "andrew@evrylo.com";
+  if (!key) throw new Error("CF_API_KEY missing");
+  const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/ai/run/${EMBED_MODEL}`, {
+    method: "POST",
+    headers: { "X-Auth-Email": email, "X-Auth-Key": key, "content-type": "application/json" },
+    body: JSON.stringify({ text: texts.map(t => t.slice(0, 8000)) }),
   });
   const raw = await res.text();
-  if (!res.ok) throw new Error(`Google token failed ${res.status}: ${raw.slice(0, 300)}`);
-  const d = JSON.parse(raw) as { access_token?: string; expires_in?: number };
-  if (!d.access_token) throw new Error("no access_token in Google response");
-  const ttl = Math.max(60, d.expires_in || 3600);
-  const expiresAt = now + ttl * 1000;
-  tokenCache = { token: d.access_token, expiresAt };
-  await bumpMetric(env, "oauth_refresh");
-  if (env.VERTEX_TOKEN_CACHE) {
-    try {
-      // KV TTL must be ≥60s; cache for token lifetime minus 5min buffer.
-      await env.VERTEX_TOKEN_CACHE.put(cacheKey, JSON.stringify({ token: d.access_token, expiresAt }), { expirationTtl: Math.max(60, ttl - 300) });
-    } catch { /* best-effort */ }
-  }
-  return d.access_token;
+  if (!res.ok) throw new Error(`AI API failed ${res.status}: ${raw.slice(0, 500)}`);
+  const d = JSON.parse(raw) as { result?: { data: number[][] }; success?: boolean };
+  if (!d.success || !d.result?.data) throw new Error("bad AI response");
+  return d.result.data;
 }
 
-// ── Vertex embedding ──
-async function embed(env: Env, content: string, taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"): Promise<{ values: number[]; model: string; dimensions: number; norm: number }> {
-  const saCount = Math.max(1, intEnv(env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1));
-  const defaultSA = parseSAByIndex(env, 0);
-  const project = env.GOOGLE_PROJECT_ID || defaultSA.project_id;
-  if (!project) throw new Error("GOOGLE_PROJECT_ID required");
-  const location = env.GOOGLE_LOCATION || "us-central1";
-  const model = env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
-  const dims = intEnv(env.GOOGLE_EMBEDDING_DIMENSIONS, 1536);
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:predict`;
-  let lastErr: Error | undefined;
-  for (let attempt = 0; attempt < saCount * 2; attempt++) {
-    const sa = parseSAByIndex(env, attempt % saCount);
-    const token = await tokenForSA(sa);
-    const res = await fetch(url, {
-      method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ instances: [{ content, task_type: taskType }], parameters: { autoTruncate: true, outputDimensionality: dims } }),
-    });
-    const raw = await res.text();
-    if (!res.ok) {
-      lastErr = new Error(`Vertex embed failed ${res.status}: ${raw.slice(0, 500)}`);
-      if (res.status === 429 || res.status >= 500) {
-        await new Promise(r => setTimeout(r, Math.min(10_000, 500 * 2 ** attempt)));
-        continue;
-      }
-      throw lastErr;
-    }
-    const d = JSON.parse(raw) as { predictions?: Array<{ embeddings?: { values?: unknown } }> };
-    const values = d.predictions?.[0]?.embeddings?.values;
-    if (!Array.isArray(values) || !values.every(v => typeof v === "number")) throw new Error("bad Vertex response");
+async function embed(env: Env, content: string, _taskType?: string): Promise<{ values: number[]; model: string; dimensions: number; norm: number }> {
+  const data = await aiEmbed(env, [content]);
+  const values = data[0];
+  if (!Array.isArray(values) || !values.every(v => typeof v === "number")) throw new Error("bad AI response");
+  const norm = Math.sqrt(values.reduce((s: number, v: number) => s + v * v, 0));
+  return { values, model: EMBED_MODEL, dimensions: values.length, norm };
+}
+
+async function embedBatch(env: Env, _sa: unknown, texts: string[]): Promise<{ values: number[]; norm: number }[]> {
+  const data = await aiEmbed(env, texts);
+  if (data.length !== texts.length) throw new Error(`AI returned ${data.length} vectors for ${texts.length} inputs`);
+  return data.map(values => {
+    if (!Array.isArray(values) || !values.every(v => typeof v === "number")) throw new Error("bad AI response");
     const norm = Math.sqrt(values.reduce((s: number, v: number) => s + v * v, 0));
-    return { values, model, dimensions: values.length, norm };
-  }
-  throw lastErr || new Error("Vertex embed retries exhausted");
-}
-
-// ── Sharded fan-out: per-SA OAuth + batched Vertex embed (29D/29E pattern) ──
-// Per-isolate token cache keyed by SA email so multiple SAs (round-robin) coexist.
-const tokenCacheBySA: Map<string, { token: string; expiresAt: number }> = new Map();
-function parseSAByIndex(env: Env, saIndex: number): GoogleSA {
-  const keys = [env.GEMINI_SERVICE_ACCOUNT_B64, env.GEMINI_SERVICE_ACCOUNT_B64_2, env.GEMINI_SERVICE_ACCOUNT_B64_3, env.GEMINI_SERVICE_ACCOUNT_B64_4];
-  const b64 = keys[saIndex] || env.GEMINI_SERVICE_ACCOUNT_B64;
-  if (!b64) throw new Error(`SA secret for index ${saIndex} missing`);
-  return parseSAB64(b64);
-}
-function parseSAB64(b64: string): GoogleSA {
-  const a = JSON.parse(atob(b64)) as Partial<GoogleSA>;
-  if (!a.client_email || !a.private_key) throw new Error("invalid service account");
-  return { client_email: a.client_email, private_key: a.private_key, project_id: a.project_id, token_uri: a.token_uri };
-}
-function saFromArray(sas: string[], saIndex: number): GoogleSA {
-  const raw = sas[saIndex % sas.length];
-  if (!raw) throw new Error(`SA index ${saIndex} not in passed array`);
-  const a = JSON.parse(raw) as Partial<GoogleSA>;
-  if (!a.client_email || !a.private_key) throw new Error("invalid service account in passed array");
-  return { client_email: a.client_email, private_key: a.private_key, project_id: a.project_id, token_uri: a.token_uri };
-}
-async function tokenForSA(sa: GoogleSA): Promise<string> {
-  const now = Date.now();
-  const cached = tokenCacheBySA.get(sa.client_email);
-  if (cached && cached.expiresAt - 60_000 > now) return cached.token;
-  const iat = Math.floor(now / 1000);
-  const assertion = await signJwt(sa, { iss: sa.client_email, scope: "https://www.googleapis.com/auth/cloud-platform", aud: sa.token_uri || "https://oauth2.googleapis.com/token", iat, exp: iat + 3600 });
-  const res = await fetch(sa.token_uri || "https://oauth2.googleapis.com/token", {
-    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }),
+    return { values: values as number[], norm };
   });
-  const raw = await res.text();
-  if (!res.ok) throw new Error(`Google token failed ${res.status}: ${raw.slice(0, 300)}`);
-  const d = JSON.parse(raw) as { access_token?: string; expires_in?: number };
-  if (!d.access_token) throw new Error("no access_token in Google response");
-  tokenCacheBySA.set(sa.client_email, { token: d.access_token, expiresAt: now + Math.max(60, d.expires_in || 3600) * 1000 });
-  return d.access_token;
-}
-async function embedBatch(env: Env, sa: GoogleSA, texts: string[]): Promise<{ values: number[]; norm: number }[]> {
-  const project = env.GOOGLE_PROJECT_ID || sa.project_id;
-  if (!project) throw new Error("project_id required");
-  const location = env.GOOGLE_LOCATION || "us-central1";
-  const model = env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
-  const dims = intEnv(env.GOOGLE_EMBEDDING_DIMENSIONS, 1536);
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:predict`;
-
-  let lastErr: Error | undefined;
-  for (let attempt = 0; attempt < 6; attempt++) {
-    try {
-      const token = await tokenForSA(sa);
-      const res = await fetch(url, {
-        method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-        body: JSON.stringify({
-          instances: texts.map(t => ({ content: t, task_type: "RETRIEVAL_DOCUMENT" })),
-          parameters: { autoTruncate: true, outputDimensionality: dims },
-        }),
-      });
-      const raw = await res.text();
-      if (!res.ok) {
-        if (res.status >= 500 || res.status === 429) {
-          lastErr = new Error(`Vertex embed failed ${res.status} (retryable)`);
-          await new Promise(r => setTimeout(r, Math.min(30_000, 2000 * 2 ** attempt)));
-          continue;
-        }
-        throw new Error(`Vertex embed failed ${res.status}: ${raw.slice(0, 500)}`);
-      }
-      const d = JSON.parse(raw) as { predictions?: Array<{ embeddings?: { values?: unknown } }> };
-      const preds = d.predictions || [];
-      if (preds.length !== texts.length) throw new Error(`Vertex returned ${preds.length} preds for ${texts.length} inputs`);
-      return preds.map(p => {
-        const values = p.embeddings?.values;
-        if (!Array.isArray(values) || !values.every(v => typeof v === "number")) throw new Error("bad Vertex response");
-        const norm = Math.sqrt(values.reduce((s: number, v: number) => s + v * v, 0));
-        return { values: values as number[], norm };
-      });
-    } catch (e) {
-      lastErr = e instanceof Error ? e : new Error(String(e));
-      const msg = lastErr.message;
-      if (msg.includes("400") || msg.includes("401") || msg.includes("403") || msg.includes("404")) throw lastErr;
-      await new Promise(r => setTimeout(r, Math.min(30_000, 2000 * 2 ** attempt)));
-    }
-  }
-  throw lastErr || new Error("Vertex embed retries exhausted");
 }
 
 const HYDE_SYS = "You are a code search assistant. Given a code snippet, generate exactly 12 distinct natural-language questions that a developer might ask whose answer would be this snippet. Output ONLY a JSON object: {\"questions\": [\"q1\", ..., \"q12\"]}. No prose, no markdown.";
@@ -375,28 +206,26 @@ async function deepseek(env: Env, text: string, apiKeyOverride?: string): Promis
 }
 
 type ShardBatchReq = {
-  job_id: string; repo_slug: string; shard_index: number; sa_index: number; batch_size: number;
+  job_id: string; repo_slug: string; shard_index: number; batch_size: number;
   records?: SourceRecord[];
   deepseek_api_key?: string;
-  gemini_sas?: string[]; // raw SA JSONs (bypass secret mechanism)
 };
 type ShardResult = {
-  shard_index: number; sa_index: number; chunks_done: number; vertex_calls: number;
+  shard_index: number; chunks_done: number; vertex_calls: number;
   vertex_ms: number; vectorize_ms: number; d1_ms: number; errors: number;
   embed_errors?: number; vectorize_errors?: number; d1_errors?: number; first_error?: string;
 };
 
-export class IndexingShardDO extends DurableObject<Env> {
+export class IndexingShardV2 extends DurableObject<Env> {
   async processBatch(req: ShardBatchReq): Promise<ShardResult> {
     const result: ShardResult = {
-      shard_index: req.shard_index, sa_index: req.sa_index,
+      shard_index: req.shard_index,
       chunks_done: 0, vertex_calls: 0, vertex_ms: 0, vectorize_ms: 0, d1_ms: 0, errors: 0,
       embed_errors: 0, vectorize_errors: 0, d1_errors: 0,
     };
     if (!req.records?.length) return result;
-    const sa = req.gemini_sas ? saFromArray(req.gemini_sas, req.sa_index) : parseSAByIndex(this.env, req.sa_index);
-    const model = this.env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
-    const dims = intEnv(this.env.GOOGLE_EMBEDDING_DIMENSIONS, 1536);
+    const model = EMBED_MODEL;
+    const dims = 1024;
 
     const groups: SourceRecord[][] = [];
     for (let i = 0; i < req.records!.length; i += req.batch_size) {
@@ -408,12 +237,12 @@ export class IndexingShardDO extends DurableObject<Env> {
       const tV = Date.now();
       let embeddings: { values: number[]; norm: number }[];
       try {
-        embeddings = await embedBatch(this.env, sa, texts);
+        embeddings = await embedBatch(this.env, 0, texts);
         result.vertex_calls += 1;
         result.vertex_ms += Date.now() - tV;
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        console.error(`shard ${req.shard_index} sa ${req.sa_index} embed failed:`, msg);
+        console.error(`shard ${req.shard_index} embed failed:`, msg);
         result.first_error ||= `embed: ${msg}`;
         result.embed_errors! += group.length;
         result.errors += group.length;
@@ -479,14 +308,16 @@ export class IndexingShardDO extends DurableObject<Env> {
   }
 }
 
-export class HydeShardDO extends DurableObject<Env> {
+// Legacy alias — DO instances from before Workers AI migration
+export class IndexingShardDO extends IndexingShardV2 {}
+
+export class HydeShardV2 extends DurableObject<Env> {
   async process(req: ShardBatchReq): Promise<{ done: number; errors: number }> {
     let done = 0, errs = 0;
     const records = req.records || [];
     if (!records.length) return { done, errors: errs };
-    const sa = req.gemini_sas ? saFromArray(req.gemini_sas, req.sa_index) : parseSAByIndex(this.env, req.sa_index);
-    const model = this.env.GOOGLE_EMBEDDING_MODEL || "gemini-embedding-001";
-    const dims = intEnv(this.env.GOOGLE_EMBEDDING_DIMENSIONS, 1536);
+    const model = EMBED_MODEL;
+    const dims = 1024;
     const hydeVer = this.env.HYDE_VERSION || "v1", hydeMdl = this.env.HYDE_MODEL || "deepseek-v4-flash";
     const nowStr = new Date().toISOString();
 
@@ -505,7 +336,7 @@ export class HydeShardDO extends DurableObject<Env> {
 
     for (const group of groups) {
       let embs: { values: number[]; norm: number }[];
-      try { embs = await embedBatch(this.env, sa, group.map(g => g.text)); } catch { errs += group.length; continue; }
+      try { embs = await embedBatch(this.env, 0, group.map(g => g.text)); } catch { errs += group.length; continue; }
       try { await this.env.VECTORIZE.upsert(group.map((g, i) => ({ id: `${g.parentId}-h${g.qIndex}`, values: embs[i].values, metadata: { kind: "hyde", parent_chunk_id: g.parentId, hyde_index: g.qIndex } }))); } catch { errs += group.length; continue; }
       try {
         const stmts = group.map((g, i) => this.env.DB.prepare(`INSERT OR REPLACE INTO chunks (chunk_id,job_id,repo_slug,file_path,source_sha256,snippet,active,kind,parent_chunk_id,hyde_version,hyde_model,model,dimensions,norm,published_at) VALUES (?,?,?,?,?,?,1,'hyde',?,?,?,?,?,?,?)`).bind(`${g.parentId}-h${g.qIndex}`, req.job_id, req.repo_slug || "", g.parentId, g.parentId, g.text.slice(0, 500), g.parentId, hydeVer, hydeMdl, model, dims, embs[i].norm, nowStr));
@@ -525,12 +356,15 @@ export class HydeShardDO extends DurableObject<Env> {
   }
 }
 
-type IngestShardedReq = IngestReq & { shard_count?: number; batch_size?: number; num_sas?: string; gemini_sas?: string[] };
+// Legacy alias — DO instances from before Workers AI migration
+export class HydeShardDO extends HydeShardV2 {}
+
+type IngestShardedReq = IngestReq & { shard_count?: number; batch_size?: number };
 
 async function ingestSharded(env: Env, input: IngestShardedReq): Promise<Response> {
   await schema(env.DB);
-  if (!env.INDEXING_SHARD_DO) {
-    return json({ ok: false, error: "INDEXING_SHARD_DO binding not configured" }, 501);
+  if (!env.INDEXING_SHARD_V2) {
+    return json({ ok: false, error: "INDEXING_SHARD_V2 binding not configured" }, 501);
   }
   if (!input.job_id || !input.repo_slug || !input.indexed_path || !input.active_commit || !input.artifact_key || !input.artifact_text) {
     return json({ ok: false, error: "missing required fields" }, 400);
@@ -546,8 +380,6 @@ async function ingestSharded(env: Env, input: IngestShardedReq): Promise<Respons
 
   const SHARD_COUNT = Math.max(1, input.shard_count ?? intEnv(env.SHARD_COUNT, 4));
   const BATCH_SIZE = Math.max(1, input.batch_size ?? intEnv(env.BATCH_SIZE, 100));
-  const NUM_SAS = Math.max(1, intEnv(input.num_sas ?? env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1));
-  const sasPassed = input.gemini_sas && input.gemini_sas.length > 0 ? input.gemini_sas : undefined;
 
   await env.ARTIFACTS.put(artifact_key, artifact_text, {
     httpMetadata: { contentType: "application/jsonl" },
@@ -570,15 +402,15 @@ async function ingestSharded(env: Env, input: IngestShardedReq): Promise<Respons
   for (let i = 0; i < records.length; i++) shards[i % SHARD_COUNT].push(records[i]);
 
   const tStart = Date.now();
-  const doNs = env.INDEXING_SHARD_DO!;
+  const doNs = env.INDEXING_SHARD_V2!;
   const responses = await Promise.allSettled(shards.map(async (recs, idx) => {
-    if (!recs.length) return { shard_index: idx, sa_index: idx % NUM_SAS, chunks_done: 0, vertex_calls: 0, vertex_ms: 0, vectorize_ms: 0, d1_ms: 0, errors: 0 } as ShardResult;
+    if (!recs.length) return { shard_index: idx, chunks_done: 0, vertex_calls: 0, vertex_ms: 0, vectorize_ms: 0, d1_ms: 0, errors: 0 } as ShardResult;
     const stub = doNs.get(doNs.idFromName(`cfcode:shard:${idx}`));
     const r = await stub.fetch("https://shard.internal/process-batch", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({
         job_id, repo_slug,
-        shard_index: idx, sa_index: idx % NUM_SAS, batch_size: BATCH_SIZE, records: recs, gemini_sas: sasPassed,
+        shard_index: idx, batch_size: BATCH_SIZE, records: recs,
       } satisfies ShardBatchReq),
     });
     if (!r.ok) throw new Error(`shard ${idx} returned ${r.status}: ${(await r.text()).slice(0, 200)}`);
@@ -609,7 +441,7 @@ async function ingestSharded(env: Env, input: IngestShardedReq): Promise<Respons
     chunks: records.length, completed: totalDone, failed: totalErr,
     vertex_calls_total: totalVertex,
     wall_ms: wallMs, chunks_per_sec: +(totalDone / (wallMs / 1000)).toFixed(3),
-    shard_count: SHARD_COUNT, batch_size: BATCH_SIZE, num_sas: NUM_SAS,
+    shard_count: SHARD_COUNT, batch_size: BATCH_SIZE,
     shards: shardResults, status,
   });
 }
@@ -643,9 +475,9 @@ async function ingest(env: Env, input: IngestReq): Promise<Response> {
 }
 
 // ── Incremental ingest (fast path: DO fan-out) ──
-async function incrementalIngestSharded(env: Env, input: IncrementalReq & { shard_count?: number; batch_size?: number; num_sas?: string }): Promise<Response> {
+async function incrementalIngestSharded(env: Env, input: IncrementalReq & { shard_count?: number; batch_size?: number }): Promise<Response> {
   await schema(env.DB);
-  if (!env.INDEXING_SHARD_DO) return json({ ok: false, error: "INDEXING_SHARD_DO binding required" }, 501);
+  if (!env.INDEXING_SHARD_V2) return json({ ok: false, error: "INDEXING_SHARD_V2 binding required" }, 501);
   for (const k of ["job_id", "repo_slug", "manifest_id", "base_commit", "target_commit", "artifact_key", "artifact_text"] as const) {
     if (!input[k]) return json({ ok: false, error: `${k} required` }, 400);
   }
@@ -672,7 +504,6 @@ async function incrementalIngestSharded(env: Env, input: IncrementalReq & { shar
 
   const SHARD_COUNT = Math.max(1, input.shard_count ?? intEnv(env.SHARD_COUNT, 4));
   const BATCH_SIZE = Math.max(1, input.batch_size ?? intEnv(env.BATCH_SIZE, 100));
-  const NUM_SAS = Math.max(1, intEnv(input.num_sas ?? env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1));
 
   const created = new Date().toISOString();
   const job = await env.DB.prepare(`INSERT OR REPLACE INTO jobs
@@ -696,13 +527,13 @@ async function incrementalIngestSharded(env: Env, input: IncrementalReq & { shar
   for (let i = 0; i < records.length; i++) shards[i % SHARD_COUNT].push(records[i]);
 
   const tStart = Date.now();
-  const doNs = env.INDEXING_SHARD_DO!;
+  const doNs = env.INDEXING_SHARD_V2!;
   const responses = await Promise.allSettled(shards.map(async (recs, idx) => {
-    if (!recs.length) return { shard_index: idx, sa_index: idx % NUM_SAS, chunks_done: 0, vertex_calls: 0, vertex_ms: 0, vectorize_ms: 0, d1_ms: 0, errors: 0 } as ShardResult;
+    if (!recs.length) return { shard_index: idx, chunks_done: 0, vertex_calls: 0, vertex_ms: 0, vectorize_ms: 0, d1_ms: 0, errors: 0 } as ShardResult;
     const stub = doNs.get(doNs.idFromName(`cfcode:shard:${idx}`));
     const r = await stub.fetch("https://shard.internal/process-batch", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ job_id: input.job_id, repo_slug: input.repo_slug, shard_index: idx, sa_index: idx % NUM_SAS, batch_size: BATCH_SIZE, records: recs } satisfies ShardBatchReq),
+      body: JSON.stringify({ job_id: input.job_id, repo_slug: input.repo_slug, shard_index: idx, batch_size: BATCH_SIZE, records: recs } satisfies ShardBatchReq),
     });
     if (!r.ok) throw new Error(`shard ${idx} returned ${r.status}`);
     return await r.json() as ShardResult;
@@ -727,7 +558,7 @@ async function incrementalIngestSharded(env: Env, input: IncrementalReq & { shar
   return json({
     ok: totalErr === 0, job_id: input.job_id,
     chunks: records.length, completed: totalDone, failed: totalErr,
-    wall_ms: wallMs, shard_count: SHARD_COUNT, batch_size: BATCH_SIZE, num_sas: NUM_SAS,
+    wall_ms: wallMs, shard_count: SHARD_COUNT, batch_size: BATCH_SIZE,
     deactivated: deactivatedCount, status,
   });
 }
@@ -804,7 +635,7 @@ async function processChunk(env: Env, msg: QueueMsg) {
     const record = records[msg.ordinal];
     if (!record) throw new Error(`missing record at ordinal ${msg.ordinal}`);
 
-    const embedding = await embed(env, record.text.slice(0, 8000), "RETRIEVAL_DOCUMENT");
+    const embedding = await embed(env, record.text.slice(0, 8000));
     await env.VECTORIZE.upsert([{
       id: record.chunk_id, values: embedding.values,
       metadata: { repo_slug: record.repo_slug, file_path: record.file_path, active_commit: msg.target_commit || "live" },
@@ -854,7 +685,7 @@ async function search(env: Env, request: Request): Promise<Response> {
   if (Array.isArray(input.values) && input.values.length > 0) {
     queryValues = input.values;
   } else if (input.query) {
-    const q = await embed(env, input.query, "RETRIEVAL_QUERY");
+    const q = await embed(env, input.query);
     queryValues = q.values;
   } else {
     return json({ ok: false, error: "query (text) or values (vector) required" }, 400);
@@ -901,7 +732,7 @@ async function searchHybrid(env: Env, request: Request): Promise<Response> {
   if (Array.isArray(input.values) && input.values.length > 0) {
     queryValues = input.values;
   } else if (input.query) {
-    const q = await embed(env, input.query, "RETRIEVAL_QUERY");
+    const q = await embed(env, input.query);
     queryValues = q.values;
   } else {
     return json({ ok: false, error: "query (text) or values (vector) required" }, 400);
@@ -987,8 +818,8 @@ async function searchRerank(env: Env, request: Request): Promise<Response> {
 
 async function hydeEnrich(env: Env, request: Request): Promise<Response> {
   await schema(env.DB);
-  if (!env.HYDE_SHARD_DO) return json({ ok: false, error: "HYDE_SHARD_DO binding missing" }, 501);
-  const inp = await request.json() as { job_id?: string; repo_slug?: string; batch_size?: number; deepseek_api_key?: string; gemini_sas?: string[]; num_sas?: string };
+  if (!env.HYDE_SHARD_V2) return json({ ok: false, error: "HYDE_SHARD_V2 binding missing" }, 501);
+  const inp = await request.json() as { job_id?: string; repo_slug?: string; batch_size?: number; deepseek_api_key?: string };
   const dsKey = inp.deepseek_api_key || env.DEEPSEEK_API_KEY;
   if (!dsKey) return json({ ok: false, error: "DEEPSEEK_API_KEY missing" }, 501);
   if (!inp.job_id) return json({ ok: false, error: "job_id required" }, 400);
@@ -998,8 +829,6 @@ async function hydeEnrich(env: Env, request: Request): Promise<Response> {
   if (!missing.length) return json({ ok: true, enriched: 0, message: "nothing to enrich" });
 
   const rows = missing.map((r: any) => ({ chunk_id: r.chunk_id as string, text: r.snippet as string, repo_slug: inp.repo_slug as string || "", file_path: r.chunk_id as string, source_sha256: "" }));
-  const sasNum = intEnv(inp.num_sas ?? env.NUM_SAS, env.GEMINI_SERVICE_ACCOUNT_B64_2 ? 2 : 1);
-  const sasPassed = inp.gemini_sas && inp.gemini_sas.length > 0 ? inp.gemini_sas : undefined;
   const bs = inp.batch_size || intEnv(env.BATCH_SIZE, 500);
   const numShards = Math.min(64, Math.max(1, Math.ceil(rows.length / Math.max(1, bs))));
   const buckets: SourceRecord[][] = Array.from({ length: numShards }, () => []);
@@ -1007,8 +836,8 @@ async function hydeEnrich(env: Env, request: Request): Promise<Response> {
 
   const outcomes = await Promise.allSettled(buckets.map((bucket, idx) => {
     if (!bucket.length) return Promise.resolve({ done: 0, errors: 0 });
-    const stub = env.HYDE_SHARD_DO!.get(env.HYDE_SHARD_DO!.idFromName(`h-enrich:${jobId}:${idx}`));
-    return doFetch(stub, "https://s/process-batch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, repo_slug: inp.repo_slug || "", shard_index: idx, shard_count: numShards, sa_index: idx % sasNum, batch_size: bs, records: bucket, deepseek_api_key: dsKey, gemini_sas: sasPassed }) }, 300_000).then(r => r.json() as Promise<{ done: number; errors: number }>);
+    const stub = env.HYDE_SHARD_V2!.get(env.HYDE_SHARD_V2!.idFromName(`h-enrich:${jobId}:${idx}`));
+    return doFetch(stub, "https://s/process-batch", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, repo_slug: inp.repo_slug || "", shard_index: idx, shard_count: numShards, batch_size: bs, records: bucket, deepseek_api_key: dsKey }) }, 300_000).then(r => r.json() as Promise<{ done: number; errors: number }>);
   }));
 
   let enriched = 0, errs = 0;
@@ -1034,7 +863,7 @@ async function metrics(env: Env): Promise<Response> {
     const r = await env.DB.prepare("SELECT key, value FROM metrics").all();
     const out: Record<string, number> = {};
     for (const row of r.results || []) out[row.key as string] = Number(row.value);
-    return json({ ok: true, metrics: out, kv_bound: !!env.VERTEX_TOKEN_CACHE });
+    return json({ ok: true, metrics: out });
   } catch (e) {
     return json({ ok: false, error: e instanceof Error ? e.message : String(e) }, 500);
   }
@@ -1048,7 +877,7 @@ export default {
     if (url.pathname === "/ingest" && request.method === "POST") return ingest(env, await request.json().catch(() => ({})) as IngestReq);
     if (url.pathname === "/ingest-sharded" && request.method === "POST") return ingestSharded(env, await request.json().catch(() => ({})) as IngestShardedReq);
     if (url.pathname === "/incremental-ingest" && request.method === "POST") return incrementalIngest(env, await request.json().catch(() => ({})) as IncrementalReq);
-    if (url.pathname === "/incremental-ingest-sharded" && request.method === "POST") return incrementalIngestSharded(env, await request.json().catch(() => ({})) as IncrementalReq & { shard_count?: number; batch_size?: number; num_sas?: string });
+    if (url.pathname === "/incremental-ingest-sharded" && request.method === "POST") return incrementalIngestSharded(env, await request.json().catch(() => ({})) as IncrementalReq & { shard_count?: number; batch_size?: number });
     const sm = url.pathname.match(/^\/jobs\/([^/]+)\/status$/);
     if (sm) return jobStatus(env, sm[1]);
     if (url.pathname === "/collection_info") return collectionInfo(env);

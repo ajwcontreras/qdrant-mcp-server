@@ -8,18 +8,6 @@ const LIB = path.join(__dirname, "../lib");
 const POLL_INTERVAL = 3000;
 const POLL_DEADLINE = 600_000;
 
-// ── SA file resolution ──
-function saDir() { return path.join(process.env.HOME || "/tmp", ".config/cfcode/sas"); }
-function resolveSAFiles() {
-  const dir = saDir();
-  if (!fs.existsSync(dir)) return [];
-  const preferred = "embedding-code-495015-2fa24eece6fa.json";
-  const preferredPath = path.join(dir, preferred);
-  if (fs.existsSync(preferredPath)) return [preferredPath];
-  return [];
-}
-function saFilesB64(files) { return files.map(f => fs.readFileSync(f, "utf8")); }
-
 // ── Imports ──
 const { loadCfEnv, repoSlugFromPath, r2BucketForSlug, d1NameForSlug, vectorizeIndexForSlug, queueNameForSlug, dlqNameForSlug } = await import(`${LIB}/env.mjs`);
 const { buildFullChunks, buildDiffManifest, buildIncrementalArtifact, fullChunksToJsonl, artifactToJsonl, resolveCommit } = await import(`${LIB}/files.mjs`);
@@ -43,17 +31,19 @@ function parseArgs(argv) {
 
 // ── Shared helpers ──
 
-async function setupSecrets(names, saFiles, env) {
+async function setupSecrets(names, env) {
   log("→ Refreshing secrets...");
-  for (let i = 0; i < saFiles.length && i < 4; i++) {
-    const b64 = Buffer.from(fs.readFileSync(saFiles[i], "utf8")).toString("base64");
-    const name = `GEMINI_SERVICE_ACCOUNT_B64${i === 0 ? "" : `_${i + 1}`}`;
-    try { await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName: name, secretValue: b64 }); }
-    catch (e) { log(`   ${name} FAILED: ${e.message}`); }
-  }
   if (env.DEEPSEEK_API_KEY) {
     try { await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName: "DEEPSEEK_API_KEY", secretValue: env.DEEPSEEK_API_KEY }); }
     catch (e) { log(`   DEEPSEEK_API_KEY FAILED: ${e.message}`); }
+  }
+  if (env.CLOUDFLARE_API_KEY) {
+    try { await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName: "CF_API_KEY", secretValue: env.CLOUDFLARE_API_KEY }); }
+    catch (e) { log(`   CF_API_KEY FAILED: ${e.message}`); }
+  }
+  if (env.CLOUDFLARE_EMAIL) {
+    try { await setNamespaceWorkerSecret({ namespaceName: NAMESPACE_NAME, scriptName: names.workerName, secretName: "CF_EMAIL", secretValue: env.CLOUDFLARE_EMAIL }); }
+    catch (e) { log(`   CF_EMAIL FAILED: ${e.message}`); }
   }
   log("   OK");
 }
@@ -90,20 +80,19 @@ async function cmdIndex(repoPath, flags) {
   }
 
   const names = namesForSlug(slug);
-  const saFiles = resolveSAFiles();
   const env = loadCfEnv();
-  log(`\n📦 cfcode index ${abs}\n   slug: ${slug}   sa: ${saFiles.length}   worker: ${names.workerName}`);
+  log(`\n📦 cfcode index ${abs}\n   slug: ${slug}   worker: ${names.workerName}`);
 
   if (flags.deploy) {
     log("→ Provisioning + deploying...");
     const { d1Id } = provisionResources(names, { log: m => log(`  ${m}`) });
     writeNamespaceWranglerConfig(configPathFor(slug), { ...names, d1Id });
     deployToNamespace(configPathFor(slug), NAMESPACE_NAME);
-    await setupSecrets(names, saFiles, env);
+    await setupSecrets(names, env);
     log("→ Registering with gateway...");
     await registerCodebase(slug, abs);
   } else {
-    await setupSecrets(names, saFiles, env);
+    await setupSecrets(names, env);
   }
 
   log("→ Building chunks...");
@@ -115,7 +104,7 @@ async function cmdIndex(repoPath, flags) {
     job_id: `job-${slug}-${Date.now().toString(36)}`, repo_slug: slug, indexed_path: abs,
     active_commit: resolveCommit(abs, "HEAD"), artifact_key: `full/${Date.now().toString(36)}.jsonl`,
     artifact_text: fullChunksToJsonl(chunks),
-    deepseek_api_key: env.DEEPSEEK_API_KEY || "", gemini_sas: saFilesB64(saFiles), num_sas: String(saFiles.length),
+    deepseek_api_key: env.DEEPSEEK_API_KEY || "",
   };
   if (flags.shards) body.shard_count = Number(flags.shards);
   if (flags.batch) body.batch_size = Number(flags.batch);
@@ -147,9 +136,8 @@ async function cmdReindex(repoPath, flags) {
   if (!manifest.summary.total) { log("→ No changes. Nothing to do."); return; }
 
   const names = namesForSlug(slug);
-  const saFiles = resolveSAFiles();
   const env = loadCfEnv();
-  await setupSecrets(names, saFiles, env);
+  await setupSecrets(names, env);
 
   const { records, tombstones } = buildIncrementalArtifact(abs, manifest);
   const artifactText = artifactToJsonl({ records, tombstones });
@@ -164,7 +152,7 @@ async function cmdReindex(repoPath, flags) {
       job_id: jobId, repo_slug: slug, manifest_id: manifest.manifest_id,
       base_commit: manifest.base_commit, target_commit: manifest.target_commit,
       artifact_key: `incremental/${manifest.manifest_id}.jsonl`, artifact_text: artifactText,
-      deepseek_api_key: env.DEEPSEEK_API_KEY || "", num_sas: String(saFiles.length),
+      deepseek_api_key: env.DEEPSEEK_API_KEY || "",
       shard_count: flags.shards ? Number(flags.shards) : undefined,
       batch_size: flags.batch ? Number(flags.batch) : undefined,
     }),
@@ -218,9 +206,7 @@ async function cmdHydeEnrich(repoPath) {
   if (!jobId) { log("No active publication — index first"); return; }
   log(`\n🧠 hyde-enrich ${slug}   job: ${jobId}`);
   const dsKey = loadCfEnv().DEEPSEEK_API_KEY || "";
-  const saFiles = resolveSAFiles();
-  const saRaw = saFilesB64(saFiles);
-  const res = await proxyToCodebase(slug, "/hyde-enrich", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, repo_slug: slug, deepseek_api_key: dsKey, gemini_sas: saRaw, num_sas: String(saFiles.length) }) });
+  const res = await proxyToCodebase(slug, "/hyde-enrich", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ job_id: jobId, repo_slug: slug, deepseek_api_key: dsKey }) });
   if (!res?.ok) { log(`failed: ${res?.error || JSON.stringify(res)}`); return; }
   log(`   ${res.scanned} scanned, ${res.enriched} enriched, ${res.errors || 0} errors\n✅ HyDE complete`);
 }

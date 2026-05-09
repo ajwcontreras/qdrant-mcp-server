@@ -9,7 +9,6 @@
   "d1_databases": [{ "binding": "DB", "database_name": "cfcode-income-scout-bun" }],
   "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-income-scout-bun" }],
   "vars": {
-    "NUM_SAS": "1"
   },
   "queues": {
     "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-income-scout-bun-work" }],

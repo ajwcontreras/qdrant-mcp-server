@@ -110,6 +110,14 @@ AST chunking via regex (12 languages, function/class boundaries). 20 golden quer
 
 Cfpubsub "workers registered" query is the major gap (Recall=0.0, answer file never surfaces).
 
+## 2026-05-09 live task: Replace Vertex AI embedding with Workers AI
+
+Replaced all Vertex AI embedding code in `cloudflare-mcp/workers/codebase/src/index.ts` with Cloudflare Workers AI (`@cf/baai/bge-large-en-v1.5`, 1024d).
+- Removed: KVLike type, all ENV Vertex fields (GEMINI_*, GOOGLE_*, VERTEX_TOKEN_CACHE, NUM_SAS), GoogleSA type, all OAuth code (tokenCache, parseSA, pemToAB, b64url, signJwt, bumpMetric, googleToken), sharded SA functions (tokenCacheBySA, parseSAByIndex, parseSAB64, saFromArray, tokenForSA), old embed/embedBatch.
+- Added: `AI` binding to Env type, `EMBED_MODEL` constant, new `embed()` (backward-compat signature with optional _taskType) and `embedBatch()` (backward-compat with _sa param ignored).
+- Cleaned: ShardBatchReq (removed sa_index, gemini_sas), ShardResult (removed sa_index), IngestShardedReq (removed num_sas, gemini_sas), all DO processors (use EMBED_MODEL/1024d, embedBatch with 0), ingest/incremental/hydeEnrich endpoints (SA code removed), search endpoints (task_type removed), metrics (kv_bound removed).
+- **STATUS: DONE — `npm run check` (tsc --noEmit) passes clean**.
+
 ## What's NEXT (Phase 34)
 - Fix cfpubsub "workers registered" gap — commands-runtime.ts should rank for "workers registered"
 - Re-index cfpubsub with AST chunks, measure eval delta

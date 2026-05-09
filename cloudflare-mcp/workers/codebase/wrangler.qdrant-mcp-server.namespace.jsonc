@@ -10,17 +10,17 @@
   "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-qdrant-mcp-server" }],
   "durable_objects": {
     "bindings": [
-      { "name": "INDEXING_SHARD_DO", "class_name": "IndexingShardDO" },
-      { "name": "HYDE_SHARD_DO", "class_name": "HydeShardDO" }
+      { "name": "INDEXING_SHARD_V2", "class_name": "IndexingShardV2" },
+      { "name": "HYDE_SHARD_V2", "class_name": "HydeShardV2" }
     ]
   },
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["IndexingShardDO", "HydeShardDO"] }
+    { "tag": "v1", "new_sqlite_classes": ["IndexingShardV2", "HydeShardV2"] }
   ],
   "vars": {
     "SHARD_COUNT": "4",
     "BATCH_SIZE": "100",
-    "NUM_SAS": "2"
+  "ai": { "binding": "AI" },
   },
   "queues": {
     "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-qdrant-mcp-server-work" }]

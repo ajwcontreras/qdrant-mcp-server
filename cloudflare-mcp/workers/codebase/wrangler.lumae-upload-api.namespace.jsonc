@@ -6,22 +6,23 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-lumae-upload-api-artifacts" }],
-  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-lumae-upload-api", "database_id": "b4268296-4cd1-4492-84e0-258eefef55cf" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-lumae-upload-api", "database_id": "ed9027f6-8254-4ed3-81d3-f4a8ffff9152" }],
   "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-lumae-upload-api" }],
   "durable_objects": {
     "bindings": [
-      { "name": "INDEXING_SHARD_DO", "class_name": "IndexingShardDO" },
-      { "name": "HYDE_SHARD_DO", "class_name": "HydeShardDO" }
+      { "name": "INDEXING_SHARD_V2", "class_name": "IndexingShardV2" },
+      { "name": "HYDE_SHARD_V2", "class_name": "HydeShardV2" }
     ]
   },
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["IndexingShardDO", "HydeShardDO"] }
+    { "tag": "v1", "new_sqlite_classes": ["IndexingShardDO", "HydeShardDO"] },
+    { "tag": "v2", "new_sqlite_classes": ["IndexingShardV2", "HydeShardV2"] }
   ],
   "vars": {
     "SHARD_COUNT": "4",
-    "BATCH_SIZE": "100",
-    "NUM_SAS": "1"
+    "BATCH_SIZE": "100"
   },
+  "ai": { "binding": "AI" },
   "queues": {
     "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-lumae-upload-api-work" }]
   }
