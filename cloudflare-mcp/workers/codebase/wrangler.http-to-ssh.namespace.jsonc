@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-codebase-http-to-ssh",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-http-to-ssh-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-http-to-ssh", "database_id": "e5b96999-4153-493b-9ee0-9f56f23b01b4" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-http-to-ssh" }],
+  "durable_objects": {
+    "bindings": [
+      { "name": "INDEXING_SHARD_V2", "class_name": "IndexingShardV2" },
+      { "name": "HYDE_SHARD_V2", "class_name": "HydeShardV2" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["IndexingShardDO", "HydeShardDO"] },
+    { "tag": "v2", "new_sqlite_classes": ["IndexingShardV2", "HydeShardV2"] }
+  ],
+  "vars": {
+    "SHARD_COUNT": "4",
+    "BATCH_SIZE": "100"
+  },
+  "ai": { "binding": "AI" },
+  "queues": {
+    "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-http-to-ssh-work" }]
+  }
+}

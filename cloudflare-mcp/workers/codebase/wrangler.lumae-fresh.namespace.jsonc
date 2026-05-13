@@ -1,0 +1,29 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cfcode-codebase-lumae-fresh",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "cfcode-lumae-fresh-artifacts" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "cfcode-lumae-fresh", "database_id": "6a4309fb-9eba-4e7b-acbe-5c2966359549" }],
+  "vectorize": [{ "binding": "VECTORIZE", "index_name": "cfcode-lumae-fresh" }],
+  "durable_objects": {
+    "bindings": [
+      { "name": "INDEXING_SHARD_V2", "class_name": "IndexingShardV2" },
+      { "name": "HYDE_SHARD_V2", "class_name": "HydeShardV2" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["IndexingShardDO", "HydeShardDO"] },
+    { "tag": "v2", "new_sqlite_classes": ["IndexingShardV2", "HydeShardV2"] }
+  ],
+  "vars": {
+    "SHARD_COUNT": "4",
+    "BATCH_SIZE": "100"
+  },
+  "ai": { "binding": "AI" },
+  "queues": {
+    "producers": [{ "binding": "WORK_QUEUE", "queue": "cfcode-lumae-fresh-work" }]
+  }
+}

@@ -147,7 +147,7 @@ Ask: "use cfcode list_codebases", then "select lumae-fresh and search for X".
 | 30A-30G (7 POCs) | ✅ ALL PASS | Dual fan-out code+HyDE, 97% completion |
 | 31D-31K (10 POCs) | ✅ ALL PASS | Fire-and-forget, R2-pull, 64 hyde shards, council-reviewed |
 
-**Current architecture (31K):** Fire-and-forget producer via DO alarm, 4 code shards + 64 hyde shards, R2-pull per shard, `/hyde-enrich` gap fill. Code searchable in ~10s, full pipeline ~30s for 600-chunk codebases.
+**Current architecture:** Fire-and-forget producer via DO alarm, 4 code shards + 64 hyde shards, R2-pull per shard, `/hyde-enrich` gap fill. Code searchable in ~10s, full pipeline ~30s for 600-chunk codebases. 31K ported to canonical worker in Phase 32.
 
 Full setup guide: **[SETUP.md](SETUP.md)** — zero to indexed codebase in 14 steps.
 Lessons learned: **[LESSONS_LEARNED.md](LESSONS_LEARNED.md)**

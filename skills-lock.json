@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "d2-data-architect": {
+      "source": "/Users/awilliamspcsevents/.agents/skills/d2-data-architect",
+      "sourceType": "local",
+      "computedHash": "6087ac306e0e95370dc666d20b306d967d6d9984ec19b7f6a528dc6f531decc7"
+    }
+  }
+}

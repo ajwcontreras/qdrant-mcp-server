@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>cfcode Architecture</title>
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>cfcode (qdrant-mcp-server) - Architecture Diagrams</h1>
+    </header>
+    <main>
+      <section id="data-models">
+        <h2>
+          <span>Data Models - D1 SQLite & Vectorize</span>
+          <span class="hint">Space+drag pan · wheel zoom · F fit</span>
+        </h2>
+        <div class="viewport" id="vp-data-models" tabindex="0" aria-label="Data models diagram viewer" data-src="data_models.svg" data-label="Data model diagram">
+          <div class="canvas"></div>
+          <div class="mini-map" data-key="data-models" title="Click to jump around the diagram">
+            <span class="view-rect"></span>
+          </div>
+          <div class="floating-controls" aria-label="Data models controls">
+            <button class="tool-button fit-button" type="button" data-action="fit" title="Fit to viewport (F)">Fit</button>
+            <input class="zoom-slider" type="range" min="2" max="500" step="1" value="100" aria-label="Zoom data models">
+            <span class="zoom-readout">100%</span>
+            <button class="tool-button fullscreen-button" type="button" data-action="fullscreen" title="Fullscreen">Full</button>
+          </div>
+          <div class="loading">Loading diagram</div>
+        </div>
+      </section>
+
+      <section id="data-flows">
+        <h2>
+          <span>Data Flows - MCP Client, Gateway & Dispatch</span>
+          <span class="hint">Ctrl/Cmd +/- zoom · arrows pan · Ctrl/Cmd 0 fit</span>
+        </h2>
+        <div class="viewport" id="vp-data-flows" tabindex="0" aria-label="Data flows diagram viewer" data-src="data_flows.svg" data-label="Data flow diagram">
+          <div class="canvas"></div>
+          <div class="mini-map" data-key="data-flows" title="Click to jump around the diagram">
+            <span class="view-rect"></span>
+          </div>
+          <div class="floating-controls" aria-label="Data flows controls">
+            <button class="tool-button fit-button" type="button" data-action="fit" title="Fit to viewport (F)">Fit</button>
+            <input class="zoom-slider" type="range" min="2" max="500" step="1" value="100" aria-label="Zoom data flows">
+            <span class="zoom-readout">100%</span>
+            <button class="tool-button fullscreen-button" type="button" data-action="fullscreen" title="Fullscreen">Full</button>
+          </div>
+          <div class="loading">Loading diagram</div>
+        </div>
+      </section>
+
+      <section id="data-pipelines">
+        <h2>
+          <span>Data Pipelines - Fan-out Indexing & HyDE Enrichment</span>
+          <span class="hint">Mini-map jump · double-click fit · Esc exits fullscreen</span>
+        </h2>
+        <div class="viewport" id="vp-data-pipelines" tabindex="0" aria-label="Data pipelines diagram viewer" data-src="data_pipelines.svg" data-label="Data pipeline diagram">
+          <div class="canvas"></div>
+          <div class="mini-map" data-key="data-pipelines" title="Click to jump around the diagram">
+            <span class="view-rect"></span>
+          </div>
+          <div class="floating-controls" aria-label="Data pipelines controls">
+            <button class="tool-button fit-button" type="button" data-action="fit" title="Fit to viewport (F)">Fit</button>
+            <input class="zoom-slider" type="range" min="2" max="500" step="1" value="100" aria-label="Zoom data pipelines">
+            <span class="zoom-readout">100%</span>
+            <button class="tool-button fullscreen-button" type="button" data-action="fullscreen" title="Fullscreen">Full</button>
+          </div>
+          <div class="loading">Loading diagram</div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
